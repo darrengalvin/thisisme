@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  birthYear Int?     // Year of birth for timeline start
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  memories         Memory[]
+  createdTimeZones TimeZone[] @relation("TimeZoneCreator")
+  timeZoneMembers  TimeZoneMember[]
+  sentInvitations  Invitation[] @relation("InvitationSender")
+  notifications    Notification[]
+
+  @@map("users")
+}
+
+model Memory {
+  id              String   @id @default(cuid())
+  title           String?
+  textContent     String?
+  userId          String
+  timeZoneId      String?
+  datePrecision   String?  // "exact", "approximate", "era"
+  approximateDate String?  // Human description: "Summer 1982", "Early 80s"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timeZone TimeZone?  @relation(fields: [timeZoneId], references: [id], onDelete: Cascade)
+  media    Media[]
+
+  @@map("memories")
+}
+
+model Media {
+  id           String    @id @default(cuid())
+  memoryId     String
+  type         String    // "IMAGE", "VIDEO", "AUDIO"
+  storageUrl   String
+  thumbnailUrl String?
+  fileName     String
+  fileSize     Int
+  mimeType     String
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  memory Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@map("media")
+}
+
+model TimeZone {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  type        String       // "PRIVATE", "GROUP"
+  startDate   DateTime?
+  endDate     DateTime?
+  location    String?
+  inviteCode  String?      @unique
+  creatorId   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  creator     User               @relation("TimeZoneCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members     TimeZoneMember[]
+  memories    Memory[]
+  invitations Invitation[]
+
+  @@map("timezones")
+}
+
+model TimeZoneMember {
+  id         String             @id @default(cuid())
+  timeZoneId String
+  userId     String
+  role       String             @default("MEMBER") // "CREATOR", "MEMBER"
+  joinedAt   DateTime           @default(now())
+
+  // Relations
+  timeZone TimeZone @relation(fields: [timeZoneId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([timeZoneId, userId])
+  @@map("timezone_members")
+}
+
+model Invitation {
+  id         String           @id @default(cuid())
+  code       String           @unique
+  timeZoneId String
+  createdBy  String
+  isActive   Boolean          @default(true)
+  expiresAt  DateTime?
+  createdAt  DateTime         @default(now())
+  status     String           @default("PENDING") // "PENDING", "ACCEPTED", "EXPIRED", "CANCELLED"
+
+  // Relations
+  timeZone TimeZone @relation(fields: [timeZoneId], references: [id], onDelete: Cascade)
+  sender   User     @relation("InvitationSender", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      String           // "TIMEZONE_INVITATION", "NEW_MEMORY", "MEMBER_JOINED"
+  title     String
+  message   String
+  data      String?          // JSON string
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// SQLite doesn't support enums, so we use string constants
+// MediaType: "IMAGE", "VIDEO", "AUDIO"
+// TimeZoneType: "PRIVATE", "GROUP"
+// TimeZoneMemberRole: "CREATOR", "MEMBER"
+// InvitationStatus: "PENDING", "ACCEPTED", "EXPIRED", "CANCELLED"
+// NotificationType: "TIMEZONE_INVITATION", "NEW_MEMORY", "MEMBER_JOINED" 
