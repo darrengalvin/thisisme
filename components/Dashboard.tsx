@@ -403,16 +403,14 @@ export default function Dashboard() {
 
           {/* Right - Actions & Profile */}
           <div className="flex items-center space-x-3">
-            {/* Add Chapter Button - Hidden for new users to avoid confusion with welcome experience */}
-            {!isNewUser && (
-              <button
-                onClick={() => setActiveTab('create-timezone')}
-                className="bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-700 hover:to-slate-600 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
-              >
-                <Plus size={18} />
-                <span className="hidden lg:inline">Add Chapter</span>
-              </button>
-            )}
+            {/* Add Chapter Button - Available for all users */}
+            <button
+              onClick={() => setActiveTab('create-timezone')}
+              className="bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-700 hover:to-slate-600 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
+            >
+              <Plus size={18} />
+              <span className="hidden lg:inline">Add Chapter</span>
+            </button>
             
             {/* Add Memory Button */}
             <button

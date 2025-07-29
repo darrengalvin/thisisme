@@ -34,15 +34,7 @@ export default function ChronologicalTimelineView({
   const [currentViewYear, setCurrentViewYear] = useState(new Date().getFullYear())
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
   const [isLoadingChapters, setIsLoadingChapters] = useState(true)
-  const [showCreateChapterModal, setShowCreateChapterModal] = useState(false)
-  const [newChapter, setNewChapter] = useState({
-    title: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-    headerImage: null as File | null
-  })
-  const [isCreatingChapter, setIsCreatingChapter] = useState(false)
+  // Chapter creation modal removed - using header button and CreateTimeZone component
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null)
 
   const birthYear = propBirthYear || 1981 // From user profile with fallback
@@ -194,61 +186,7 @@ export default function ChronologicalTimelineView({
     }
   }
 
-  const handleCreateChapter = async () => {
-    if (!newChapter.title.trim() || !user) return
-
-    setIsCreatingChapter(true)
-    try {
-      // Get custom JWT token for API
-      const tokenResponse = await fetch('/api/auth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email: user.email }),
-      })
-
-      if (!tokenResponse.ok) {
-        throw new Error('Failed to get auth token')
-      }
-
-      const { token } = await tokenResponse.json()
-
-      // Create FormData for file upload support
-      const formData = new FormData()
-      formData.append('title', newChapter.title)
-      formData.append('description', newChapter.description || '')
-      formData.append('startDate', newChapter.startDate || '')
-      formData.append('endDate', newChapter.endDate || '')
-      formData.append('type', 'PRIVATE')
-      
-      // Add header image if provided
-      if (newChapter.headerImage) {
-        formData.append('headerImage', newChapter.headerImage)
-      }
-
-      const response = await fetch('/api/timezones', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-          // Don't set Content-Type for FormData, let browser handle it
-        },
-        body: formData
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create chapter')
-      }
-
-      const result = await response.json()
-      setChapters(prev => [...prev, result.timeZone])
-      setShowCreateChapterModal(false)
-      setNewChapter({ title: '', description: '', startDate: '', endDate: '', headerImage: null })
-    } catch (error) {
-      console.error('Error creating chapter:', error)
-      alert('Failed to create chapter. Please try again.')
-    } finally {
-      setIsCreatingChapter(false)
-    }
-  }
+  // Chapter creation function removed - using header button and CreateTimeZone component
 
   const getMediaThumbnail = (memory: MemoryWithRelations) => {
     if (!memory.media || memory.media.length === 0) return null
@@ -600,18 +538,7 @@ export default function ChronologicalTimelineView({
                   )
                 })}
 
-                {/* Add Chapter button - Only show for users with existing content */}
-                {chapters.length > 0 && (
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-4">
-                    <button
-                      onClick={() => setShowCreateChapterModal(true)}
-                      className="bg-slate-600 hover:bg-slate-700 text-white py-2 px-4 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 shadow-sm"
-                    >
-                      <Plus size={12} />
-                      <span>Add Chapter</span>
-                    </button>
-                  </div>
-                )}
+                {/* Add Chapter button removed - now in header */}
               </div>
             </div>
           </div>
@@ -687,7 +614,7 @@ export default function ChronologicalTimelineView({
                       Create your first life chapter and watch it appear on your timeline above
                     </p>
                     <button
-                      onClick={() => setShowCreateChapterModal(true)}
+                      onClick={() => window.location.href = '#create-chapter'}
                       className="bg-white text-slate-800 hover:bg-slate-100 py-4 px-8 rounded-xl text-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg"
                     >
                       📖 Create Your First Chapter
@@ -711,7 +638,7 @@ export default function ChronologicalTimelineView({
                 </p>
                 <div className="space-y-4">
                   <button
-                    onClick={() => setShowCreateChapterModal(true)}
+                    onClick={() => console.log('Use header button to create chapters')}
                     className="bg-white hover:bg-slate-50 text-slate-900 py-3 px-6 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg mr-4"
                   >
                     📖 Create Chapter
@@ -739,120 +666,7 @@ export default function ChronologicalTimelineView({
         )}
       </div>
 
-      {/* Create Chapter Modal */}
-      {showCreateChapterModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-4 lg:p-6">
-              <div className="flex items-center justify-between mb-4 lg:mb-6">
-                <h3 className="text-lg lg:text-xl font-bold text-slate-900">Add Your Chapter</h3>
-                <button
-                  onClick={() => setShowCreateChapterModal(false)}
-                  className="text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-4 lg:space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1 lg:mb-2">
-                    Chapter Title *
-                  </label>
-                  <input
-                    type="text"
-                    value={newChapter.title}
-                    onChange={(e) => setNewChapter(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="e.g., University Years, Working at Company"
-                    className="w-full p-2 lg:p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm lg:text-base"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1 lg:mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={newChapter.description}
-                    onChange={(e) => setNewChapter(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Brief description of this chapter..."
-                    rows={3}
-                    className="w-full p-2 lg:p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm lg:text-base"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1 lg:mb-2">
-                    Header Image
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null
-                        setNewChapter(prev => ({ ...prev, headerImage: file }))
-                      }}
-                      className="w-full p-2 lg:p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm lg:text-base file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
-                    />
-                    {newChapter.headerImage && (
-                      <div className="mt-2">
-                        <img 
-                          src={URL.createObjectURL(newChapter.headerImage)} 
-                          alt="Chapter header preview" 
-                          className="w-full h-24 object-cover rounded-lg border border-slate-200"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">Optional: Add a header image to represent this chapter</p>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1 lg:mb-2">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={newChapter.startDate}
-                      onChange={(e) => setNewChapter(prev => ({ ...prev, startDate: e.target.value }))}
-                      className="w-full p-2 lg:p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm lg:text-base"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1 lg:mb-2">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={newChapter.endDate}
-                      onChange={(e) => setNewChapter(prev => ({ ...prev, endDate: e.target.value }))}
-                      className="w-full p-2 lg:p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-sm lg:text-base"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex space-x-3 lg:space-x-4 mt-6 lg:mt-8">
-                <button
-                  onClick={() => setShowCreateChapterModal(false)}
-                  className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2 lg:py-3 px-4 rounded-lg font-medium transition-all duration-200 text-sm lg:text-base"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateChapter}
-                  disabled={isCreatingChapter || !newChapter.title.trim()}
-                  className="flex-1 bg-slate-600 hover:bg-slate-700 text-white py-2 lg:py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm lg:text-base"
-                >
-                  {isCreatingChapter ? 'Creating...' : 'Create Chapter'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Chapter creation modal removed - using header button and CreateTimeZone component */}
     </div>
   )
 } 
