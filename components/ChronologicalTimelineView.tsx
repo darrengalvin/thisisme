@@ -341,7 +341,7 @@ export default function ChronologicalTimelineView({
             </div>
 
             {/* Chapter positioning area */}
-            <div className={`relative ${chapters.length > 0 ? 'mt-8 mb-16' : 'mt-2 mb-2'}`} style={{ minHeight: chapters.length > 0 ? `${Math.max(600, chapters.length * 350 + 400)}px` : '120px' }}>
+            <div className={`relative ${chapters.length > 0 ? 'mt-8 mb-16' : 'mt-0 mb-0'}`} style={{ minHeight: chapters.length > 0 ? `${Math.max(600, chapters.length * 350 + 400)}px` : '20px' }}>
               <div className="absolute inset-0">
                 {/* Positioned chapters */}
                 {chapters.filter(chapter => chapter && chapter.id && chapter.title).map((chapter, chapterIndex) => {
@@ -619,7 +619,7 @@ export default function ChronologicalTimelineView({
           )}
 
       {/* Content Area Below Timeline */}
-      <div className={`p-4 lg:p-8 ${(memories.length === 0 && chapters.length === 0) ? 'mt-2' : 'mt-8'}`}>
+      <div className={`p-4 lg:p-8 ${(memories.length === 0 && chapters.length === 0) ? 'mt-0' : 'mt-8'}`}>
         {(memories.length === 0 && chapters.length === 0) ? (
           /* New User Welcome Experience */
           isNewUser ? (
