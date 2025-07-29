@@ -38,7 +38,13 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
       hasStartedCreation.current = true // Mark as started to prevent duplicates
       
       // Show some years incrementally for animation effect
-      const targetYear = birthYear
+      // Calculate birth year from user input for animations
+  const currentBirthYear = userData.useBirthDateOnly 
+    ? userData.birthYear 
+    : userData.birthDate 
+      ? new Date(userData.birthDate).getFullYear() 
+      : null
+  const targetYear = currentBirthYear || (new Date().getFullYear() - 25) // fallback to 2000
       const currentYear = new Date().getFullYear()
       
       // Generate year markers for timeline animation - ensure no duplicates
@@ -145,7 +151,8 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
         if (userData.name.trim()) setCurrentStep('birth-date')
         break
       case 'birth-date':
-        if (birthYear) setCurrentStep('email')
+        const userBirthYear = userData.useBirthDateOnly ? userData.birthYear : (userData.birthDate ? new Date(userData.birthDate).getFullYear() : null)
+      if (userBirthYear) setCurrentStep('email')
         break
       case 'email':
         if (userData.email.trim()) setCurrentStep('timeline-building')
@@ -186,10 +193,17 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
   const handleCreateAccount = async () => {
     try {
       console.log('🚀 ONBOARDING: Starting account creation')
+      // Calculate birth year from user input
+      const userBirthYear = userData.useBirthDateOnly 
+        ? userData.birthYear 
+        : userData.birthDate 
+          ? new Date(userData.birthDate).getFullYear() 
+          : null
+
       console.log('📝 User data:', {
         name: userData.name,
         email: userData.email,
-        birthYear: birthYear,
+        birthYear: userBirthYear,
         useBirthDateOnly: userData.useBirthDateOnly
       })
       
@@ -265,7 +279,7 @@ Please sign in using your existing password.`)
         })
         
         // Create user profile record with birth year
-        console.log('📝 Creating user profile with birth year:', birthYear)
+        console.log('📝 Creating user profile with birth year:', userBirthYear)
         
         // Use the onboarding API endpoint to create the profile (bypasses RLS issues)
         const profileResponse = await fetch('/api/auth/onboard', {
@@ -276,7 +290,7 @@ Please sign in using your existing password.`)
           body: JSON.stringify({
             userId: authData.user.id,
             email: authData.user.email,
-            birthYear: birthYear
+            birthYear: userBirthYear
           })
         })
 
@@ -328,7 +342,8 @@ Please sign in using your existing password.`)
       case 'name':
         return userData.name.trim().length > 0
       case 'birth-date':
-        return !!birthYear
+        const userBirthYear = userData.useBirthDateOnly ? userData.birthYear : (userData.birthDate ? new Date(userData.birthDate).getFullYear() : null)
+      return !!userBirthYear
       case 'email':
         return userData.email.trim().length > 0 && userData.email.includes('@')
       default:
@@ -676,8 +691,8 @@ Please sign in using your existing password.`)
                 ✨ Setting up {userData.name}'s LIFE Timeline
               </h2>
               <p className="text-slate-600">
-                {birthYear ? 
-                  `Preparing your journey from ${birthYear} to today...` :
+                {userData.useBirthDateOnly ? userData.birthYear : (userData.birthDate ? new Date(userData.birthDate).getFullYear() : null) ? 
+                  `Preparing your journey from ${userData.useBirthDateOnly ? userData.birthYear : new Date(userData.birthDate!).getFullYear()} to today...` :
                   'Preparing your personal timeline...'
                 }
               </p>
@@ -691,7 +706,7 @@ Please sign in using your existing password.`)
                 
                 {/* Year Markers Animation */}
                 <div className="relative h-full flex flex-col justify-between">
-                  {birthYear && animatedYears.map((year, index) => (
+                  {(userData.useBirthDateOnly ? userData.birthYear : (userData.birthDate ? new Date(userData.birthDate).getFullYear() : null)) && animatedYears.map((year, index) => (
                     <div 
                       key={year}
                       className={`absolute left-1/2 transform -translate-x-1/2 transition-all duration-1000 ease-out ${
@@ -710,10 +725,10 @@ Please sign in using your existing password.`)
                   ))}
                   
                   {/* Birth Year (Start) */}
-                  {birthYear && (
+                  {(userData.useBirthDateOnly ? userData.birthYear : (userData.birthDate ? new Date(userData.birthDate).getFullYear() : null)) && (
                     <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-2">
                       <div className="bg-emerald-600 text-white px-4 py-2 rounded-full font-bold shadow-lg text-lg">
-                        🌱 Born {birthYear}
+                        🌱 Born {userData.useBirthDateOnly ? userData.birthYear : new Date(userData.birthDate!).getFullYear()}
                       </div>
                     </div>
                   )}
