@@ -59,7 +59,16 @@ export async function GET(request: NextRequest) {
 
     // Transform data to match expected format
     const transformedTimeZones = timeZones?.map((tz: any) => {
-      console.log('🖼️ TRANSFORM CHAPTER:', tz.title, 'header_image_url:', tz.header_image_url)
+      // Handle old local filesystem URLs (set to null since files don't exist in Supabase)
+      let headerImageUrl = tz.header_image_url
+      if (headerImageUrl && headerImageUrl.startsWith('/uploads/')) {
+        // Old local filesystem URLs - set to null since files don't exist in Supabase Storage
+        console.log('🔄 TRANSFORM CHAPTER: Removing old local URL for:', tz.title, 'URL:', tz.header_image_url)
+        headerImageUrl = null
+      } else {
+        console.log('🖼️ TRANSFORM CHAPTER:', tz.title, 'header_image_url:', tz.header_image_url)
+      }
+      
       return {
         ...tz,
         id: tz.id,
@@ -69,7 +78,7 @@ export async function GET(request: NextRequest) {
         startDate: tz.start_date,
         endDate: tz.end_date,
         location: tz.location,
-        headerImageUrl: tz.header_image_url, // Transform header image URL
+        headerImageUrl: headerImageUrl, // Use transformed URL
         inviteCode: tz.invite_code,
         createdById: tz.creator_id,
         createdAt: tz.created_at,
