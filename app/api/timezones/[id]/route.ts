@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
-import { promises as fs, existsSync } from 'fs'
 import { v4 as uuidv4 } from 'uuid'
-import * as path from 'path'
 
 export async function PUT(
   request: NextRequest,
@@ -91,13 +89,22 @@ export async function PUT(
     let headerImageUrl = existingTimezone.header_image_url
     
     if (removeHeaderImage) {
-      // Remove the existing image
+      // Remove the existing image from Supabase Storage
       if (existingTimezone.header_image_url) {
         try {
-          const imagePath = path.join(process.cwd(), 'public', existingTimezone.header_image_url)
-          if (existsSync(imagePath)) {
-            await fs.unlink(imagePath)
-            console.log('🗑️ CHAPTER UPDATE: Removed old header image')
+          // Extract file path from Supabase URL
+          const urlParts = existingTimezone.header_image_url.split('/files/')
+          if (urlParts.length > 1) {
+            const filePath = urlParts[1]
+            const { error: deleteError } = await supabase.storage
+              .from('files')
+              .remove([filePath])
+            
+            if (deleteError) {
+              console.error('❌ CHAPTER UPDATE: Failed to remove old image from storage:', deleteError)
+            } else {
+              console.log('🗑️ CHAPTER UPDATE: Removed old header image from storage')
+            }
           }
         } catch (unlinkError) {
           console.error('❌ CHAPTER UPDATE: Failed to remove old image:', unlinkError)
@@ -108,32 +115,59 @@ export async function PUT(
       try {
         console.log('🖼️ CHAPTER UPDATE: Processing new header image upload')
         
-        // Remove old image if it exists
+        // Remove old image from Supabase Storage if it exists
         if (existingTimezone.header_image_url) {
           try {
-            const oldImagePath = path.join(process.cwd(), 'public', existingTimezone.header_image_url)
-            if (existsSync(oldImagePath)) {
-              await fs.unlink(oldImagePath)
-              console.log('🗑️ CHAPTER UPDATE: Removed old header image')
+            const urlParts = existingTimezone.header_image_url.split('/files/')
+            if (urlParts.length > 1) {
+              const oldFilePath = urlParts[1]
+              const { error: deleteError } = await supabase.storage
+                .from('files')
+                .remove([oldFilePath])
+              
+              if (deleteError) {
+                console.error('❌ CHAPTER UPDATE: Failed to remove old image from storage:', deleteError)
+              } else {
+                console.log('🗑️ CHAPTER UPDATE: Removed old header image from storage')
+              }
             }
           } catch (unlinkError) {
             console.error('❌ CHAPTER UPDATE: Failed to remove old image:', unlinkError)
           }
         }
         
-        // Upload new image
+        // Upload new image to Supabase Storage
         const bytes = await headerImageFile.arrayBuffer()
         const buffer = Buffer.from(bytes)
         
-        const fileExtension = path.extname(headerImageFile.name)
-        const fileName = `${uuidv4()}${fileExtension}`
-        const filePath = path.join(process.cwd(), 'public', 'uploads', fileName)
+        const fileExtension = headerImageFile.name.split('.').pop() || 'jpg'
+        const fileName = `${uuidv4()}.${fileExtension}`
+        const filePath = `uploads/${fileName}`
         
-        console.log('📁 CHAPTER UPDATE: Saving new file:', { fileName, filePath })
-        await fs.writeFile(filePath, buffer)
-        console.log('✅ CHAPTER UPDATE: New file saved successfully')
+        console.log('📁 CHAPTER UPDATE: Uploading new file to Supabase Storage:', filePath)
         
-        headerImageUrl = `/uploads/${fileName}`
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('files')
+          .upload(filePath, buffer, {
+            contentType: headerImageFile.type,
+            upsert: false
+          })
+        
+        if (uploadError) {
+          console.error('❌ CHAPTER UPDATE: Supabase Storage upload error:', uploadError)
+          return NextResponse.json(
+            { success: false, error: `Failed to upload header image: ${uploadError.message}` },
+            { status: 500 }
+          )
+        }
+        
+        // Get public URL for the uploaded file
+        const { data: { publicUrl } } = supabase.storage
+          .from('files')
+          .getPublicUrl(filePath)
+        
+        console.log('✅ CHAPTER UPDATE: New file uploaded successfully:', publicUrl)
+        headerImageUrl = publicUrl
       } catch (fileError) {
         console.error('💥 CHAPTER UPDATE: File upload error:', fileError)
         return NextResponse.json(
@@ -296,13 +330,22 @@ export async function DELETE(
       )
     }
 
-    // Delete header image file if it exists
+    // Delete header image from Supabase Storage if it exists
     if (existingTimezone.header_image_url) {
       try {
-        const imagePath = path.join(process.cwd(), 'public', existingTimezone.header_image_url)
-        if (existsSync(imagePath)) {
-          await fs.unlink(imagePath)
-          console.log('🗑️ CHAPTER DELETE: Removed header image file')
+        // Extract file path from Supabase URL
+        const urlParts = existingTimezone.header_image_url.split('/files/')
+        if (urlParts.length > 1) {
+          const filePath = urlParts[1]
+          const { error: deleteError } = await supabase.storage
+            .from('files')
+            .remove([filePath])
+          
+          if (deleteError) {
+            console.error('❌ CHAPTER DELETE: Failed to remove header image from storage:', deleteError)
+          } else {
+            console.log('🗑️ CHAPTER DELETE: Removed header image from storage')
+          }
         }
       } catch (unlinkError) {
         console.error('❌ CHAPTER DELETE: Failed to remove header image:', unlinkError)
