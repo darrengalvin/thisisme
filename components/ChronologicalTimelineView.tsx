@@ -306,90 +306,8 @@ export default function ChronologicalTimelineView({
 
   return (
     <div className="h-full bg-gradient-to-br from-slate-50 to-white overflow-y-auto">
-      {/* New User Welcome Experience - Show immediately for users with no content */}
-      {(memories.length === 0 && chapters.length === 0 && isNewUser) ? (
-        <div className="p-4 lg:p-8">
-          <div className="max-w-4xl mx-auto space-y-8">
-            {/* Welcome Header */}
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-3xl">📖</span>
-              </div>
-              <h1 className="text-4xl font-bold text-slate-900 mb-4">Welcome to Your Life Timeline!</h1>
-              <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-                Let's start building your personal story by creating your first life chapter.
-              </p>
-            </div>
-
-            {/* What are Chapters Section */}
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
-                <span className="mr-3">🏛️</span>
-                What are Life Chapters?
-              </h2>
-              <div className="grid md:grid-cols-2 gap-6 mb-8">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">Think of chapters as life phases</h3>
-                  <p className="text-slate-600">
-                    Chapters help you organise your memories by meaningful time periods in your life.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">Memories come later</h3>
-                  <p className="text-slate-600">
-                    Once you create chapters, you can add photos, videos, and stories to bring them to life.
-                  </p>
-                </div>
-              </div>
-
-              {/* Chapter Ideas */}
-              <div className="bg-slate-50 rounded-xl p-6 mb-8">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4">💡 Chapter Ideas to Get You Started</h3>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { icon: "🎓", title: "School Years", desc: "University days, learning new skills" },
-                    { icon: "💼", title: "Working at [Company]", desc: "First job, career adventures" },
-                    { icon: "❤️", title: "Meeting Sarah", desc: "Relationships and partnerships" },
-                    { icon: "🏠", title: "Living in London", desc: "Different places, new cities" },
-                    { icon: "✈️", title: "Backpacking Europe", desc: "Adventures and explorations" },
-                    { icon: "👶", title: "Starting a Family", desc: "Milestones and celebrations" },
-                    { icon: "🏃", title: "Marathon Training", desc: "Personal challenges and hobbies" },
-                    { icon: "🎸", title: "Learning Guitar", desc: "New skills and creative pursuits" }
-                  ].map((idea, index) => (
-                    <div key={index} className="bg-white rounded-lg p-4 border border-slate-200">
-                      <div className="text-2xl mb-2">{idea.icon}</div>
-                      <h4 className="font-semibold text-slate-800 text-sm mb-1">{idea.title}</h4>
-                      <p className="text-xs text-slate-600">{idea.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Call to Action */}
-              <div className="text-center">
-                <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-2xl p-8 text-white">
-                  <h3 className="text-2xl font-bold mb-4">Ready to Begin? 🚀</h3>
-                  <p className="text-slate-200 mb-6 text-lg">
-                    Create your first life chapter and start building your personal timeline
-                  </p>
-                  <button
-                    onClick={() => setShowCreateChapterModal(true)}
-                    className="bg-white text-slate-800 hover:bg-slate-100 py-4 px-8 rounded-xl text-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg"
-                  >
-                    📖 Create Your First Chapter
-                  </button>
-                  <p className="text-sm text-slate-300 mt-4">
-                    Takes just 30 seconds • Add memories to chapters later
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Horizontal Zoomable Timeline */}
-          {birthYear && (
+      {/* Horizontal Zoomable Timeline - Always show for timeline view */}
+      {birthYear && (
         <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/50 p-4 lg:p-6">
           <div className="text-center mb-4 lg:mb-6">
             <h3 className="text-lg lg:text-xl font-bold text-slate-900 mb-2">
@@ -698,21 +616,126 @@ export default function ChronologicalTimelineView({
         </div>
           )}
 
-          {/* Social Feed Timeline for users with content */}
-          {(memories.length > 0 || chapters.length > 0) && (
-            <div className="p-4 lg:p-8 mt-8">
-              <div className="space-y-8 max-w-4xl mx-auto">
+      {/* Content Area Below Timeline */}
+      <div className="p-4 lg:p-8 mt-8">
+        {(memories.length === 0 && chapters.length === 0) ? (
+          /* New User Welcome Experience */
+          isNewUser ? (
+            <div className="max-w-4xl mx-auto space-y-8">
+              {/* Welcome Header */}
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <span className="text-3xl">📖</span>
+                </div>
+                <h1 className="text-4xl font-bold text-slate-900 mb-4">Welcome to Your Life Timeline!</h1>
+                <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+                  Your timeline is ready above - now let's add your first chapter to bring it to life!
+                </p>
+              </div>
+
+              {/* What are Chapters Section */}
+              <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8">
+                <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
+                  <span className="mr-3">🏛️</span>
+                  What are Life Chapters?
+                </h2>
+                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-800 mb-2">Think of chapters as life phases</h3>
+                    <p className="text-slate-600">
+                      Chapters help you organise your memories by meaningful time periods in your life.
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-800 mb-2">Memories come later</h3>
+                    <p className="text-slate-600">
+                      Once you create chapters, you can add photos, videos, and stories to bring them to life.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Chapter Ideas */}
+                <div className="bg-slate-50 rounded-xl p-6 mb-8">
+                  <h3 className="text-lg font-semibold text-slate-800 mb-4">💡 Chapter Ideas to Get You Started</h3>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[
+                      { icon: "🎓", title: "School Years", desc: "University days, learning new skills" },
+                      { icon: "💼", title: "Working at [Company]", desc: "First job, career adventures" },
+                      { icon: "❤️", title: "Meeting Sarah", desc: "Relationships and partnerships" },
+                      { icon: "🏠", title: "Living in London", desc: "Different places, new cities" },
+                      { icon: "✈️", title: "Backpacking Europe", desc: "Adventures and explorations" },
+                      { icon: "👶", title: "Starting a Family", desc: "Milestones and celebrations" },
+                      { icon: "🏃", title: "Marathon Training", desc: "Personal challenges and hobbies" },
+                      { icon: "🎸", title: "Learning Guitar", desc: "New skills and creative pursuits" }
+                    ].map((idea, index) => (
+                      <div key={index} className="bg-white rounded-lg p-4 border border-slate-200">
+                        <div className="text-2xl mb-2">{idea.icon}</div>
+                        <h4 className="font-semibold text-slate-800 text-sm mb-1">{idea.title}</h4>
+                        <p className="text-xs text-slate-600">{idea.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Call to Action */}
                 <div className="text-center">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Your Memories</h2>
-                  <p className="text-slate-600">
-                    {memories.length} {memories.length === 1 ? 'memory' : 'memories'} across {chapters.length} {chapters.length === 1 ? 'chapter' : 'chapters'}
-                  </p>
+                  <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-2xl p-8 text-white">
+                    <h3 className="text-2xl font-bold mb-4">Ready to Begin? 🚀</h3>
+                    <p className="text-slate-200 mb-6 text-lg">
+                      Create your first life chapter and watch it appear on your timeline above
+                    </p>
+                    <button
+                      onClick={() => setShowCreateChapterModal(true)}
+                      className="bg-white text-slate-800 hover:bg-slate-100 py-4 px-8 rounded-xl text-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    >
+                      📖 Create Your First Chapter
+                    </button>
+                    <p className="text-sm text-slate-300 mt-4">
+                      Takes just 30 seconds • Add memories to chapters later
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          )}
-        </>
-      )}
+          ) : (
+            /* Existing simple state for returning users */
+            <div className="text-center py-16">
+              <div className="bg-gradient-to-br from-slate-800 to-slate-600 text-white rounded-3xl p-8 shadow-xl max-w-2xl mx-auto">
+                <h2 className="text-3xl font-bold mb-4">
+                  🎉 Start Your Life Story!
+                </h2>
+                <p className="text-lg text-slate-100 mb-8 leading-relaxed">
+                  Create chapters and add memories to see your beautiful timeline come to life.
+                </p>
+                <div className="space-y-4">
+                  <button
+                    onClick={() => setShowCreateChapterModal(true)}
+                    className="bg-white hover:bg-slate-50 text-slate-900 py-3 px-6 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg mr-4"
+                  >
+                    📖 Create Chapter
+                  </button>
+                  <button
+                    onClick={() => onStartCreating?.()}
+                    className="bg-slate-700 hover:bg-slate-800 text-white py-3 px-6 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  >
+                    📸 Add Memory
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        ) : (
+          /* Social Feed Style Timeline for users with content */
+          <div className="space-y-8 max-w-4xl mx-auto">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Your Memories</h2>
+              <p className="text-slate-600">
+                {memories.length} {memories.length === 1 ? 'memory' : 'memories'} across {chapters.length} {chapters.length === 1 ? 'chapter' : 'chapters'}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Create Chapter Modal */}
       {showCreateChapterModal && (
