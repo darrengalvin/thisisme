@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { v4 as uuidv4 } from 'uuid'
+import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +12,19 @@ export async function POST(request: NextRequest) {
       console.error('❌ UPLOAD API: Missing Supabase environment variables')
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
+
+    // Verify authentication
+    const token = extractTokenFromHeader(request.headers.get('authorization') || undefined)
+    if (!token) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const user = await verifyToken(token)
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+    
+    console.log('🔑 UPLOAD API: Authenticated user:', user.userId)
 
     // Log request details for debugging
     console.log('📤 UPLOAD API: Headers:', Object.fromEntries(request.headers.entries()))
@@ -62,10 +76,10 @@ export async function POST(request: NextRequest) {
       }
     )
 
-    // Generate unique filename with original extension
+    // Generate unique filename with original extension, organized by user
     const fileExtension = file.name.split('.').pop() || 'jpg'
     const fileName = `${uuidv4()}.${fileExtension}`
-    const filePath = `uploads/${fileName}`
+    const filePath = `uploads/${user.userId}/${fileName}`
 
     console.log('💾 UPLOAD API: Uploading to Supabase Storage:', filePath)
 

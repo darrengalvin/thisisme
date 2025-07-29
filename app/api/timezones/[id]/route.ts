@@ -142,7 +142,7 @@ export async function PUT(
         
         const fileExtension = headerImageFile.name.split('.').pop() || 'jpg'
         const fileName = `${uuidv4()}.${fileExtension}`
-        const filePath = `uploads/${fileName}`
+        const filePath = `uploads/${user.userId}/${fileName}`
         
         console.log('📁 CHAPTER UPDATE: Uploading new file to Supabase Storage:', filePath)
         
