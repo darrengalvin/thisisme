@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { createClient } from '@supabase/supabase-js'
 import { v4 as uuidv4 } from 'uuid'
-import { existsSync } from 'fs'
 
 export async function POST(request: NextRequest) {
   try {
     console.log('📤 UPLOAD API: Processing file upload request')
     
+    // Check environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('❌ UPLOAD API: Missing Supabase environment variables')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
     // Log request details for debugging
     console.log('📤 UPLOAD API: Headers:', Object.fromEntries(request.headers.entries()))
     console.log('📤 UPLOAD API: Content-Type:', request.headers.get('content-type'))
@@ -46,32 +50,57 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Generate unique filename
-    const fileExtension = path.extname(file.name)
-    const fileName = `${uuidv4()}${fileExtension}`
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-    const filePath = path.join(uploadsDir, fileName)
+    // Create Supabase client with service role for file uploads
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
 
-    console.log('💾 UPLOAD API: Saving to:', filePath)
+    // Generate unique filename with original extension
+    const fileExtension = file.name.split('.').pop() || 'jpg'
+    const fileName = `${uuidv4()}.${fileExtension}`
+    const filePath = `uploads/${fileName}`
 
-    // Ensure uploads directory exists
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
-    }
+    console.log('💾 UPLOAD API: Uploading to Supabase Storage:', filePath)
 
-    // Convert file to buffer and save
+    // Convert file to buffer for Supabase
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
 
-    const fileUrl = `/uploads/${fileName}`
-    console.log('✅ UPLOAD API: File uploaded successfully:', fileUrl)
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('files') // Make sure this bucket exists in your Supabase project
+      .upload(filePath, buffer, {
+        contentType: file.type,
+        upsert: false
+      })
+
+    if (error) {
+      console.error('❌ UPLOAD API: Supabase Storage error:', error)
+      return NextResponse.json({ 
+        error: `Failed to upload file: ${error.message}` 
+      }, { status: 500 })
+    }
+
+    // Get public URL for the uploaded file
+    const { data: { publicUrl } } = supabase.storage
+      .from('files')
+      .getPublicUrl(filePath)
+
+    console.log('✅ UPLOAD API: File uploaded successfully:', publicUrl)
 
     return NextResponse.json({ 
-      url: fileUrl,
+      url: publicUrl,
       filename: fileName,
       originalName: file.name,
-      size: file.size
+      size: file.size,
+      path: filePath
     })
 
   } catch (error) {
