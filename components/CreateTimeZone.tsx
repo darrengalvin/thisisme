@@ -140,8 +140,9 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
           headerImageUrl = uploadData.url
           console.log('✅ CREATE CHAPTER: Header image uploaded:', headerImageUrl)
         } else {
-          console.error('❌ CREATE CHAPTER: Failed to upload header image:', uploadResponse.status)
-          toast.error('Failed to upload header image')
+          const errorData = await uploadResponse.json().catch(() => ({ error: 'Upload failed' }))
+          console.error('❌ CREATE CHAPTER: Failed to upload header image:', uploadResponse.status, errorData)
+          toast.error(errorData.error || 'Failed to upload header image')
           setIsLoading(false)
           return
         }

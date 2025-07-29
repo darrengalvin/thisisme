@@ -37,10 +37,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/avif']
     if (!allowedTypes.includes(file.type)) {
       console.log('❌ UPLOAD API: Invalid file type:', file.type)
-      return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 })
+      return NextResponse.json({ 
+        error: `Invalid file type: ${file.type}. Please use JPEG, PNG, GIF, WebP, or AVIF images.`,
+        allowedTypes 
+      }, { status: 400 })
     }
 
     // Generate unique filename
