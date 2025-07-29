@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import { getFileType } from '@/lib/utils'
 
@@ -266,24 +264,35 @@ export async function POST(request: NextRequest) {
       
       if (file.size > 0) {
         try {
-          // Create uploads directory if it doesn't exist
-          const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-          await mkdir(uploadsDir, { recursive: true })
-
-          // Generate unique filename
+          // Generate unique filename for Supabase Storage
           const fileId = uuidv4()
           const fileExtension = file.name.split('.').pop()
           const fileName = `${fileId}.${fileExtension}`
-          const filePath = path.join(uploadsDir, fileName)
+          const filePath = `uploads/${user.userId}/${fileName}`
 
-          console.log('💾 SAVING FILE:', { fileName, filePath })
+          console.log('💾 UPLOADING TO SUPABASE STORAGE:', { fileName, filePath })
 
-          // Write file
+          // Upload file to Supabase Storage
           const bytes = await file.arrayBuffer()
-          const buffer = Buffer.from(bytes)
-          await writeFile(filePath, buffer)
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('files')
+            .upload(filePath, bytes, {
+              cacheControl: '3600',
+              upsert: false,
+              contentType: file.type
+            })
 
-          console.log('✅ FILE SAVED successfully')
+          if (uploadError) {
+            console.error('❌ SUPABASE STORAGE UPLOAD FAILED:', uploadError)
+            continue
+          }
+
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('files')
+            .getPublicUrl(filePath)
+
+          console.log('✅ FILE UPLOADED TO SUPABASE:', { path: uploadData.path, publicUrl })
 
           // Determine media type
           const mediaType = getFileType(file.type)
@@ -293,7 +302,7 @@ export async function POST(request: NextRequest) {
           console.log('📝 CREATING MEDIA RECORD:', {
             memory_id: memory.id,
             type: mediaType.toUpperCase(),
-            storage_url: `/uploads/${fileName}`,
+            storage_url: publicUrl,
             file_name: file.name,
             file_size: file.size,
             mime_type: file.type
@@ -304,7 +313,7 @@ export async function POST(request: NextRequest) {
             .insert({
               memory_id: memory.id,
               type: mediaType.toUpperCase(),
-              storage_url: `/uploads/${fileName}`,
+              storage_url: publicUrl,
               file_name: file.name,
               file_size: file.size,
               mime_type: file.type
