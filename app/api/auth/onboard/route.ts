@@ -81,26 +81,13 @@ export async function POST(request: NextRequest) {
       birthYear: data.birth_year
     })
 
-    // Create personal timezone
-    console.log('🏠 ONBOARD API: Creating personal timezone...')
-    const { data: timezone, error: timezoneError } = await supabaseAdmin
-      .rpc('create_personal_timezone', { user_id: userId })
-
-    if (timezoneError) {
-      console.error('⚠️ ONBOARD API: Timezone creation error:', timezoneError)
-      // Don't fail the whole request if timezone creation fails
-    } else {
-      console.log('✅ ONBOARD API: Personal timezone created:', timezone)
-    }
-
     // Convert to camelCase for consistency
     const profileData = {
       id: data.id,
       email: data.email,
       birthYear: data.birth_year,
       createdAt: data.created_at,
-      updatedAt: data.updated_at,
-      timezoneName: timezone || 'default'
+      updatedAt: data.updated_at
     }
 
     return NextResponse.json({
