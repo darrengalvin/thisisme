@@ -341,7 +341,7 @@ export default function ChronologicalTimelineView({
             </div>
 
             {/* Chapter positioning area */}
-            <div className="relative mt-8 mb-16" style={{ minHeight: `${Math.max(600, chapters.length * 350 + 400)}px` }}>
+            <div className="relative mt-8 mb-16" style={{ minHeight: chapters.length > 0 ? `${Math.max(600, chapters.length * 350 + 400)}px` : '120px' }}>
               <div className="absolute inset-0">
                 {/* Positioned chapters */}
                 {chapters.filter(chapter => chapter && chapter.id && chapter.title).map((chapter, chapterIndex) => {
@@ -600,16 +600,18 @@ export default function ChronologicalTimelineView({
                   )
                 })}
 
-                {/* Add Chapter button */}
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-4">
-                  <button
-                    onClick={() => setShowCreateChapterModal(true)}
-                    className="bg-slate-600 hover:bg-slate-700 text-white py-2 px-4 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 shadow-sm"
-                  >
-                    <Plus size={12} />
-                    <span>Add Chapter</span>
-                  </button>
-                </div>
+                {/* Add Chapter button - Only show for users with existing content */}
+                {chapters.length > 0 && (
+                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-4">
+                    <button
+                      onClick={() => setShowCreateChapterModal(true)}
+                      className="bg-slate-600 hover:bg-slate-700 text-white py-2 px-4 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 shadow-sm"
+                    >
+                      <Plus size={12} />
+                      <span>Add Chapter</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
