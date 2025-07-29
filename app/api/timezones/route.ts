@@ -3,9 +3,6 @@ import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { generateInviteCode } from '@/lib/utils'
 import { TIMEZONE_TYPES, MEMBER_ROLES } from '@/lib/types'
-import { writeFile } from 'fs/promises'
-import path from 'path'
-import { v4 as uuidv4 } from 'uuid'
 
 export async function GET(request: NextRequest) {
   try {
@@ -171,28 +168,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Handle header image upload if provided (FormData flow only)
-    if (headerImageFile && headerImageFile.size > 0) {
-      try {
-        console.log('🖼️ CHAPTER HEADER: Processing header image upload')
-        const bytes = await headerImageFile.arrayBuffer()
-        const buffer = Buffer.from(bytes)
-        
-        // Generate unique filename
-        const fileExtension = path.extname(headerImageFile.name)
-        const fileName = `${uuidv4()}${fileExtension}`
-        const filePath = path.join(process.cwd(), 'public', 'uploads', fileName)
-        
-        console.log('📁 CHAPTER HEADER: Saving file:', { fileName, filePath })
-        await writeFile(filePath, buffer)
-        console.log('✅ CHAPTER HEADER: File saved successfully')
-        
-        headerImageUrl = `/uploads/${fileName}`
-      } catch (fileError) {
-        console.error('💥 CHAPTER HEADER: File upload error:', fileError)
-        // Continue without header image rather than failing the chapter creation
-      }
-    }
+    // Note: Header image is already uploaded via /api/upload before this request
+    // The headerImageUrl comes from the JSON request body
 
     // Check environment variables
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
