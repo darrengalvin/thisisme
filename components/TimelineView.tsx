@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Calendar, Clock, Users, Lock, ChevronDown, ChevronUp, Plus, Camera, Heart, MessageCircle, Share, MapPin } from 'lucide-react'
+import { Calendar, Clock, Users, Lock, ChevronDown, ChevronUp, Plus, Camera, Heart, MessageCircle, Share, MapPin, Edit } from 'lucide-react'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import { formatDate, formatRelativeTime } from './utils'
 import { useAuth } from './AuthProvider'
+import EditChapterModal from './EditChapterModal'
 
 interface TimelineViewProps {
   memories: MemoryWithRelations[]
@@ -27,6 +28,10 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
   const [isLoadingChapters, setIsLoadingChapters] = useState(true)
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null)
+  
+  // Edit chapter modal state
+  const [editingChapter, setEditingChapter] = useState<TimeZoneWithRelations | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   const timelineRef = useRef<HTMLDivElement>(null)
 
@@ -258,10 +263,23 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                                     </div>
                                   </div>
                                 </div>
-                                <div className="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center ml-3">
-                                  <span className="text-white text-xs font-bold">
-                                    {startYear ? startYear.toString().slice(-2) : '?'}
-                                  </span>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setEditingChapter(chapter)
+                                      setShowEditModal(true)
+                                    }}
+                                    className="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center transition-colors"
+                                    title="Edit Chapter"
+                                  >
+                                    <Edit size={14} className="text-slate-600" />
+                                  </button>
+                                  <div className="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">
+                                      {startYear ? startYear.toString().slice(-2) : '?'}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -481,6 +499,19 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
         </div>
       </div>
 
+      {/* Edit Chapter Modal */}
+      <EditChapterModal
+        chapter={editingChapter}
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setEditingChapter(null)
+        }}
+        onSuccess={() => {
+          // Refresh chapters after successful edit
+          fetchChapters()
+        }}
+      />
 
     </div>
   )

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Plus, ZoomIn, ZoomOut, Calendar, Play, Camera, Eye, MessageCircle, Heart, Share, Edit } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
+import EditChapterModal from './EditChapterModal'
 
 type ZoomLevel = 'decades' | 'years' | 'months'
 
@@ -36,6 +37,10 @@ export default function ChronologicalTimelineView({
   const [isLoadingChapters, setIsLoadingChapters] = useState(true)
   // Chapter creation modal removed - using header button and CreateTimeZone component
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null)
+  
+  // Edit chapter modal state
+  const [editingChapter, setEditingChapter] = useState<TimeZoneWithRelations | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   const birthYear = propBirthYear || 1981 // From user profile with fallback
   const currentYear = new Date().getFullYear()
@@ -521,7 +526,7 @@ export default function ChronologicalTimelineView({
                         )}
 
                         {/* Chapter Actions */}
-                        <div className="p-3">
+                        <div className="p-3 space-y-2">
                           <button
                             onClick={() => {
                               console.log('🔗 CHAPTER: Starting memory creation for chapter:', chapter.id, chapter.title)
@@ -531,6 +536,17 @@ export default function ChronologicalTimelineView({
                           >
                             <Plus size={10} />
                             <span>Add Memory</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingChapter(chapter)
+                              setShowEditModal(true)
+                            }}
+                            className="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 py-1.5 px-3 rounded text-xs font-medium transition-all duration-200 flex items-center justify-center space-x-1"
+                          >
+                            <Edit size={10} />
+                            <span>Edit Chapter</span>
                           </button>
                         </div>
                       </div>
@@ -667,6 +683,20 @@ export default function ChronologicalTimelineView({
       </div>
 
       {/* Chapter creation modal removed - using header button and CreateTimeZone component */}
+      
+      {/* Edit Chapter Modal */}
+      <EditChapterModal
+        chapter={editingChapter}
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setEditingChapter(null)
+        }}
+        onSuccess={() => {
+          // Refresh chapters after successful edit
+          fetchChapters()
+        }}
+      />
     </div>
   )
 } 
