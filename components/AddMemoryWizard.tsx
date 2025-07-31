@@ -325,7 +325,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
 
                 {/* Approximate */}
                 <label className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                  memoryData.dateType === 'approximate' 
+                  memoryData.dateType === 'within-chapter' 
                     ? 'border-slate-800 bg-slate-50' 
                     : 'border-slate-200 hover:border-slate-300'
                 }`}>
@@ -333,9 +333,9 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                     <input
                       type="radio"
                       name="dateType"
-                      value="approximate"
-                      checked={memoryData.dateType === 'approximate'}
-                      onChange={(e) => setMemoryData(prev => ({ ...prev, dateType: 'approximate' as const }))}
+                      value="within-chapter"
+                      checked={memoryData.dateType === 'within-chapter'}
+                      onChange={(e) => setMemoryData(prev => ({ ...prev, dateType: 'within-chapter' as const }))}
                       className="w-4 h-4 text-slate-800"
                     />
                     <div className="flex-1">
@@ -343,7 +343,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                       <div className="text-sm text-slate-600">Not exactly sure when, but it happened during this period</div>
                     </div>
                   </div>
-                  {memoryData.dateType === 'approximate' && (
+                  {memoryData.dateType === 'within-chapter' && (
                     <div className="mt-3 pl-7">
                       <input
                         type="text"
