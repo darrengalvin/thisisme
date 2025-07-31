@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check, Mic, Crown, Sparkles } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 
 interface AddMemoryWizardProps {
@@ -32,6 +32,9 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     files: []
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPremiumUser, setIsPremiumUser] = useState(false) // TODO: Get from user profile/subscription
+  const [isRecording, setIsRecording] = useState(false)
+  const [showVoiceFeature, setShowVoiceFeature] = useState(false)
 
   const steps = [
     {
@@ -160,6 +163,29 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     return authCookie ? authCookie.split('=')[1] : ''
   }
 
+  const handleVoiceRecord = () => {
+    if (!isPremiumUser) {
+      alert('🎤 Voice transcription is a premium feature! Upgrade to Pro to unlock AI-powered voice-to-text for your memories.')
+      return
+    }
+    
+    if (isRecording) {
+      // Stop recording
+      setIsRecording(false)
+      // TODO: Stop actual recording and process transcription
+      alert('🎉 Recording stopped! AI transcription will be processed and added to your memory description.')
+    } else {
+      // Start recording
+      setIsRecording(true)
+      // TODO: Start actual voice recording
+      alert('🎤 Recording started! Speak naturally about your memory and our AI will transcribe it for you.')
+    }
+  }
+
+  const handleShowVoiceFeature = () => {
+    setShowVoiceFeature(!showVoiceFeature)
+  }
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
@@ -204,6 +230,21 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
             />
           </div>
 
+          {/* Debug Toggle for Testing (TODO: Remove in production) */}
+          <div className="flex justify-center mb-4">
+            <button
+              type="button"
+              onClick={() => setIsPremiumUser(!isPremiumUser)}
+              className={`text-xs px-3 py-1 rounded-full transition-colors ${
+                isPremiumUser 
+                  ? 'bg-amber-100 text-amber-700 border border-amber-200' 
+                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+              }`}
+            >
+              {isPremiumUser ? '👑 Pro Mode' : '👤 Regular Mode'} (Click to toggle)
+            </button>
+          </div>
+
           {/* Chapter Context */}
           {chapterTitle && (
             <div className="bg-slate-50 rounded-xl p-3 mb-4">
@@ -239,16 +280,89 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-900 mb-2">
-                  Describe what happened
-                </label>
-                <textarea
-                  placeholder="Tell the story of this memory... What happened? How did you feel? Who was there?"
-                  value={memoryData.description}
-                  onChange={(e) => setMemoryData(prev => ({ ...prev, description: e.target.value }))}
-                  rows={4}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-transparent resize-none"
-                />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-slate-900">
+                    Describe what happened
+                  </label>
+                  {isPremiumUser && (
+                    <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                        <Crown size={12} />
+                        <span className="font-medium">PRO</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleVoiceRecord}
+                        className={`p-2 rounded-full transition-all duration-200 ${
+                          isRecording 
+                            ? 'bg-red-500 text-white shadow-lg shadow-red-200 animate-pulse' 
+                            : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
+                        }`}
+                        title={isRecording ? 'Stop recording' : 'Start voice transcription (Premium)'}
+                      >
+                        <Mic size={16} className={isRecording ? 'animate-pulse' : ''} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="relative">
+                  <textarea
+                    placeholder="Tell the story of this memory... What happened? How did you feel? Who was there?"
+                    value={memoryData.description}
+                    onChange={(e) => setMemoryData(prev => ({ ...prev, description: e.target.value }))}
+                    rows={4}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent resize-none transition-all ${
+                      isRecording 
+                        ? 'border-red-300 focus:ring-red-500 bg-red-50/50' 
+                        : 'border-slate-300 focus:ring-slate-800'
+                    }`}
+                    disabled={isRecording}
+                  />
+                  
+                  {isRecording && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-red-50/80 rounded-xl">
+                      <div className="flex items-center space-x-3 text-red-600">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-6 bg-red-500 rounded animate-pulse"></div>
+                          <div className="w-2 h-8 bg-red-500 rounded animate-pulse" style={{animationDelay: '0.1s'}}></div>
+                          <div className="w-2 h-4 bg-red-500 rounded animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                          <div className="w-2 h-7 bg-red-500 rounded animate-pulse" style={{animationDelay: '0.3s'}}></div>
+                        </div>
+                        <span className="font-medium">Listening...</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Premium Feature Hint for Non-Premium Users */}
+                  {!isPremiumUser && (
+                    <div className="absolute top-2 right-2">
+                      <div className="group relative">
+                        <button
+                          type="button"
+                          onClick={handleVoiceRecord}
+                          className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition-colors opacity-60"
+                          title="Voice transcription available with Pro upgrade"
+                        >
+                          <Mic size={14} />
+                        </button>
+                        <div className="absolute -top-12 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                          <div className="flex items-center space-x-1">
+                            <Sparkles size={10} />
+                            <span>Upgrade to Pro</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {isPremiumUser && (
+                  <div className="mt-2 text-xs text-slate-500 flex items-center space-x-1">
+                    <Sparkles size={12} className="text-purple-500" />
+                    <span>Click the microphone to use AI voice transcription</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
