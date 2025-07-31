@@ -20,6 +20,13 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
   const [headerImage, setHeaderImage] = useState<File | null>(null)
   const [headerImagePreview, setHeaderImagePreview] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  
+  // Image positioning state
+  const [imageZoom, setImageZoom] = useState(1)
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [hasUserInteracted, setHasUserInteracted] = useState(false)
 
   const totalSteps = 4
 
@@ -65,7 +72,34 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
       // Create preview
       const reader = new FileReader()
       reader.onload = (e) => {
-        setHeaderImagePreview(e.target?.result as string)
+        const imageUrl = e.target?.result as string
+        setHeaderImagePreview(imageUrl)
+        
+        // Calculate initial zoom to show FULL image (not cropped)
+        const img = new Image()
+        img.onload = () => {
+          const previewWidth = 320 // w-80
+          const previewHeight = 240 // h-60
+          const imgAspect = img.naturalWidth / img.naturalHeight
+          const previewAspect = previewWidth / previewHeight
+          
+          let initialZoom
+          if (imgAspect > previewAspect) {
+            // Image is wider - fit to width to see full image
+            initialZoom = previewWidth / img.naturalWidth
+          } else {
+            // Image is taller - fit to height to see full image  
+            initialZoom = previewHeight / img.naturalHeight
+          }
+          
+          // Make sure zoom doesn't go below minimum
+          initialZoom = Math.max(0.1, Math.min(1, initialZoom))
+          
+          setImageZoom(initialZoom)
+          setImagePosition({ x: 0, y: 0 }) // Center the image
+          setHasUserInteracted(false) // Reset interaction tracking
+        }
+        img.src = imageUrl
       }
       reader.readAsDataURL(file)
     }
@@ -74,6 +108,139 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
   const removeImage = () => {
     setHeaderImage(null)
     setHeaderImagePreview(null)
+    // Reset image positioning
+    setImageZoom(1)
+    setImagePosition({ x: 0, y: 0 })
+    setHasUserInteracted(false)
+  }
+
+  // Image positioning handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y })
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return
+    
+    const newX = e.clientX - dragStart.x
+    const newY = e.clientY - dragStart.y
+    
+    // Add boundary checking to prevent image from being dragged completely out of view
+    const previewWidth = 320 // w-80
+    const previewHeight = 240 // h-60
+    const imageWidth = previewWidth * imageZoom
+    const imageHeight = previewHeight * imageZoom
+    
+    const minX = -(imageWidth - previewWidth)
+    const maxX = 0
+    const minY = -(imageHeight - previewHeight)
+    const maxY = 0
+    
+    setImagePosition({
+      x: Math.max(minX, Math.min(maxX, newX)),
+      y: Math.max(minY, Math.min(maxY, newY))
+    })
+    setHasUserInteracted(true) // User is dragging the image
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleZoomChange = (newZoom: number) => {
+    // Dynamic zoom range - allow zooming out to see full image, zooming in to 5x
+    const minZoom = 0.05 // Allow very small zoom to see full image
+    const maxZoom = 5    // Allow zooming in quite a bit
+    const clampedZoom = Math.max(minZoom, Math.min(maxZoom, newZoom))
+    setImageZoom(clampedZoom)
+    setHasUserInteracted(true) // User is adjusting zoom
+    
+    // Adjust position to keep image in bounds when zoom changes
+    const previewWidth = 320 // w-80
+    const previewHeight = 240 // h-60
+    const imageWidth = previewWidth * clampedZoom
+    const imageHeight = previewHeight * clampedZoom
+    
+    const minX = -(imageWidth - previewWidth)
+    const maxX = 0
+    const minY = -(imageHeight - previewHeight)
+    const maxY = 0
+    
+    setImagePosition(prev => ({
+      x: Math.max(minX, Math.min(maxX, prev.x)),
+      y: Math.max(minY, Math.min(maxY, prev.y))
+    }))
+  }
+
+  // Create cropped image based on current position and zoom
+  const createCroppedImage = (): Promise<File | null> => {
+    return new Promise((resolve) => {
+      if (!headerImagePreview) {
+        resolve(null)
+        return
+      }
+
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(null)
+        return
+      }
+
+      const img = new Image()
+      img.onload = () => {
+                 // Set canvas to match actual chapter header proportions (closer to real output)
+                 canvas.width = 280 // Typical chapter card width
+        canvas.height = 192 // h-48 (192px) - matches timeline chapter height
+
+         // Calculate how the image fits in the preview container
+         const previewHeight = 240 // h-60
+         const previewWidth = 320  // w-80
+        const imgAspect = img.naturalWidth / img.naturalHeight
+        const previewAspect = previewWidth / previewHeight
+
+        let displayWidth, displayHeight
+        if (imgAspect > previewAspect) {
+          // Image is wider, fit to height
+          displayHeight = previewHeight
+          displayWidth = displayHeight * imgAspect
+        } else {
+          // Image is taller, fit to width
+          displayWidth = previewWidth
+          displayHeight = displayWidth / imgAspect
+        }
+
+        // Scale according to zoom
+        const scaledWidth = displayWidth * imageZoom
+        const scaledHeight = displayHeight * imageZoom
+
+        // Fill the entire canvas with the image, cropping as needed
+        ctx.fillStyle = '#f1f5f9' // slate-100 background
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+        // Draw the positioned and scaled image
+        ctx.drawImage(
+          img,
+          imagePosition.x,
+          imagePosition.y,
+          scaledWidth,
+          scaledHeight
+        )
+
+        // Convert canvas to blob and then to File
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], 'cropped-header.jpg', { type: 'image/jpeg' })
+            resolve(file)
+          } else {
+            resolve(null)
+          }
+        }, 'image/jpeg', 0.9)
+      }
+      
+      img.src = headerImagePreview
+    })
   }
 
   const handleNext = () => {
@@ -125,7 +292,21 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
       if (headerImage) {
         console.log('📤 CREATE CHAPTER: Uploading header image')
         const formData = new FormData()
-        formData.append('file', headerImage)
+        
+        // Only create cropped version if user has actually interacted with positioning/zoom
+        if (hasUserInteracted) {
+          console.log('🎨 CREATE CHAPTER: Creating cropped image based on user positioning')
+          const croppedImage = await createCroppedImage()
+          if (croppedImage) {
+            formData.append('file', croppedImage)
+          } else {
+            formData.append('file', headerImage)
+          }
+        } else {
+          // User hasn't interacted - use original image
+          console.log('📷 CREATE CHAPTER: Using original image (no user interaction)')
+          formData.append('file', headerImage)
+        }
 
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
@@ -184,6 +365,10 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
         setDescription('')
         setHeaderImage(null)
         setHeaderImagePreview(null)
+        // Reset image positioning
+        setImageZoom(1)
+        setImagePosition({ x: 0, y: 0 })
+        setHasUserInteracted(false)
         onSuccess?.()
       } else {
         console.error('❌ CREATE CHAPTER: Failed to create chapter:', response.status)
@@ -287,19 +472,100 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
             </div>
             <div className="max-w-md mx-auto">
               {headerImagePreview ? (
-                <div className="relative">
-                  <img 
-                    src={headerImagePreview} 
-                    alt="Chapter preview" 
-                    className="w-full h-48 object-cover rounded-xl border-2 border-slate-200"
-                  />
-                  <button
-                    onClick={removeImage}
-                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
-                  <div className="mt-4">
+                <div className="space-y-4">
+                  {/* Enhanced Preview with Positioning Controls */}
+                  <div className="relative">
+                                         <div className="relative w-80 h-60 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden mx-auto">
+                                              <img
+                          src={headerImagePreview}
+                          alt="Chapter preview"
+                          className="absolute cursor-move select-none"
+                          style={{
+                            width: `${100 * imageZoom}%`,
+                            height: `${100 * imageZoom}%`,
+                            transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                            minWidth: '100%',
+                            minHeight: '100%',
+                            objectFit: 'cover'
+                          }}
+                          onMouseDown={handleMouseDown}
+                          draggable={false}
+                        />
+                        {/* Invisible overlay to capture mouse events properly */}
+                        <div
+                          className="absolute inset-0 cursor-move"
+                          onMouseDown={handleMouseDown}
+                          onMouseMove={handleMouseMove}
+                          onMouseUp={handleMouseUp}
+                          onMouseLeave={handleMouseUp}
+                          style={{ zIndex: 1 }}
+                        />
+                      {/* Preview Label */}
+                      <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                        Preview
+                      </div>
+                    </div>
+                    
+                    {/* Remove Image Button */}
+                    <button
+                      onClick={removeImage}
+                      className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 transition-colors z-10"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Image Controls */}
+                  <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">Image Position & Zoom</span>
+                      <button
+                        onClick={() => {
+                          setImageZoom(1)
+                          setImagePosition({ x: 0, y: 0 })
+                          setHasUserInteracted(true) // User is resetting position
+                        }}
+                        className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    
+                    {/* Zoom Controls */}
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs text-slate-600 w-12">Zoom:</span>
+                                             <button
+                         onClick={() => handleZoomChange(imageZoom * 0.8)} // Better scaling for zoom out
+                         className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
+                       >
+                         -
+                       </button>
+                       <input
+                         type="range"
+                         min="0.05"
+                         max="5"
+                         step="0.05"
+                         value={imageZoom}
+                         onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                         className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                       />
+                       <button
+                         onClick={() => handleZoomChange(imageZoom * 1.25)} // Better scaling for zoom in
+                         className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
+                       >
+                         +
+                       </button>
+                      <span className="text-xs text-slate-600 w-12">{Math.round(imageZoom * 100)}%</span>
+                    </div>
+                    
+                                         {/* Instructions */}
+                     <p className="text-xs text-slate-500 italic">
+                       💡 Your full image is shown first (never cropped on upload). Zoom in to focus on details, drag to reposition. Preview shows exactly how it will appear in your chapter!
+                     </p>
+                  </div>
+
+                  {/* Change Image Button */}
+                  <div className="text-center">
                     <label className="inline-flex items-center space-x-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg cursor-pointer transition-colors">
                       <Upload size={16} />
                       <span>Change Image</span>

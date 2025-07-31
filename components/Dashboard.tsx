@@ -202,10 +202,10 @@ export default function Dashboard() {
 
   const getViewName = () => {
     switch (activeTab) {
-      case 'home': return 'Timeline View'
-      case 'timeline': return 'Horizontal View'
+      case 'home': return 'Feed View'
+      case 'timeline': return 'Timeline View'
       case 'timezones': return 'Life Chapters'
-      default: return 'Timeline View'
+      default: return 'Feed View'
     }
   }
 
@@ -225,14 +225,14 @@ export default function Dashboard() {
       )
     }
 
-    // For new users, default to horizontal timeline view
-    const effectiveActiveTab = isNewUser && activeTab === 'home' ? 'timeline' : activeTab
+    // Remove forced view redirect - let new users choose their preferred view
+    const effectiveActiveTab = activeTab
 
     switch (effectiveActiveTab) {
       case 'home':
-        // Use the proper TimelineView with vertical timeline and chapters on left axis
+        // Use the TimelineView for vertical feed with chapters on left axis
         const timelineBirthYear = user?.birthYear || new Date().getFullYear() - 25 // Better default than 1950
-        console.log('🎯 DASHBOARD: Using proper TimelineView with birth year:', {
+        console.log('🎯 DASHBOARD: Using vertical feed view with birth year:', {
           actual: user?.birthYear,
           fallback: new Date().getFullYear() - 25,
           used: timelineBirthYear,
@@ -244,7 +244,7 @@ export default function Dashboard() {
           return <div className="flex-1 flex items-center justify-center"><div>Loading...</div></div>
         }
         
-        // Show the TimelineView with vertical timeline and chapters on left axis
+        // Show the TimelineView as vertical feed with chapters on left axis
         return <TimelineView 
           memories={memories} 
           birthYear={timelineBirthYear}
@@ -254,7 +254,7 @@ export default function Dashboard() {
         />
       case 'timeline': 
         const chronoBirthYear = user?.birthYear || new Date().getFullYear() - 25 // Better fallback
-        console.log('🎯 DASHBOARD: Using horizontal timeline for timeline tab:', {
+        console.log('🎯 DASHBOARD: Using chronological timeline for timeline tab:', {
           actual: user?.birthYear,
           userObject: user,
           fallback: new Date().getFullYear() - 25,
@@ -268,11 +268,12 @@ export default function Dashboard() {
           return <div className="flex-1 flex items-center justify-center"><div>Loading...</div></div>
         }
         
-        // Keep the horizontal timeline as an alternative view
+        // Keep the chronological timeline as the main timeline view
         return <ChronologicalTimelineView 
           memories={memories} 
           birthYear={chronoBirthYear}
           onStartCreating={handleCreateMemory}
+          onCreateChapter={() => setActiveTab('create-timezone')}
           onZoomChange={(zoomLevel, currentYear, formatLabel, handlers) => {
             setTimelineControls({
               zoomLevel,
@@ -312,9 +313,9 @@ export default function Dashboard() {
                 LIFE
               </h1>
               <p className="text-xs text-slate-500 font-medium hidden lg:block">
-                {activeTab === 'timeline' ? 
-                  `Interactive timeline • ${memories.length} memories` : 
-                  'Your Timeline'
+                {activeTab === 'timeline' ?
+                  `Interactive timeline • ${memories.length} memories` :
+                  'Your Memory Feed'
                 }
               </p>
             </div>
@@ -322,34 +323,29 @@ export default function Dashboard() {
 
           {/* Center - View Switcher & Timeline Controls */}
           <div className="flex items-center space-x-4">
+            {/* View Switcher Dropdown */}
             <div className="relative">
-              <button
+              <button 
                 onClick={() => setShowViewDropdown(!showViewDropdown)}
-                className="flex items-center space-x-2 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl transition-all duration-200"
+                className="flex items-center space-x-2 bg-white hover:bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 transition-colors"
               >
-                <span className="font-medium text-slate-700">{getViewName()}</span>
-                <ChevronDown size={16} className="text-slate-500" />
+                <span className="text-sm font-medium text-slate-700">{getViewName()}</span>
+                <ChevronDown size={16} className="text-slate-400" />
               </button>
               
               {showViewDropdown && (
-                <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 py-2 min-w-[200px] z-50">
+                <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-10 min-w-[150px]">
                   <button
                     onClick={() => { setActiveTab('home'); setShowViewDropdown(false) }}
                     className={`w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors ${activeTab === 'home' ? 'text-slate-900 font-medium' : 'text-slate-600'}`}
                   >
-                    🏠 Timeline View
+                    🏠 Feed View
                   </button>
                   <button
                     onClick={() => { setActiveTab('timeline'); setShowViewDropdown(false) }}
                     className={`w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors ${activeTab === 'timeline' ? 'text-slate-900 font-medium' : 'text-slate-600'}`}
                   >
-                    📊 Horizontal View
-                  </button>
-                  <button
-                    onClick={() => { setActiveTab('timezones'); setShowViewDropdown(false) }}
-                    className={`w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors ${activeTab === 'timezones' ? 'text-slate-900 font-medium' : 'text-slate-600'}`}
-                  >
-                    📖 Life Chapters
+                    📊 Timeline View
                   </button>
                 </div>
               )}

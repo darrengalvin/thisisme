@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, ZoomIn, ZoomOut, Calendar, Play, Camera, Eye, MessageCircle, Heart, Share, Edit } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, ZoomIn, ZoomOut, Calendar, Play, Camera, Eye, MessageCircle, Heart, Share, Edit, Info, X } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import EditChapterModal from './EditChapterModal'
@@ -12,6 +12,7 @@ interface ChronologicalTimelineViewProps {
   memories: MemoryWithRelations[]
   birthYear?: number
   onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
+  onCreateChapter?: () => void
   onZoomChange?: (zoomLevel: ZoomLevel, currentYear: number, formatLabel: () => string, handlers: {
     zoomIn: () => void
     zoomOut: () => void
@@ -27,6 +28,7 @@ export default function ChronologicalTimelineView({
   memories, 
   birthYear: propBirthYear,
   onStartCreating,
+  onCreateChapter,
   onZoomChange,
   isNewUser = false
 }: ChronologicalTimelineViewProps) {
@@ -41,6 +43,10 @@ export default function ChronologicalTimelineView({
   // Edit chapter modal state
   const [editingChapter, setEditingChapter] = useState<TimeZoneWithRelations | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  
+  // Memory detail modal state
+  const [selectedMemory, setSelectedMemory] = useState<MemoryWithRelations | null>(null)
+  const [showMemoryModal, setShowMemoryModal] = useState(false)
 
   const birthYear = propBirthYear || 1981 // From user profile with fallback
   const currentYear = new Date().getFullYear()
@@ -187,7 +193,7 @@ export default function ChronologicalTimelineView({
       case 'decades': return 'Decades View'
       case 'years': return `Years View (around ${currentViewYear})`
       case 'months': return `Monthly View • ${currentViewYear}`
-      default: return 'Timeline View'
+      default: return 'Timeline'
     }
   }
 
@@ -363,14 +369,14 @@ export default function ChronologicalTimelineView({
                       {/* Connection line to timeline */}
                       <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 w-0.5 h-6 bg-slate-400"></div>
                       
-                      <div className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+                      <div className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-visible">
                         {/* Chapter Header Image */}
                         {chapter.headerImageUrl && (
-                          <div className="relative h-16 bg-slate-100">
+                          <div className="relative bg-slate-100">
                             <img 
                               src={chapter.headerImageUrl} 
                               alt={chapter.title}
-                              className="w-full h-full object-cover"
+                              className="w-full h-auto max-h-48 object-cover"
                             />
                             <div className="absolute inset-0 bg-black/10"></div>
                           </div>
@@ -382,17 +388,65 @@ export default function ChronologicalTimelineView({
                             <h5 className="font-semibold text-slate-900 text-sm leading-tight">
                               {chapter.title}
                             </h5>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setEditingChapter(chapter)
-                                setShowEditModal(true)
-                              }}
-                              className="w-6 h-6 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded transition-all duration-200 flex items-center justify-center opacity-60 hover:opacity-100"
-                              title="Edit Chapter"
-                            >
-                              <Edit size={12} />
-                            </button>
+                            <div className="flex items-center space-x-1">
+                              {/* Info Icon with Hover Details */}
+                              <div className="relative group">
+                                <button
+                                  className="w-6 h-6 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded transition-all duration-200 flex items-center justify-center opacity-60 hover:opacity-100"
+                                  title="Chapter Details"
+                                >
+                                  <Info size={12} />
+                                </button>
+                                
+                                {/* Hover Tooltip */}
+                                <div className="absolute left-0 bottom-full mb-2 w-80 bg-white rounded-lg shadow-2xl border border-slate-200 p-4 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-[99999]" style={{ zIndex: 99999 }}>
+                                  <div className="space-y-3">
+                                    <div className="border-b border-slate-100 pb-2">
+                                      <h4 className="font-semibold text-slate-900 text-sm">{chapter.title}</h4>
+                                      <p className="text-xs text-slate-500">
+                                        {startYear} - {endYear === currentYear ? 'Present' : endYear}
+                                      </p>
+                                    </div>
+                                    
+                                    {chapter.description && (
+                                      <div>
+                                        <p className="text-xs font-medium text-slate-700 mb-1">Description:</p>
+                                        <p className="text-xs text-slate-600 leading-relaxed">{chapter.description}</p>
+                                      </div>
+                                    )}
+                                    
+                                    {chapter.location && (
+                                      <div>
+                                        <p className="text-xs font-medium text-slate-700 mb-1">Location:</p>
+                                        <p className="text-xs text-slate-600">{chapter.location}</p>
+                                      </div>
+                                    )}
+                                    
+                                    <div className="pt-2 border-t border-slate-100">
+                                      <p className="text-xs text-slate-500">
+                                        {chapterMemories.length} {chapterMemories.length === 1 ? 'memory' : 'memories'} in this chapter
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Arrow pointing up to button */}
+                                  <div className="absolute -bottom-1 left-6 w-2 h-2 bg-white border-l border-b border-slate-200 transform rotate-45"></div>
+                                </div>
+                              </div>
+                              
+                              {/* Edit Icon */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingChapter(chapter)
+                                  setShowEditModal(true)
+                                }}
+                                className="w-6 h-6 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded transition-all duration-200 flex items-center justify-center opacity-60 hover:opacity-100"
+                                title="Edit Chapter"
+                              >
+                                <Edit size={12} />
+                              </button>
+                            </div>
                           </div>
                           <div className="text-xs text-slate-500 mb-1">
                             {startYear} - {endYear === currentYear ? 'Present' : endYear}
@@ -424,7 +478,11 @@ export default function ChronologicalTimelineView({
                                   <div
                                     key={memory.id}
                                     className="relative aspect-square bg-slate-100 rounded overflow-hidden group cursor-pointer hover:ring-2 hover:ring-blue-500 hover:bg-blue-50 transition-all duration-200 hover:z-[60]"
-                                    onClick={() => setExpandedMemory(expandedMemory === memory.id ? null : memory.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setSelectedMemory(memory)
+                                      setShowMemoryModal(true)
+                                    }}
                                     onMouseEnter={() => console.log('🖱️ HOVER ENTER:', memory.title)}
                                     onMouseLeave={() => console.log('🖱️ HOVER LEAVE:', memory.title)}
                                   >
@@ -517,7 +575,7 @@ export default function ChronologicalTimelineView({
                                         <div className="pt-3 border-t border-slate-100">
                                           <p className="text-xs text-slate-500 flex items-center justify-between">
                                             <span>💫 Part of "{chapter.title}"</span>
-                                            <span className="bg-slate-100 px-2 py-1 rounded">Click to expand</span>
+                                            <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">Click to view</span>
                                           </p>
                                         </div>
                                       </div>
@@ -630,7 +688,7 @@ export default function ChronologicalTimelineView({
                       Create your first life chapter and watch it appear on your timeline above
                     </p>
                     <button
-                      onClick={() => window.location.href = '#create-chapter'}
+                      onClick={() => onCreateChapter?.()}
                       className="bg-white text-slate-800 hover:bg-slate-100 py-4 px-8 rounded-xl text-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg"
                     >
                       📖 Create Your First Chapter
@@ -654,7 +712,7 @@ export default function ChronologicalTimelineView({
                 </p>
                 <div className="space-y-4">
                   <button
-                    onClick={() => console.log('Use header button to create chapters')}
+                    onClick={() => onCreateChapter?.()}
                     className="bg-white hover:bg-slate-50 text-slate-900 py-3 px-6 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg mr-4"
                   >
                     📖 Create Chapter
@@ -697,6 +755,157 @@ export default function ChronologicalTimelineView({
           fetchChapters()
         }}
       />
+      
+      {/* Memory Detail Modal */}
+      {showMemoryModal && selectedMemory && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
+            {/* Modal Header */}
+            <div className="relative">
+              {/* Close Button */}
+              <button
+                onClick={() => {
+                  setShowMemoryModal(false)
+                  setSelectedMemory(null)
+                }}
+                className="absolute top-4 right-4 w-10 h-10 bg-black/20 hover:bg-black/40 text-white rounded-full flex items-center justify-center transition-all duration-200 z-10"
+              >
+                <X size={20} />
+              </button>
+              
+              {/* Main Media */}
+              {selectedMemory.media && selectedMemory.media.length > 0 ? (
+                <div className="relative h-96 bg-slate-100">
+                                     {selectedMemory.media[0].type.toLowerCase() === 'video' ? (
+                     <video
+                       src={selectedMemory.media[0].storage_url}
+                       className="w-full h-full object-cover"
+                       controls
+                       autoPlay
+                     />
+                   ) : (
+                     <img
+                       src={selectedMemory.media[0].storage_url}
+                       alt={selectedMemory.title || 'Memory'}
+                       className="w-full h-full object-cover"
+                     />
+                   )}
+                   {/* Gradient overlay for better header visibility */}
+                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/20"></div>
+                   
+                   {/* Memory Badge */}
+                   <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm text-slate-700 px-3 py-2 rounded-lg font-medium text-sm shadow-lg">
+                     {selectedMemory.media[0].type.toLowerCase() === 'video' ? '🎥 Video Memory' : '📸 Photo Memory'}
+                   </div>
+                </div>
+              ) : (
+                <div className="h-64 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                  <div className="text-center">
+                    <Camera size={64} className="text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-500 text-lg font-medium">Text Memory</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Content */}
+            <div className="p-6 max-h-96 overflow-y-auto">
+              {/* Memory Title & Date */}
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                  {selectedMemory.title || 'Untitled Memory'}
+                </h2>
+                <div className="flex items-center text-slate-600 text-sm">
+                  <Calendar size={16} className="mr-2 text-blue-500" />
+                  <span className="font-medium">
+                    {selectedMemory.createdAt ? new Date(selectedMemory.createdAt).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }) : 'No date'}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Memory Content */}
+              {selectedMemory.textContent && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-slate-800 mb-3">Memory Details</h3>
+                  <div className="bg-slate-50 p-4 rounded-xl">
+                    <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                      {selectedMemory.textContent}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Additional Media */}
+              {selectedMemory.media && selectedMemory.media.length > 1 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-slate-800 mb-3">
+                    Additional Media ({selectedMemory.media.length - 1} more)
+                  </h3>
+                  <div className="grid grid-cols-4 gap-3">
+                                         {selectedMemory.media.slice(1).map((media, index) => (
+                       <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-slate-100">
+                         {media.type.toLowerCase() === 'video' ? (
+                           <video
+                             src={media.storage_url}
+                             className="w-full h-full object-cover"
+                             muted
+                           />
+                         ) : (
+                           <img
+                             src={media.storage_url}
+                             alt={`Media ${index + 2}`}
+                             className="w-full h-full object-cover"
+                           />
+                         )}
+                         {media.type.toLowerCase() === 'video' && (
+                           <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                             <Play size={16} className="text-white" />
+                           </div>
+                         )}
+                       </div>
+                     ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Memory Metadata */}
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex items-center justify-between text-sm text-slate-500">
+                  <span>Part of "{selectedMemory.timeZone?.title || 'Unknown Chapter'}"</span>
+                  <span>Memory ID: {selectedMemory.id.slice(0, 8)}...</span>
+                </div>
+              </div>
+              
+              {/* Future Features Placeholder */}
+              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-blue-900 mb-1">Coming Soon</h4>
+                    <p className="text-blue-700 text-sm">Share, comment, and interact with memories</p>
+                  </div>
+                  <div className="flex space-x-2 opacity-50">
+                    <button className="p-2 bg-blue-100 rounded-lg">
+                      <Heart size={16} className="text-blue-600" />
+                    </button>
+                    <button className="p-2 bg-blue-100 rounded-lg">
+                      <MessageCircle size={16} className="text-blue-600" />
+                    </button>
+                    <button className="p-2 bg-blue-100 rounded-lg">
+                      <Share size={16} className="text-blue-600" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Calendar, Clock, Users, Lock, ChevronDown, ChevronUp, Plus, Camera, Heart, MessageCircle, Share, MapPin, Edit } from 'lucide-react'
+import { Calendar, Clock, Users, Lock, ChevronDown, ChevronUp, Plus, Camera, Heart, MessageCircle, Share, MapPin, Edit, Info } from 'lucide-react'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import { formatDate, formatRelativeTime } from './utils'
 import { useAuth } from './AuthProvider'
@@ -16,8 +16,9 @@ interface TimelineViewProps {
 }
 
 interface TimelineGroup {
-  date: string
-  label: string
+  dayKey: string
+  date: Date
+  formattedDate: string
   memories: MemoryWithRelations[]
 }
 
@@ -32,6 +33,41 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
   // Edit chapter modal state
   const [editingChapter, setEditingChapter] = useState<TimeZoneWithRelations | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+
+  // Add filter state
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null)
+  const [showChapterSidebar, setShowChapterSidebar] = useState(true)
+
+  // Filter memories based on selected chapter
+  const filteredMemories = selectedChapterId 
+    ? memories.filter(memory => memory.timeZoneId === selectedChapterId)
+    : memories
+
+  // Update timeline groups to use filtered memories
+  const timelineGroups: TimelineGroup[] = filteredMemories
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .reduce((groups: TimelineGroup[], memory) => {
+      const date = new Date(memory.createdAt || memory.updatedAt)
+      const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      
+      const existingGroup = groups.find(g => g.dayKey === dayKey)
+      if (existingGroup) {
+        existingGroup.memories.push(memory)
+      } else {
+        groups.push({
+          dayKey,
+          date,
+          formattedDate: date.toLocaleDateString('en-GB', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          }),
+          memories: [memory]
+        })
+      }
+      return groups
+    }, [])
 
   const timelineRef = useRef<HTMLDivElement>(null)
 
@@ -116,54 +152,6 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
     }
   }
 
-  // Group memories by their actual date for social media feed style
-  const timelineGroups: TimelineGroup[] = memories
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) // Most recent first
-    .reduce((groups: TimelineGroup[], memory) => {
-      const memoryDate = new Date(memory.createdAt)
-      const today = new Date()
-      const yesterday = new Date(today)
-      yesterday.setDate(yesterday.getDate() - 1)
-      
-      let groupKey: string
-      let label: string
-      
-      if (memoryDate.toDateString() === today.toDateString()) {
-        groupKey = 'today'
-        label = 'Today'
-      } else if (memoryDate.toDateString() === yesterday.toDateString()) {
-        groupKey = 'yesterday'
-        label = 'Yesterday'
-      } else if (memoryDate >= new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)) {
-        groupKey = `week-${memoryDate.toDateString()}`
-        label = memoryDate.toLocaleDateString('en-GB', { weekday: 'long', month: 'short', day: 'numeric' })
-      } else if (memoryDate >= new Date(today.getFullYear(), today.getMonth(), 1)) {
-        groupKey = `month-${memoryDate.getMonth()}-${memoryDate.getFullYear()}`
-        label = memoryDate.toLocaleDateString('en-GB', { month: 'long', day: 'numeric' })
-      } else {
-        groupKey = `${memoryDate.getFullYear()}-${memoryDate.getMonth()}-${memoryDate.getDate()}`
-        label = memoryDate.toLocaleDateString('en-GB', { 
-          weekday: 'long',
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })
-      }
-
-      const existingGroup = groups.find(g => g.date === groupKey)
-      if (existingGroup) {
-        existingGroup.memories.push(memory)
-      } else {
-        groups.push({
-          date: groupKey,
-          label,
-          memories: [memory]
-        })
-      }
-      
-      return groups
-    }, [])
-
   const handleMemoryClick = (memoryId: string) => {
     setExpandedMemory(expandedMemory === memoryId ? null : memoryId)
   }
@@ -172,23 +160,97 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
     return memories.filter(memory => memory.timeZoneId === chapterId)
   }
 
+  const selectedChapter = chapters.find(c => c.id === selectedChapterId)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Sidebar - Chapters */}
-          <div className="lg:col-span-1">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Mobile Chapter Filter Bar */}
+        <div className="lg:hidden mb-6">
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-slate-900">Filter by Chapter</h3>
+              <button
+                onClick={() => setShowChapterSidebar(!showChapterSidebar)}
+                className="text-slate-500 hover:text-slate-700"
+              >
+                {showChapterSidebar ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            
+            {showChapterSidebar && (
+              <div className="space-y-2">
+                <button
+                  onClick={() => setSelectedChapterId(null)}
+                  className={`w-full text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
+                    selectedChapterId === null
+                      ? 'bg-blue-50 border-blue-200 text-blue-900 font-medium'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>All Memories</span>
+                    <span className="text-sm opacity-75">{memories.length}</span>
+                  </div>
+                </button>
+                {chapters.map((chapter) => {
+                  const chapterMemories = getChapterMemories(chapter.id)
+                  return (
+                    <button
+                      key={chapter.id}
+                      onClick={() => setSelectedChapterId(chapter.id)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
+                        selectedChapterId === chapter.id
+                          ? 'bg-blue-50 border-blue-200 text-blue-900 font-medium'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{chapter.title}</span>
+                        <span className="text-sm opacity-75">{chapterMemories.length}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Desktop Left Sidebar - Chapter Filters */}
+          <div className="hidden lg:block lg:col-span-1">
             <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 sticky top-32">
               <div className="p-6 border-b border-slate-100">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-slate-900">Life Chapters</h2>
-                </div>
+                <h2 className="text-xl font-bold text-slate-900">Filter by Chapter</h2>
                 <p className="text-sm text-slate-600 mt-1">
-                  {chapters.length} chapters created
+                  {selectedChapterId ? `${filteredMemories.length} filtered memories` : `${memories.length} total memories`}
                 </p>
               </div>
 
-              <div className="p-4 max-h-96 overflow-y-auto">
+              <div className="p-4 space-y-3">
+                {/* All Memories Filter */}
+                <button
+                  onClick={() => setSelectedChapterId(null)}
+                  className={`w-full text-left px-4 py-4 rounded-xl border transition-all duration-200 ${
+                    selectedChapterId === null
+                      ? 'bg-blue-50 border-blue-200 text-blue-900 shadow-sm ring-1 ring-blue-200'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">All Memories</span>
+                    <span className={`text-sm px-2 py-1 rounded-full ${
+                      selectedChapterId === null 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {memories.length}
+                    </span>
+                  </div>
+                  <p className="text-xs mt-1 opacity-75">Show all memories from every chapter</p>
+                </button>
+
                 {isLoadingChapters ? (
                   <div className="text-center py-8 text-slate-500">
                     Loading chapters...
@@ -204,137 +266,201 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {chapters
-                      .sort((a, b) => {
-                        if (!a.startDate || !b.startDate) return 0
-                        return new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-                      })
-                      .map((chapter) => {
-                        const chapterMemories = getChapterMemories(chapter.id)
-                        const startYear = chapter.startDate ? new Date(chapter.startDate).getFullYear() : null
-                        const endYear = chapter.endDate ? new Date(chapter.endDate).getFullYear() : null
-                        
-                        return (
-                          <div
-                            key={chapter.id}
-                            className="bg-gradient-to-r from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-200 rounded-xl border border-slate-200/50 cursor-pointer transition-all duration-200 overflow-hidden"
-                            onClick={() => onStartCreating?.(chapter.id, chapter.title)}
-                          >
-                            {/* Chapter Header Image */}
-                            {chapter.headerImageUrl && (
-                              <div className="relative h-20 bg-slate-100">
-                                <img 
-                                  src={chapter.headerImageUrl} 
-                                  alt={chapter.title}
-                                  className="w-full h-full object-cover"
-                                />
-                                <div className="absolute inset-0 bg-black/20"></div>
+                  chapters
+                    .sort((a, b) => {
+                      if (!a.startDate || !b.startDate) return 0
+                      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+                    })
+                    .map((chapter) => {
+                      const chapterMemories = getChapterMemories(chapter.id)
+                      const startYear = chapter.startDate ? new Date(chapter.startDate).getFullYear() : null
+                      const endYear = chapter.endDate ? new Date(chapter.endDate).getFullYear() : null
+                      const isSelected = selectedChapterId === chapter.id
+                      
+                      return (
+                        <button
+                          key={chapter.id}
+                          onClick={() => setSelectedChapterId(chapter.id)}
+                          className={`w-full text-left p-4 rounded-xl border transition-all duration-200 ${
+                            isSelected
+                              ? 'bg-blue-50 border-blue-200 text-blue-900 shadow-sm ring-1 ring-blue-200'
+                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm'
+                          }`}
+                        >
+                          {/* Chapter Header Image */}
+                          {chapter.headerImageUrl && (
+                            <div className="relative h-20 bg-slate-100 rounded-lg mb-3 overflow-hidden">
+                              <img 
+                                src={chapter.headerImageUrl} 
+                                alt={chapter.title}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/10"></div>
+                            </div>
+                          )}
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-start justify-between">
+                              <h4 className="font-semibold text-sm leading-tight">{chapter.title}</h4>
+                              <span className={`text-xs px-2 py-1 rounded-full ml-2 ${
+                                isSelected 
+                                  ? 'bg-blue-100 text-blue-700' 
+                                  : 'bg-slate-200 text-slate-600'
+                              }`}>
+                                {chapterMemories.length}
+                              </span>
+                            </div>
+                            
+                            {(startYear || endYear) && (
+                              <div className="flex items-center space-x-1 opacity-75">
+                                <Calendar size={10} />
+                                <span className="text-xs">
+                                  {startYear && endYear ? `${startYear} - ${endYear}` : 
+                                   startYear ? `From ${startYear}` : 
+                                   endYear ? `Until ${endYear}` : ''}
+                                </span>
                               </div>
                             )}
-                            
-                            <div className="p-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h4 className="font-semibold text-slate-900 mb-1">{chapter.title}</h4>
+
+                            {chapter.description && (
+                              <p className="text-xs opacity-75 line-clamp-2">{chapter.description}</p>
+                            )}
+                          </div>
+
+                          {/* Edit/Info buttons - only show on hover */}
+                          <div className="flex items-center justify-end space-x-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Info Icon with Hover Details */}
+                            <div className="relative group">
+                              <button
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-6 h-6 bg-white/80 hover:bg-white rounded-md flex items-center justify-center transition-colors"
+                                title="Chapter Details"
+                              >
+                                <Info size={12} className="text-slate-600" />
+                              </button>
+                              
+                              {/* Hover Tooltip */}
+                              <div className="absolute right-0 bottom-full mb-2 w-80 bg-white rounded-lg shadow-2xl border border-slate-200 p-4 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-[99999]" style={{ zIndex: 99999 }}>
+                                <div className="space-y-3">
+                                  <div className="border-b border-slate-100 pb-2">
+                                    <h4 className="font-semibold text-slate-900 text-sm">{chapter.title}</h4>
+                                    <p className="text-xs text-slate-500">
+                                      {startYear} - {endYear === currentYear ? 'Present' : endYear}
+                                    </p>
+                                  </div>
+                                  
                                   {chapter.description && (
-                                    <p className="text-xs text-slate-600 mb-2 line-clamp-2">{chapter.description}</p>
-                                  )}
-                                  <div className="text-xs text-slate-500 space-y-1">
-                                    {(startYear || endYear) && (
-                                      <div className="flex items-center space-x-1">
-                                        <Calendar size={12} />
-                                        <span>
-                                          {startYear && endYear ? `${startYear} - ${endYear}` : 
-                                           startYear ? `From ${startYear}` : 
-                                           endYear ? `Until ${endYear}` : ''}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {chapter.location && (
-                                      <div className="flex items-center space-x-1">
-                                        <MapPin size={12} />
-                                        <span>{chapter.location}</span>
-                                      </div>
-                                    )}
-                                    <div className="flex items-center space-x-1">
-                                      <Camera size={12} />
-                                      <span>{chapterMemories.length} memories</span>
+                                    <div>
+                                      <p className="text-xs font-medium text-slate-700 mb-1">Description:</p>
+                                      <p className="text-xs text-slate-600 leading-relaxed">{chapter.description}</p>
                                     </div>
+                                  )}
+                                  
+                                  {chapter.location && (
+                                    <div>
+                                      <p className="text-xs font-medium text-slate-700 mb-1">Location:</p>
+                                      <p className="text-xs text-slate-600">{chapter.location}</p>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="pt-2 border-t border-slate-100">
+                                    <p className="text-xs text-slate-500">
+                                      {chapterMemories.length} {chapterMemories.length === 1 ? 'memory' : 'memories'} in this chapter
+                                    </p>
                                   </div>
                                 </div>
-                                <div className="flex items-center space-x-2">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setEditingChapter(chapter)
-                                      setShowEditModal(true)
-                                    }}
-                                    className="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center transition-colors"
-                                    title="Edit Chapter"
-                                  >
-                                    <Edit size={14} className="text-slate-600" />
-                                  </button>
-                                  <div className="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
-                                    <span className="text-white text-xs font-bold">
-                                      {startYear ? startYear.toString().slice(-2) : '?'}
-                                    </span>
-                                  </div>
-                                </div>
+                                
+                                {/* Arrow pointing up to button */}
+                                <div className="absolute -bottom-1 right-6 w-2 h-2 bg-white border-l border-b border-slate-200 transform rotate-45"></div>
                               </div>
                             </div>
+                            
+                            {/* Edit Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingChapter(chapter)
+                                setShowEditModal(true)
+                              }}
+                              className="w-6 h-6 bg-white/80 hover:bg-white rounded-md flex items-center justify-center transition-colors"
+                              title="Edit Chapter"
+                            >
+                              <Edit size={12} className="text-slate-600" />
+                            </button>
                           </div>
-                        )
-                      })}
-                  </div>
+                        </button>
+                      )
+                    })
                 )}
               </div>
             </div>
           </div>
 
-          {/* Main Content - Timeline Feed */}
-          <div className="lg:col-span-2">
-            {memories.length === 0 ? (
-              // Empty state but within the timeline structure
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-8 text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-                  <span className="text-white text-2xl font-bold">📖</span>
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-4">Ready to Fill Your Timeline</h3>
-                <p className="text-slate-600 leading-relaxed mb-6">
-                  Your chapters are ready for memories! Start adding photos, videos, and stories to bring your timeline to life.
-                </p>
-                <div className="bg-slate-50 rounded-xl p-6 mb-6">
-                  <h4 className="font-semibold text-slate-900 mb-3">✨ Next Steps:</h4>
-                  <div className="text-sm text-slate-600 space-y-2 text-left">
-                    <p>• 📖 Create life chapters for different time periods</p>
-                    <p>• 📸 Add photos and videos to your chapters</p>
-                    <p>• 📝 Write stories and descriptions for your memories</p>
-                    <p>• 🎵 Upload audio recordings and voice notes</p>
+          {/* Main Content - Memory Feed */}
+          <div className="lg:col-span-3">
+            {/* Active Filter Indicator */}
+            {selectedChapterId && selectedChapter && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">
+                      Filtering by: <span className="font-bold">{selectedChapter.title}</span>
+                    </p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      Showing {filteredMemories.length} of {memories.length} memories
+                    </p>
                   </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <button 
-                    onClick={() => onStartCreating?.()}
-                    className="bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-700 hover:to-slate-600 text-white py-3 px-6 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  <button
+                    onClick={() => setSelectedChapterId(null)}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                   >
-                    📸 Add First Memory
+                    Clear Filter
                   </button>
                 </div>
-                <p className="text-sm text-slate-500 text-center mt-4">
-                  💡 Use the "Add Chapter" button in the top navigation to create your first chapter.
-                </p>
               </div>
+            )}
+
+            {filteredMemories.length === 0 ? (
+              selectedChapterId ? (
+                // No memories in selected chapter
+                <div className="text-center py-12">
+                  <h3 className="text-2xl font-bold text-slate-900 mb-4">No memories in this chapter yet</h3>
+                  <p className="text-slate-600 mb-6">
+                    Start adding photos, videos, and stories to the "{selectedChapter?.title}" chapter.
+                  </p>
+                  <button
+                    onClick={() => setSelectedChapterId(null)}
+                    className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-medium transition-colors"
+                  >
+                    View All Memories
+                  </button>
+                </div>
+              ) : (
+                // Empty state for when we have chapters but no memories
+                <div className="text-center py-12">
+                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Ready to Fill Your Feed</h3>
+                  <p className="text-slate-600 mb-6">
+                    Your chapters are ready for memories! Start adding photos, videos, and stories to bring your memory feed to life.
+                  </p>
+                  <div className="bg-slate-50 rounded-xl p-6 mb-6">
+                    <h4 className="font-semibold text-slate-800 mb-3">💡 Get started:</h4>
+                    <div className="text-left space-y-2">
+                      <p>• 📸 Upload photos and videos to your chapters</p>
+                      <p>• ✍️ Add stories and descriptions to your memories</p>
+                      <p>• 📖 Create life chapters for different time periods</p>
+                    </div>
+                  </div>
+                </div>
+              )
             ) : (
-              // Memory feed when memories exist
               <div className="space-y-8" ref={timelineRef}>
                 {timelineGroups.map((group, groupIndex) => (
-                  <div key={group.date}>
+                  <div key={group.dayKey}>
                     {/* Date Header */}
                     <div className="flex items-center mb-6">
                       <div className="flex-1 h-px bg-slate-200"></div>
                       <div className="px-4 py-2 bg-slate-100 rounded-full">
-                        <span className="text-sm font-medium text-slate-700">{group.label}</span>
+                        <span className="text-sm font-medium text-slate-700">{group.formattedDate}</span>
                       </div>
                       <div className="flex-1 h-px bg-slate-200"></div>
                     </div>

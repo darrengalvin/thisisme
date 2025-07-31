@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Settings, Calendar, MapPin, Edit, Camera, Trash2, Users, Upload, X, Save } from 'lucide-react'
+import { Plus, Settings, Calendar, MapPin, Edit, Camera, Trash2, Users, Upload, X, Save, Info } from 'lucide-react'
 import { TimeZoneWithRelations, MemoryWithRelations } from '@/lib/types'
 import { useAuth } from './AuthProvider'
 import toast from 'react-hot-toast'
@@ -356,7 +356,7 @@ export default function GroupManager({ onCreateGroup }: GroupManagerProps) {
             {chapters.map((chapter, index) => (
               <div 
                 key={chapter.id} 
-                className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-slate-200/50 group"
+                className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-visible border border-slate-200/50 group"
               >
                 {/* Chapter Image/Header */}
                 <div className="relative h-48 bg-gradient-to-br from-slate-100 to-slate-200">
@@ -377,6 +377,53 @@ export default function GroupManager({ onCreateGroup }: GroupManagerProps) {
                   
                   {/* Overlay with action buttons */}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center space-x-3">
+                    {/* Info Icon with Hover Details */}
+                    <div className="relative group/info">
+                      <button
+                        className="bg-white/90 hover:bg-white text-slate-700 p-2 rounded-lg shadow-lg transition-all duration-200"
+                        title="Chapter Details"
+                      >
+                        <Info size={16} />
+                      </button>
+                      
+                      {/* Hover Tooltip */}
+                      <div className="absolute left-1/2 transform -translate-x-1/2 bottom-full mb-2 w-80 bg-white rounded-lg shadow-2xl border border-slate-200 p-4 opacity-0 group-hover/info:opacity-100 transition-all duration-200 pointer-events-none z-[99999]" style={{ zIndex: 99999 }}>
+                        <div className="space-y-3">
+                          <div className="border-b border-slate-100 pb-2">
+                            <h4 className="font-semibold text-slate-900 text-sm">{chapter.title}</h4>
+                            <p className="text-xs text-slate-500">
+                              {chapter.startDate && chapter.endDate && 
+                                `${new Date(chapter.startDate).getFullYear()} - ${new Date(chapter.endDate).getFullYear()}`
+                              }
+                            </p>
+                          </div>
+                          
+                          {chapter.description && (
+                            <div>
+                              <p className="text-xs font-medium text-slate-700 mb-1">Description:</p>
+                              <p className="text-xs text-slate-600 leading-relaxed">{chapter.description}</p>
+                            </div>
+                          )}
+                          
+                          {chapter.location && (
+                            <div>
+                              <p className="text-xs font-medium text-slate-700 mb-1">Location:</p>
+                              <p className="text-xs text-slate-600">{chapter.location}</p>
+                            </div>
+                          )}
+                          
+                          <div className="pt-2 border-t border-slate-100">
+                            <p className="text-xs text-slate-500">
+                              {getMemoryCount(chapter.id)} {getMemoryCount(chapter.id) === 1 ? 'memory' : 'memories'} in this chapter
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Arrow pointing up to button */}
+                        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white border-l border-b border-slate-200 rotate-45"></div>
+                      </div>
+                    </div>
+                    
                     <button
                       onClick={() => handleEditChapter(chapter)}
                       className="bg-white/90 hover:bg-white text-slate-700 p-2 rounded-lg shadow-lg transition-all duration-200"
@@ -434,6 +481,53 @@ export default function GroupManager({ onCreateGroup }: GroupManagerProps) {
 
                   {/* Quick Actions */}
                   <div className="flex items-center space-x-2">
+                    {/* Info Icon with Details */}
+                    <div className="relative group/quickinfo">
+                      <button
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2 rounded-lg transition-all duration-200"
+                        title="Chapter Details"
+                      >
+                        <Info size={14} />
+                      </button>
+                      
+                      {/* Hover Tooltip */}
+                      <div className="absolute right-0 bottom-full mb-2 w-80 bg-white rounded-lg shadow-2xl border border-slate-200 p-4 opacity-0 group-hover/quickinfo:opacity-100 transition-all duration-200 pointer-events-none z-[99999]" style={{ zIndex: 99999 }}>
+                        <div className="space-y-3">
+                          <div className="border-b border-slate-100 pb-2">
+                            <h4 className="font-semibold text-slate-900 text-sm">{chapter.title}</h4>
+                            <p className="text-xs text-slate-500">
+                              {chapter.startDate && chapter.endDate && 
+                                `${new Date(chapter.startDate).getFullYear()} - ${new Date(chapter.endDate).getFullYear()}`
+                              }
+                            </p>
+                          </div>
+                          
+                          {chapter.description && (
+                            <div>
+                              <p className="text-xs font-medium text-slate-700 mb-1">Description:</p>
+                              <p className="text-xs text-slate-600 leading-relaxed">{chapter.description}</p>
+                            </div>
+                          )}
+                          
+                          {chapter.location && (
+                            <div>
+                              <p className="text-xs font-medium text-slate-700 mb-1">Location:</p>
+                              <p className="text-xs text-slate-600">{chapter.location}</p>
+                            </div>
+                          )}
+                          
+                          <div className="pt-2 border-t border-slate-100">
+                            <p className="text-xs text-slate-500">
+                              {getMemoryCount(chapter.id)} {getMemoryCount(chapter.id) === 1 ? 'memory' : 'memories'} in this chapter
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Arrow pointing up to button */}
+                        <div className="absolute -bottom-1 right-6 w-2 h-2 bg-white border-l border-b border-slate-200 rotate-45"></div>
+                      </div>
+                    </div>
+                    
                     <button
                       onClick={() => handleEditChapter(chapter)}
                       className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-1"

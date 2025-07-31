@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Calendar, MapPin, Upload, X, Image, Film, Mic, Plus } from 'lucide-react'
+import { Calendar, MapPin, Upload, X, Image as ImageIcon, Film, Mic, Plus } from 'lucide-react'
 
 interface Memory {
   id: string
@@ -42,6 +42,16 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
   const [timeZones, setTimeZones] = useState<TimeZone[]>([])
   const [isLoadingTimeZones, setIsLoadingTimeZones] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Image positioning state for each file
+  const [filePreviewUrls, setFilePreviewUrls] = useState<{[key: string]: string}>({})
+  const [filePositioning, setFilePositioning] = useState<{[key: string]: {
+    zoom: number
+    position: { x: number, y: number }
+    isDragging: boolean
+    dragStart: { x: number, y: number }
+  }}>({})
+  const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   
   // New Group Creation States
@@ -56,6 +66,13 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
   const [groupEndYear, setGroupEndYear] = useState('')
   const [newGroupDescription, setNewGroupDescription] = useState('')
   const [newGroupImage, setNewGroupImage] = useState<File | null>(null)
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(filePreviewUrls).forEach(url => URL.revokeObjectURL(url))
+    }
+  }, [filePreviewUrls])
 
   useEffect(() => {
     const fetchTimeZones = async () => {
@@ -172,12 +189,252 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files)
+      
+      // Create preview URLs and initial positioning for image files
+      newFiles.forEach((file, index) => {
+        if (file.type.startsWith('image/')) {
+          const fileKey = `${file.name}-${file.size}-${file.lastModified}`
+          const previewUrl = URL.createObjectURL(file)
+          
+          setFilePreviewUrls(prev => ({
+            ...prev,
+            [fileKey]: previewUrl
+          }))
+          
+          // Calculate initial zoom to show full image
+          const img = new Image()
+          img.onload = () => {
+            const previewWidth = 320 // Standard preview width
+            const previewHeight = 240 // Standard preview height
+            const imgAspect = img.naturalWidth / img.naturalHeight
+            const previewAspect = previewWidth / previewHeight
+            
+            let initialZoom
+            if (imgAspect > previewAspect) {
+              // Image is wider - fit to width to see full image
+              initialZoom = previewWidth / img.naturalWidth
+            } else {
+              // Image is taller - fit to height to see full image  
+              initialZoom = previewHeight / img.naturalHeight
+            }
+            
+            // Make sure zoom doesn't go below minimum
+            initialZoom = Math.max(0.05, Math.min(1, initialZoom))
+            
+            setFilePositioning(prev => ({
+              ...prev,
+              [fileKey]: {
+                zoom: initialZoom,
+                position: { x: 0, y: 0 },
+                isDragging: false,
+                dragStart: { x: 0, y: 0 }
+              }
+            }))
+          }
+          img.src = previewUrl
+        }
+      })
+      
       setMediaFiles(prev => [...prev, ...newFiles])
     }
   }
 
   const removeFile = (index: number) => {
+    const file = mediaFiles[index]
+    if (file && file.type.startsWith('image/')) {
+      const fileKey = `${file.name}-${file.size}-${file.lastModified}`
+      // Clean up preview URL and positioning data
+      if (filePreviewUrls[fileKey]) {
+        URL.revokeObjectURL(filePreviewUrls[fileKey])
+      }
+      setFilePreviewUrls(prev => {
+        const newUrls = { ...prev }
+        delete newUrls[fileKey]
+        return newUrls
+      })
+      setFilePositioning(prev => {
+        const newPositioning = { ...prev }
+        delete newPositioning[fileKey]
+        return newPositioning
+      })
+    }
     setMediaFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Image positioning handlers
+  const getFileKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`
+
+  const handleImageMouseDown = (fileKey: string, e: React.MouseEvent) => {
+    const positioning = filePositioning[fileKey]
+    if (!positioning) return
+    
+    setFilePositioning(prev => ({
+      ...prev,
+      [fileKey]: {
+        ...positioning,
+        isDragging: true,
+        dragStart: { x: e.clientX - positioning.position.x, y: e.clientY - positioning.position.y }
+      }
+    }))
+  }
+
+  const handleImageMouseMove = (fileKey: string, e: React.MouseEvent) => {
+    const positioning = filePositioning[fileKey]
+    if (!positioning?.isDragging) return
+    
+    const newX = e.clientX - positioning.dragStart.x
+    const newY = e.clientY - positioning.dragStart.y
+    
+    // Add boundary checking
+    const previewWidth = 320
+    const previewHeight = 240
+    const imageWidth = previewWidth * positioning.zoom
+    const imageHeight = previewHeight * positioning.zoom
+    
+    const minX = -(imageWidth - previewWidth)
+    const maxX = 0
+    const minY = -(imageHeight - previewHeight)
+    const maxY = 0
+    
+    setFilePositioning(prev => ({
+      ...prev,
+      [fileKey]: {
+        ...positioning,
+        position: {
+          x: Math.max(minX, Math.min(maxX, newX)),
+          y: Math.max(minY, Math.min(maxY, newY))
+        }
+      }
+    }))
+  }
+
+  const handleImageMouseUp = (fileKey: string) => {
+    const positioning = filePositioning[fileKey]
+    if (!positioning) return
+    
+    setFilePositioning(prev => ({
+      ...prev,
+      [fileKey]: {
+        ...positioning,
+        isDragging: false
+      }
+    }))
+  }
+
+  const handleImageZoomChange = (fileKey: string, newZoom: number) => {
+    const positioning = filePositioning[fileKey]
+    if (!positioning) return
+    
+    const minZoom = 0.05
+    const maxZoom = 5
+    const clampedZoom = Math.max(minZoom, Math.min(maxZoom, newZoom))
+    
+    // Adjust position to keep image in bounds when zoom changes
+    const previewWidth = 320
+    const previewHeight = 240
+    const imageWidth = previewWidth * clampedZoom
+    const imageHeight = previewHeight * clampedZoom
+    
+    const minX = -(imageWidth - previewWidth)
+    const maxX = 0
+    const minY = -(imageHeight - previewHeight)
+    const maxY = 0
+    
+    setFilePositioning(prev => ({
+      ...prev,
+      [fileKey]: {
+        ...positioning,
+        zoom: clampedZoom,
+        position: {
+          x: Math.max(minX, Math.min(maxX, positioning.position.x)),
+          y: Math.max(minY, Math.min(maxY, positioning.position.y))
+        }
+      }
+    }))
+  }
+
+  const resetImagePositioning = (fileKey: string) => {
+    setFilePositioning(prev => ({
+      ...prev,
+      [fileKey]: {
+        ...prev[fileKey],
+        zoom: 1,
+        position: { x: 0, y: 0 }
+      }
+    }))
+  }
+
+  // Create cropped image based on current position and zoom
+  const createCroppedImage = (file: File, fileKey: string): Promise<File | null> => {
+    return new Promise((resolve) => {
+      const previewUrl = filePreviewUrls[fileKey]
+      const positioning = filePositioning[fileKey]
+      
+      if (!previewUrl || !positioning) {
+        resolve(null)
+        return
+      }
+
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(null)
+        return
+      }
+
+      const img = new Image()
+      img.onload = () => {
+        // Set canvas to standard dimensions for memory images
+        canvas.width = 800  // Good resolution for memory images
+        canvas.height = 600 // 4:3 aspect ratio
+
+        // Calculate how the image fits in the preview container
+        const previewHeight = 240
+        const previewWidth = 320
+        const imgAspect = img.naturalWidth / img.naturalHeight
+        const previewAspect = previewWidth / previewHeight
+
+        let displayWidth, displayHeight
+        if (imgAspect > previewAspect) {
+          // Image is wider, fit to height
+          displayHeight = previewHeight
+          displayWidth = displayHeight * imgAspect
+        } else {
+          // Image is taller, fit to width
+          displayWidth = previewWidth
+          displayHeight = displayWidth / imgAspect
+        }
+
+        // Scale according to zoom
+        const scaledWidth = displayWidth * positioning.zoom
+        const scaledHeight = displayHeight * positioning.zoom
+
+        // Fill the entire canvas
+        ctx.fillStyle = '#f1f5f9' // slate-100 background
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+        // Draw the positioned and scaled image
+        ctx.drawImage(
+          img,
+          positioning.position.x,
+          positioning.position.y,
+          scaledWidth,
+          scaledHeight
+        )
+
+        // Convert canvas to blob and then to File
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const croppedFile = new File([blob], `cropped-${file.name}`, { type: 'image/jpeg' })
+            resolve(croppedFile)
+          } else {
+            resolve(null)
+          }
+        }, 'image/jpeg', 0.9)
+      }
+      
+      img.src = previewUrl
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -231,9 +488,28 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
         formData.append('timeZoneId', selectedTimeZone)
       }
 
-      mediaFiles.forEach((file) => {
-        formData.append('media', file)
-      })
+      // Process media files - crop images if positioned, keep videos/audio as-is
+      for (let i = 0; i < mediaFiles.length; i++) {
+        const file = mediaFiles[i]
+        const fileKey = getFileKey(file)
+        
+        if (file.type.startsWith('image/') && filePositioning[fileKey]) {
+          const positioning = filePositioning[fileKey]
+          // If user has positioned/zoomed the image, create cropped version
+          if (positioning.zoom !== 1 || positioning.position.x !== 0 || positioning.position.y !== 0) {
+            const croppedImage = await createCroppedImage(file, fileKey)
+            if (croppedImage) {
+              formData.append('media', croppedImage)
+            } else {
+              formData.append('media', file) // Fallback to original
+            }
+          } else {
+            formData.append('media', file) // Use original if not positioned
+          }
+        } else {
+          formData.append('media', file) // Videos, audio, or non-positioned images
+        }
+      }
 
       const response = await fetch('/api/memories', {
         method: 'POST',
@@ -259,6 +535,12 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
         setApproximateSeason('')
         setSelectedTimeZone('')
         setMediaFiles([])
+        
+        // Clean up image preview URLs and positioning data
+        Object.values(filePreviewUrls).forEach(url => URL.revokeObjectURL(url))
+        setFilePreviewUrls({})
+        setFilePositioning({})
+        setEditingImageIndex(null)
         setDatePrecision('exact')
       } else {
         const errorData = await response.json()
@@ -348,26 +630,141 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
                     </label>
                   </div>
                   
-                  {/* Media Preview */}
+                  {/* Enhanced Media Preview */}
                   {mediaFiles.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {mediaFiles.map((file, index) => (
-                        <div key={index} className="relative bg-gray-100 rounded-lg p-2">
-                          <div className="flex items-center space-x-2">
-                            {file.type.startsWith('image/') && <Image size={16} className="text-blue-500" />}
-                            {file.type.startsWith('video/') && <Film size={16} className="text-green-500" />}
-                            {file.type.startsWith('audio/') && <Mic size={16} className="text-purple-500" />}
-                            <span className="text-xs text-gray-700 truncate">{file.name}</span>
+                    <div className="space-y-4">
+                      {mediaFiles.map((file, index) => {
+                        const fileKey = getFileKey(file)
+                        const isImage = file.type.startsWith('image/')
+                        const isVideo = file.type.startsWith('video/')
+                        const isAudio = file.type.startsWith('audio/')
+                        const previewUrl = filePreviewUrls[fileKey]
+                        const positioning = filePositioning[fileKey]
+                        const isEditing = editingImageIndex === index
+
+                        return (
+                          <div key={index} className="border border-slate-200 rounded-lg overflow-hidden">
+                            {isImage && previewUrl && positioning ? (
+                              // Enhanced Image Preview with Controls
+                              <div className="space-y-4 p-4">
+                                {/* Image Preview */}
+                                <div className="relative">
+                                  <div className="relative w-80 h-60 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden mx-auto">
+                                    <img
+                                      src={previewUrl}
+                                      alt={file.name}
+                                      className="absolute cursor-move select-none"
+                                      style={{
+                                        width: `${100 * positioning.zoom}%`,
+                                        height: `${100 * positioning.zoom}%`,
+                                        transform: `translate(${positioning.position.x}px, ${positioning.position.y}px)`,
+                                        minWidth: '100%',
+                                        minHeight: '100%',
+                                        objectFit: 'cover'
+                                      }}
+                                      onMouseDown={(e) => handleImageMouseDown(fileKey, e)}
+                                      draggable={false}
+                                    />
+                                    {/* Invisible overlay to capture mouse events */}
+                                    <div
+                                      className="absolute inset-0 cursor-move"
+                                      onMouseDown={(e) => handleImageMouseDown(fileKey, e)}
+                                      onMouseMove={(e) => handleImageMouseMove(fileKey, e)}
+                                      onMouseUp={() => handleImageMouseUp(fileKey)}
+                                      onMouseLeave={() => handleImageMouseUp(fileKey)}
+                                      style={{ zIndex: 1 }}
+                                    />
+                                    {/* Preview Label */}
+                                    <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                      Preview
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Remove Button */}
+                                  <button
+                                    onClick={() => removeFile(index)}
+                                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 transition-colors z-10"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+
+                                {/* Image Controls */}
+                                <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-slate-700">Image Position & Zoom</span>
+                                    <button
+                                      onClick={() => resetImagePositioning(fileKey)}
+                                      className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                                    >
+                                      Reset
+                                    </button>
+                                  </div>
+                                  
+                                  {/* Zoom Controls */}
+                                  <div className="flex items-center space-x-3">
+                                    <span className="text-xs text-slate-600 w-12">Zoom:</span>
+                                    <button
+                                      onClick={() => handleImageZoomChange(fileKey, positioning.zoom * 0.8)}
+                                      className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="range"
+                                      min="0.05"
+                                      max="5"
+                                      step="0.05"
+                                      value={positioning.zoom}
+                                      onChange={(e) => handleImageZoomChange(fileKey, parseFloat(e.target.value))}
+                                      className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                    <button
+                                      onClick={() => handleImageZoomChange(fileKey, positioning.zoom * 1.25)}
+                                      className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
+                                    >
+                                      +
+                                    </button>
+                                    <span className="text-xs text-slate-600 w-12">{Math.round(positioning.zoom * 100)}%</span>
+                                  </div>
+                                  
+                                  {/* Instructions & File Info */}
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs text-slate-500 italic">
+                                      💡 Drag to reposition, zoom to crop. Full image shown first!
+                                    </p>
+                                    <span className="text-xs text-slate-600 font-medium">{file.name}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              // Simple preview for videos/audio or loading images
+                              <div className="relative bg-gray-100 rounded-lg p-4">
+                                <div className="flex items-center space-x-3">
+                                  {isImage && <ImageIcon size={20} className="text-blue-500" />}
+                                  {isVideo && <Film size={20} className="text-green-500" />}
+                                  {isAudio && <Mic size={20} className="text-purple-500" />}
+                                  <div className="flex-1">
+                                    <span className="text-sm text-gray-700 font-medium">{file.name}</span>
+                                    <p className="text-xs text-gray-500">
+                                      {isImage && "Image loading..."}
+                                      {isVideo && "Video file"}
+                                      {isAudio && "Audio file"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeFile(index)}
+                                  className="absolute top-2 right-2 text-gray-400 hover:text-red-500"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => removeFile(index)}
-                            className="absolute top-1 right-1 text-gray-400 hover:text-red-500"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, Image as ImageIcon } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { createClient } from '@supabase/supabase-js'
 import toast from 'react-hot-toast'
@@ -34,6 +34,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [hasUserInteracted, setHasUserInteracted] = useState(false)
 
   // Format date for input field
   const formatDateForInput = (dateString: string | null | undefined): string => {
@@ -66,6 +67,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       // Reset image positioning
       setImageZoom(1)
       setImagePosition({ x: 0, y: 0 })
+      setHasUserInteracted(false)
     }
   }, [chapter, isOpen])
 
@@ -102,9 +104,32 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       }
       const newPreviewUrl = URL.createObjectURL(file)
       setPreviewImageUrl(newPreviewUrl)
-      // Reset image positioning for new image
-      setImageZoom(1)
-      setImagePosition({ x: 0, y: 0 })
+      
+      // Calculate initial zoom to show FULL image (not cropped)
+      const img = new Image()
+      img.onload = () => {
+        const previewWidth = 320 // w-80
+        const previewHeight = 240 // h-60
+        const imgAspect = img.naturalWidth / img.naturalHeight
+        const previewAspect = previewWidth / previewHeight
+        
+        let initialZoom
+        if (imgAspect > previewAspect) {
+          // Image is wider - fit to width to see full image
+          initialZoom = previewWidth / img.naturalWidth
+        } else {
+          // Image is taller - fit to height to see full image  
+          initialZoom = previewHeight / img.naturalHeight
+        }
+        
+        // Make sure zoom doesn't go below minimum
+        initialZoom = Math.max(0.1, Math.min(1, initialZoom))
+        
+        setImageZoom(initialZoom)
+        setImagePosition({ x: 0, y: 0 }) // Center the image
+        setHasUserInteracted(false) // Reset interaction tracking
+      }
+      img.src = newPreviewUrl
     }
   }
 
@@ -116,10 +141,26 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return
+    
+    const newX = e.clientX - dragStart.x
+    const newY = e.clientY - dragStart.y
+    
+    // Add boundary checking to prevent image from being dragged completely out of view
+    const previewWidth = 320 // w-80
+    const previewHeight = 240 // h-60
+    const imageWidth = previewWidth * imageZoom
+    const imageHeight = previewHeight * imageZoom
+    
+    const minX = -(imageWidth - previewWidth)
+    const maxX = 0
+    const minY = -(imageHeight - previewHeight)
+    const maxY = 0
+    
     setImagePosition({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
+      x: Math.max(minX, Math.min(maxX, newX)),
+      y: Math.max(minY, Math.min(maxY, newY))
     })
+    setHasUserInteracted(true) // User is dragging the image
   }
 
   const handleMouseUp = () => {
@@ -127,7 +168,28 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   }
 
   const handleZoomChange = (newZoom: number) => {
-    setImageZoom(Math.max(0.5, Math.min(3, newZoom)))
+    // Dynamic zoom range - allow zooming out to see full image, zooming in to 5x
+    const minZoom = 0.05 // Allow very small zoom to see full image
+    const maxZoom = 5    // Allow zooming in quite a bit
+    const clampedZoom = Math.max(minZoom, Math.min(maxZoom, newZoom))
+    setImageZoom(clampedZoom)
+    setHasUserInteracted(true) // User is adjusting zoom
+    
+    // Adjust position to keep image in bounds when zoom changes
+    const previewWidth = 320 // w-80
+    const previewHeight = 240 // h-60
+    const imageWidth = previewWidth * clampedZoom
+    const imageHeight = previewHeight * clampedZoom
+    
+    const minX = -(imageWidth - previewWidth)
+    const maxX = 0
+    const minY = -(imageHeight - previewHeight)
+    const maxY = 0
+    
+    setImagePosition(prev => ({
+      x: Math.max(minX, Math.min(maxX, prev.x)),
+      y: Math.max(minY, Math.min(maxY, prev.y))
+    }))
   }
 
   // Create cropped image based on current position and zoom
@@ -147,13 +209,13 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
 
       const img = new Image()
       img.onload = () => {
-        // Set canvas to chapter header dimensions (16:5 aspect ratio)
-        canvas.width = 400
-        canvas.height = 128 // Same as h-32 (128px)
+        // Set canvas to match actual chapter header proportions (closer to real output)
+        canvas.width = 280 // Typical chapter card width
+        canvas.height = 192 // h-48 (192px) - matches timeline chapter height
 
-        // Calculate how the image fits in the preview container (128px height)
-        const previewHeight = 128
-        const previewWidth = 400
+        // Calculate how the image fits in the preview container
+        const previewHeight = 240 // h-60
+        const previewWidth = 320  // w-80
         const imgAspect = img.naturalWidth / img.naturalHeight
         const previewAspect = previewWidth / previewHeight
 
@@ -229,8 +291,8 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       formData.append('location', editingChapter.location)
       
       if (selectedHeaderImage) {
-        // If user has positioned/zoomed the image, create cropped version
-        if (imageZoom !== 1 || imagePosition.x !== 0 || imagePosition.y !== 0) {
+        // Only create cropped version if user has actually interacted with positioning/zoom
+        if (hasUserInteracted) {
           const croppedImage = await createCroppedImage()
           if (croppedImage) {
             formData.append('headerImage', croppedImage)
@@ -238,6 +300,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
             formData.append('headerImage', selectedHeaderImage)
           }
         } else {
+          // User hasn't interacted - use original image
           formData.append('headerImage', selectedHeaderImage)
         }
       } else if (editingChapter.headerImageUrl === null) {
@@ -310,25 +373,31 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
               <div className="mb-4 space-y-4">
                 {/* Preview Container - Shows how image will look in chapter header */}
                 <div className="relative">
-                  <div className="relative h-32 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden">
-                    <img
-                      src={previewImageUrl || editingChapter.headerImageUrl || ''}
-                      alt="Header preview"
-                      className="absolute cursor-move select-none"
-                      style={{
-                        width: `${100 * imageZoom}%`,
-                        height: `${100 * imageZoom}%`,
-                        transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
-                        minWidth: '100%',
-                        minHeight: '100%',
-                        objectFit: 'cover'
-                      }}
-                      onMouseDown={handleMouseDown}
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
-                      onMouseLeave={handleMouseUp}
-                      draggable={false}
-                    />
+                  <div className="relative w-80 h-60 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden mx-auto">
+                                          <img
+                        src={previewImageUrl || editingChapter.headerImageUrl || ''}
+                        alt="Header preview"
+                        className="absolute cursor-move select-none"
+                        style={{
+                          width: `${100 * imageZoom}%`,
+                          height: `${100 * imageZoom}%`,
+                          transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                          minWidth: '100%',
+                          minHeight: '100%',
+                          objectFit: 'cover'
+                        }}
+                        onMouseDown={handleMouseDown}
+                        draggable={false}
+                      />
+                      {/* Invisible overlay to capture mouse events properly */}
+                      <div
+                        className="absolute inset-0 cursor-move"
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                        style={{ zIndex: 1 }}
+                      />
                     {/* Overlay to show this is a preview */}
                     <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                       Preview
@@ -352,6 +421,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
                       onClick={() => {
                         setImageZoom(1)
                         setImagePosition({ x: 0, y: 0 })
+                        setHasUserInteracted(true) // User is resetting position
                       }}
                       className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
                     >
@@ -362,44 +432,59 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
                   {/* Zoom Controls */}
                   <div className="flex items-center space-x-3">
                     <span className="text-xs text-slate-600 w-12">Zoom:</span>
-                    <button
-                      onClick={() => handleZoomChange(imageZoom - 0.1)}
-                      className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="3"
-                      step="0.1"
-                      value={imageZoom}
-                      onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
-                      className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                    <button
-                      onClick={() => handleZoomChange(imageZoom + 0.1)}
-                      className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
-                    >
-                      +
-                    </button>
+                                          <button
+                        onClick={() => handleZoomChange(imageZoom * 0.8)} // Better scaling for zoom out
+                        className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="range"
+                        min="0.05"
+                        max="5"
+                        step="0.05"
+                        value={imageZoom}
+                        onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                        className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <button
+                        onClick={() => handleZoomChange(imageZoom * 1.25)} // Better scaling for zoom in
+                        className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
+                      >
+                        +
+                      </button>
                     <span className="text-xs text-slate-600 w-12">{Math.round(imageZoom * 100)}%</span>
                   </div>
                   
-                  {/* Instructions */}
-                  <p className="text-xs text-slate-500 italic">
-                    💡 Drag the image to reposition it, use zoom controls to scale. Preview shows how it will appear in your chapter.
-                  </p>
+                                      {/* Instructions */}
+                    <p className="text-xs text-slate-500 italic">
+                      💡 Your full image is shown first (never cropped on upload). Zoom in to focus on details, drag to reposition. Preview shows exactly how it will appear in your chapter!
+                    </p>
                 </div>
+              </div>
+            )}
+            
+            {/* Image Placeholder when no image - clickable to choose file */}
+            {!previewImageUrl && !editingChapter.headerImageUrl && (
+              <div className="mb-4">
+                <label 
+                  htmlFor="chapter-image-input"
+                  className="block w-80 h-60 bg-slate-50 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center mx-auto text-slate-500 hover:border-slate-400 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <ImageIcon size={48} className="mb-3 text-slate-400" />
+                  <p className="text-sm font-medium mb-1">Click to choose chapter image</p>
+                  <p className="text-xs text-center px-4">JPG, PNG or GIF up to 10MB</p>
+                </label>
               </div>
             )}
             
             {/* File Input */}
             <input
+              id="chapter-image-input"
               type="file"
               accept="image/*"
               onChange={handleImageSelect}
-              className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100"
+              className={`${(!previewImageUrl && !editingChapter.headerImageUrl) ? 'hidden' : 'block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100'}`}
             />
           </div>
 
