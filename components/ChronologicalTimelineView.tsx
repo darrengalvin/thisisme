@@ -254,10 +254,10 @@ export default function ChronologicalTimelineView({
   const animatedYears = generateAnimatedYears()
 
   return (
-    <div className="h-full bg-gradient-to-br from-slate-50 to-white overflow-y-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
       {/* Horizontal Zoomable Timeline - Always show for timeline view */}
       {birthYear && (
-        <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/50 p-4 lg:p-6">
+        <div className="fixed top-[88px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 p-4 lg:p-6 shadow-sm">
           <div className="text-center mb-4 lg:mb-6">
             <h3 className="text-lg lg:text-xl font-bold text-slate-900 mb-2">
               Your Life Timeline
@@ -288,9 +288,45 @@ export default function ChronologicalTimelineView({
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* Chapter positioning area */}
-            <div className={`relative ${chapters.length > 0 ? 'mt-8 mb-16' : 'mt-0 mb-0'}`} style={{ minHeight: chapters.length > 0 ? `${Math.max(600, chapters.length * 350 + 400)}px` : '20px' }}>
+      {/* Spacer for fixed timeline */}
+      {birthYear && <div className="h-[200px]"></div>}
+
+      {/* Scrollable Chapter Canvas Area */}
+      {birthYear && chapters.length > 0 && (
+        <div className="h-[calc(100vh-300px)] overflow-y-auto bg-white border-t border-slate-200 shadow-inner">
+          {/* Connection lines to timeline above */}
+          <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-slate-100/50 to-transparent pointer-events-none"></div>
+          <div className="relative" style={{ 
+            height: `${Math.max(1500, chapters.filter(chapter => {
+              if (!chapter?.startDate || !chapter?.endDate) return false;
+              const startYear = new Date(chapter.startDate).getFullYear();
+              const endYear = new Date(chapter.endDate).getFullYear();
+              let timelineStartYear, timelineEndYear;
+              switch (zoomLevel) {
+                case 'decades':
+                  timelineStartYear = Math.floor(birthYear / 10) * 10;
+                  timelineEndYear = currentYear;
+                  break;
+                case 'years':
+                  timelineStartYear = Math.max(birthYear, currentViewYear - 10);
+                  timelineEndYear = Math.min(currentYear, currentViewYear + 10);
+                  break;
+                case 'months':
+                  timelineStartYear = currentViewYear;
+                  timelineEndYear = currentViewYear;
+                  break;
+                default:
+                  return false;
+              }
+              return (startYear >= timelineStartYear && startYear <= timelineEndYear) ||
+                     (endYear >= timelineStartYear && endYear <= timelineEndYear) ||
+                     (startYear <= timelineStartYear && endYear >= timelineEndYear);
+            }).length * 400 + 800)}px`
+          }}>
               <div className="absolute inset-0">
                 {/* Positioned chapters */}
                 {chapters.filter(chapter => chapter && chapter.id && chapter.title).map((chapter, chapterIndex) => {
@@ -337,10 +373,10 @@ export default function ChronologicalTimelineView({
                   const minWidth = 180
                   const maxWidth = 280
                   
-                  // Simple stacking: if chapters overlap in time, stack them vertically
+                  // Smart stacking: if chapters overlap in the current zoom view, stack them vertically
                   let verticalOffset = 80
                   
-                  // Look at all previous chapters and see if any overlap with current chapter
+                  // Look at all previous chapters and see if any overlap with current chapter IN THE CURRENT ZOOM VIEW
                   for (let i = 0; i < chapterIndex; i++) {
                     const otherChapter = chapters[i]
                     if (!otherChapter || !otherChapter.startDate || !otherChapter.endDate) continue
@@ -348,11 +384,33 @@ export default function ChronologicalTimelineView({
                     const otherStartYear = new Date(otherChapter.startDate).getFullYear()
                     const otherEndYear = new Date(otherChapter.endDate).getFullYear()
                     
-                    // Simple overlap check: do the years overlap at all?
-                    const hasOverlap = !(endYear < otherStartYear || startYear > otherEndYear)
+                    // Check if the other chapter also overlaps with current timeline view
+                    const otherChapterOverlapsTimeline = (
+                      (otherStartYear >= timelineStartYear && otherStartYear <= timelineEndYear) ||
+                      (otherEndYear >= timelineStartYear && otherEndYear <= timelineEndYear) ||
+                      (otherStartYear <= timelineStartYear && otherEndYear >= timelineEndYear)
+                    )
                     
-                    if (hasOverlap) {
-                      verticalOffset += 350 // Stack this chapter 350px lower (increased for better spacing)
+                    // Only consider overlap if both chapters are visible in current zoom
+                    if (otherChapterOverlapsTimeline) {
+                      // Check for overlap in the current zoom range (more precise)
+                      const adjustedOtherStartYear = Math.max(otherStartYear, timelineStartYear)
+                      const adjustedOtherEndYear = Math.min(otherEndYear, timelineEndYear)
+                      
+                      // Calculate visual overlap based on current zoom level
+                      let hasVisualOverlap = false
+                      
+                      if (zoomLevel === 'months') {
+                        // In month view, chapters in the same year should stack
+                        hasVisualOverlap = adjustedStartYear === adjustedOtherStartYear
+                      } else {
+                        // For decades and years, check if date ranges overlap
+                        hasVisualOverlap = !(adjustedEndYear < adjustedOtherStartYear || adjustedStartYear > adjustedOtherEndYear)
+                      }
+                      
+                      if (hasVisualOverlap) {
+                        verticalOffset += 350 // Stack this chapter 350px lower
+                      }
                     }
                   }
                   
@@ -366,8 +424,8 @@ export default function ChronologicalTimelineView({
                         width: `${Math.min(maxWidth, Math.max(minWidth, (chapterDuration * 8)))}px`
                       }}
                     >
-                      {/* Connection line to timeline */}
-                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 w-0.5 h-6 bg-slate-400"></div>
+                      {/* Connection line to timeline above */}
+                      <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 w-0.5 h-12 bg-slate-400"></div>
                       
                       <div className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-visible">
                         {/* Chapter Header Image */}
@@ -616,11 +674,10 @@ export default function ChronologicalTimelineView({
               </div>
             </div>
           </div>
-        </div>
-          )}
+      )}
 
       {/* Content Area Below Timeline */}
-      <div className={`p-4 lg:p-8 ${(memories.length === 0 && chapters.length === 0) ? 'mt-0' : 'mt-8'}`}>
+      <div className={`p-4 lg:p-8 ${(memories.length === 0 && chapters.length === 0) ? 'mt-0' : 'mt-8'} pb-96`}>
         {(memories.length === 0 && chapters.length === 0) ? (
           /* New User Welcome Experience */
           isNewUser ? (
@@ -906,6 +963,15 @@ export default function ChronologicalTimelineView({
           </div>
         </div>
       )}
+
+      {/* Debug: Bottom indicator to test scrolling */}
+      <div className="h-96 bg-gradient-to-t from-blue-50 to-transparent flex items-end justify-center pb-8">
+        <div className="text-center">
+          <div className="text-lg font-bold text-slate-700 mb-2">🎯 Scroll Test</div>
+          <p className="text-sm text-slate-500">If you can see this, scrolling is working!</p>
+          <p className="text-xs text-slate-400 mt-2">Timeline should stay fixed at top</p>
+        </div>
+      </div>
     </div>
   )
 } 

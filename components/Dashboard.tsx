@@ -407,15 +407,6 @@ export default function Dashboard() {
               <Plus size={18} />
               <span className="hidden lg:inline">Add Chapter</span>
             </button>
-            
-            {/* Add Memory Button */}
-            <button
-              onClick={() => handleCreateMemory()}
-              className="bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
-            >
-              <Plus size={18} />
-              <span className="hidden lg:inline">Add Memory</span>
-            </button>
 
             {/* Profile Dropdown */}
             <div className="relative">
