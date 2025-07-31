@@ -749,10 +749,19 @@ export default function ChronologicalTimelineView({
                               left: '58px'
                             }}
                           />
-                          {/* Year label */}
-                          <div className="absolute left-0 top-1/2 transform -translate-y-1/2 text-xs font-medium text-slate-600 bg-white/90 px-2 py-1 rounded shadow-sm whitespace-nowrap">
-                            {startYear}
-                            {startYear !== endYear && `-${endYear}`}
+                          {/* Year label - vertical */}
+                          <div className="absolute left-0 top-1/2 transform -translate-y-1/2 text-xs font-medium text-slate-600 bg-white/90 px-1.5 py-1 rounded shadow-sm text-center">
+                            <div className="leading-tight">
+                              {startYear}
+                            </div>
+                            {startYear !== endYear && (
+                              <>
+                                <div className="text-slate-400 leading-none">|</div>
+                                <div className="leading-tight">
+                                  {endYear}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                         
