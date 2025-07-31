@@ -28,11 +28,60 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
   const { user } = useAuth()
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
   const [isLoadingChapters, setIsLoadingChapters] = useState(true)
+  const [likedMemories, setLikedMemories] = useState<Set<string>>(new Set())
+  const [memoryLikeCounts, setMemoryLikeCounts] = useState<Record<string, number>>({})
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null)
   
   // Edit chapter modal state
   const [editingChapter, setEditingChapter] = useState<TimeZoneWithRelations | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+
+  // Memory interaction handlers
+  const handleLikeMemory = (memoryId: string) => {
+    const isLiked = likedMemories.has(memoryId)
+    const newLikedMemories = new Set(likedMemories)
+    const currentCount = memoryLikeCounts[memoryId] || 0
+    
+    if (isLiked) {
+      newLikedMemories.delete(memoryId)
+      setMemoryLikeCounts(prev => ({
+        ...prev,
+        [memoryId]: Math.max(0, currentCount - 1)
+      }))
+    } else {
+      newLikedMemories.add(memoryId)
+      setMemoryLikeCounts(prev => ({
+        ...prev,
+        [memoryId]: currentCount + 1
+      }))
+    }
+    
+    setLikedMemories(newLikedMemories)
+  }
+
+  const handleCommentMemory = (memoryId: string) => {
+    // For now, just show an alert - this would open a comment modal in a full implementation
+    alert(`Comments feature coming soon! Memory ID: ${memoryId}`)
+  }
+
+  const handleShareMemory = (memory: MemoryWithRelations) => {
+    if (navigator.share) {
+      navigator.share({
+        title: memory.title || 'Memory from MyLife',
+        text: memory.textContent || 'Check out this memory!',
+        url: window.location.origin
+      }).catch(console.error)
+    } else {
+      // Fallback for browsers without native sharing
+      navigator.clipboard.writeText(
+        `${memory.title || 'Memory'}: ${memory.textContent || 'A memory from MyLife'} - ${window.location.origin}`
+      ).then(() => {
+        alert('Memory details copied to clipboard!')
+      }).catch(() => {
+        alert('Unable to share this memory')
+      })
+    }
+  }
 
   // Add filter state
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null)
@@ -572,15 +621,30 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                           <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-4">
-                                <button className="flex items-center space-x-1 text-slate-500 hover:text-slate-700 transition-colors">
-                                  <Heart size={16} />
-                                  <span className="text-sm">Like</span>
+                                <button 
+                                  onClick={() => handleLikeMemory(memory.id)}
+                                  className={`flex items-center space-x-1 transition-colors ${
+                                    likedMemories.has(memory.id) 
+                                      ? 'text-red-500 hover:text-red-600' 
+                                      : 'text-slate-500 hover:text-slate-700'
+                                  }`}
+                                >
+                                  <Heart size={16} fill={likedMemories.has(memory.id) ? 'currentColor' : 'none'} />
+                                  <span className="text-sm">
+                                    {memoryLikeCounts[memory.id] > 0 ? memoryLikeCounts[memory.id] : 'Like'}
+                                  </span>
                                 </button>
-                                <button className="flex items-center space-x-1 text-slate-500 hover:text-slate-700 transition-colors">
+                                <button 
+                                  onClick={() => handleCommentMemory(memory.id)}
+                                  className="flex items-center space-x-1 text-slate-500 hover:text-slate-700 transition-colors"
+                                >
                                   <MessageCircle size={16} />
                                   <span className="text-sm">Comment</span>
                                 </button>
-                                <button className="flex items-center space-x-1 text-slate-500 hover:text-slate-700 transition-colors">
+                                <button 
+                                  onClick={() => handleShareMemory(memory)}
+                                  className="flex items-center space-x-1 text-slate-500 hover:text-slate-700 transition-colors"
+                                >
                                   <Share size={16} />
                                   <span className="text-sm">Share</span>
                                 </button>

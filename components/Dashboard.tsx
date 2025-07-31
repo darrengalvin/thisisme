@@ -12,7 +12,9 @@ import UserProfile from './UserProfile'
 import ChronologicalTimelineView from './ChronologicalTimelineView'
 import AddMemoryWizard from './AddMemoryWizard'
 import TimelineView from './TimelineView'
+import EditMemoryModal from './EditMemoryModal'
 import { useAuth } from '@/components/AuthProvider'
+import { MemoryWithRelations } from '@/lib/types'
 
 type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile'
 
@@ -25,7 +27,7 @@ interface UserType {
 export default function Dashboard() {
   const { user: supabaseUser } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('home')
-  const [memories, setMemories] = useState([])
+  const [memories, setMemories] = useState<MemoryWithRelations[]>([])
   const [user, setUser] = useState<UserType | null>(null)
   const [showMemoryWizard, setShowMemoryWizard] = useState(false)
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null)
@@ -47,6 +49,8 @@ export default function Dashboard() {
       canZoomOut: boolean
     }
   } | null>(null)
+  const [editingMemory, setEditingMemory] = useState<MemoryWithRelations | null>(null)
+  const [showEditMemoryModal, setShowEditMemoryModal] = useState(false)
   
   const router = useRouter()
 
@@ -200,6 +204,46 @@ export default function Dashboard() {
     toast.success('Memory created successfully!')
   }
 
+  const handleEditMemory = (memory: MemoryWithRelations) => {
+    setEditingMemory(memory)
+    setShowEditMemoryModal(true)
+  }
+
+  const handleDeleteMemory = async (memory: MemoryWithRelations) => {
+    if (!confirm(`Are you sure you want to delete this memory? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/memories/${memory.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Memory deleted successfully!')
+        // Remove memory from state
+        setMemories(prevMemories => prevMemories.filter(m => m.id !== memory.id))
+      } else {
+        toast.error(data.error || 'Failed to delete memory')
+      }
+    } catch (error) {
+      console.error('Delete memory error:', error)
+      toast.error('Failed to delete memory')
+    }
+  }
+
+  const handleMemoryUpdated = (updatedMemory: MemoryWithRelations) => {
+    // Update memory in state
+    setMemories(prevMemories => 
+      prevMemories.map(m => m.id === updatedMemory.id ? updatedMemory : m)
+    )
+  }
+
   const getViewName = () => {
     switch (activeTab) {
       case 'home': return 'Feed View'
@@ -248,8 +292,8 @@ export default function Dashboard() {
         return <TimelineView 
           memories={memories} 
           birthYear={timelineBirthYear}
-          onEdit={(memory) => console.log('Edit memory:', memory)}
-          onDelete={(memory) => console.log('Delete memory:', memory)}
+          onEdit={handleEditMemory}
+          onDelete={handleDeleteMemory}
           onStartCreating={handleCreateMemory}
         />
       case 'timeline': 
@@ -471,6 +515,17 @@ export default function Dashboard() {
           }}
         />
       )}
+
+      {/* Edit Memory Modal */}
+      <EditMemoryModal
+        memory={editingMemory}
+        isOpen={showEditMemoryModal}
+        onClose={() => {
+          setShowEditMemoryModal(false)
+          setEditingMemory(null)
+        }}
+        onSave={handleMemoryUpdated}
+      />
     </div>
   )
 } 
