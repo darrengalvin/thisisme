@@ -759,49 +759,128 @@ export default function ChronologicalTimelineView({
                         {/* Chapter card */}
                         <div 
                           id={`mobile-chapter-${chapter.id}`}
-                          className="ml-8 flex-1 bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow duration-200"
+                          className="ml-8 flex-1 bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+                          onClick={() => {
+                            setSelectedChapter(chapter)
+                            setShowChapterModal(true)
+                          }}
                         >
-                          {/* Chapter header */}
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-slate-900 text-base mb-1">{chapter.title}</h4>
-                              <p className="text-sm text-slate-600">
-                                {chapter.startDate ? new Date(chapter.startDate).toLocaleDateString() : 'Unknown'} - {chapter.endDate ? new Date(chapter.endDate).toLocaleDateString() : 'Present'}
-                              </p>
+                          {/* Chapter Header Image */}
+                          {chapter.headerImageUrl && (
+                            <div className="relative bg-slate-100 rounded-t-xl overflow-hidden">
+                              <img 
+                                src={chapter.headerImageUrl} 
+                                alt={chapter.title}
+                                className="w-full h-32 object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/10"></div>
                             </div>
-                            <button
-                              onClick={() => {
-                                setEditingChapter(chapter)
-                                setShowEditModal(true)
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                            >
-                              <Edit size={14} />
-                            </button>
-                          </div>
-
-                          {/* Chapter description */}
-                          {chapter.description && (
-                            <p className="text-sm text-slate-700 mb-3 overflow-hidden" style={{ 
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical' as const
-                            }}>
-                              {chapter.description}
-                            </p>
                           )}
+                          
+                          {/* Chapter content */}
+                          <div className="p-4">
+                            {/* Chapter header */}
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-slate-900 text-base mb-1">{chapter.title}</h4>
+                                <p className="text-sm text-slate-600">
+                                  {chapter.startDate ? new Date(chapter.startDate).toLocaleDateString() : 'Unknown'} - {chapter.endDate ? new Date(chapter.endDate).toLocaleDateString() : 'Present'}
+                                </p>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingChapter(chapter)
+                                  setShowEditModal(true)
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                              >
+                                <Edit size={14} />
+                              </button>
+                            </div>
 
-                          {/* Location */}
-                          {chapter.location && (
-                            <p className="text-xs text-slate-500 mb-2">📍 {chapter.location}</p>
-                          )}
-
-                          {/* Memory count */}
-                          <div className="flex items-center justify-between text-xs text-slate-500">
-                            <span>{chapterMemories.length} {chapterMemories.length === 1 ? 'memory' : 'memories'}</span>
-                            {chapterMemories.length > 0 && (
-                              <span className="text-blue-600">View memories →</span>
+                            {/* Chapter description */}
+                            {chapter.description && (
+                              <p className="text-sm text-slate-700 mb-3 overflow-hidden" style={{ 
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical' as const
+                              }}>
+                                {chapter.description}
+                              </p>
                             )}
+
+                            {/* Location */}
+                            {chapter.location && (
+                              <p className="text-xs text-slate-500 mb-3">📍 {chapter.location}</p>
+                            )}
+
+                            {/* Memory Thumbnails */}
+                            {chapterMemories.length > 0 && (
+                              <div className="mb-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-slate-700">
+                                    {chapterMemories.length} {chapterMemories.length === 1 ? 'Memory' : 'Memories'}
+                                  </span>
+                                  <span className="text-xs text-blue-600">Tap to view →</span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-2">
+                                  {chapterMemories.slice(0, 4).map((memory, memIndex) => {
+                                    const thumbnail = getMediaThumbnail(memory)
+                                    const mediaType = getMediaType(memory)
+                                    
+                                    return (
+                                      <div
+                                        key={memory.id}
+                                        className="relative aspect-square bg-slate-100 rounded overflow-hidden"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setSelectedMemory(memory)
+                                          setMemorySourceChapter(chapter)
+                                          setShowMemoryModal(true)
+                                        }}
+                                      >
+                                        {thumbnail ? (
+                                          <>
+                                            <img
+                                              src={thumbnail}
+                                              alt={memory.title || 'Memory'}
+                                              className="w-full h-full object-cover"
+                                            />
+                                            {mediaType === 'video' && (
+                                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                                <Play size={12} className="text-white" />
+                                              </div>
+                                            )}
+                                          </>
+                                        ) : (
+                                          <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                                            <Camera size={12} className="text-slate-400" />
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                  {chapterMemories.length > 4 && (
+                                    <div className="aspect-square bg-slate-100 rounded flex items-center justify-center">
+                                      <span className="text-xs text-slate-500 font-medium">+{chapterMemories.length - 4}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Chapter actions */}
+                            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                              <span className="text-slate-500">
+                                {chapterMemories.length === 0 ? 'No memories yet' : 'Tap chapter to view all'}
+                              </span>
+                              <div className="flex items-center space-x-2">
+                                {chapterMemories.length > 0 && (
+                                  <span className="text-blue-600 font-medium">View all</span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
