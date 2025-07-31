@@ -285,23 +285,9 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                     Describe what happened
                   </label>
                   {isPremiumUser && (
-                    <div className="flex items-center space-x-2">
-                      <div className="flex items-center space-x-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
-                        <Crown size={12} />
-                        <span className="font-medium">PRO</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleVoiceRecord}
-                        className={`p-2 rounded-full transition-all duration-200 ${
-                          isRecording 
-                            ? 'bg-red-500 text-white shadow-lg shadow-red-200 animate-pulse' 
-                            : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl'
-                        }`}
-                        title={isRecording ? 'Stop recording' : 'Start voice transcription (Premium)'}
-                      >
-                        <Mic size={16} className={isRecording ? 'animate-pulse' : ''} />
-                      </button>
+                    <div className="flex items-center space-x-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                      <Crown size={12} />
+                      <span className="font-medium">PRO</span>
                     </div>
                   )}
                 </div>
@@ -316,7 +302,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                       isRecording 
                         ? 'border-red-300 focus:ring-red-500 bg-red-50/50' 
                         : 'border-slate-300 focus:ring-slate-800'
-                    }`}
+                    } ${isPremiumUser ? 'pr-16' : ''}`}
                     disabled={isRecording}
                   />
                   
@@ -334,17 +320,35 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                     </div>
                   )}
                   
+                  {/* Premium Voice Button - Positioned on textarea */}
+                  {isPremiumUser && (
+                    <div className="absolute bottom-3 right-3">
+                      <button
+                        type="button"
+                        onClick={handleVoiceRecord}
+                        className={`p-2.5 rounded-full transition-all duration-200 shadow-lg ${
+                          isRecording 
+                            ? 'bg-red-500 text-white shadow-red-200 animate-pulse border-2 border-red-300' 
+                            : 'bg-slate-700 hover:bg-slate-800 text-white hover:shadow-xl border-2 border-slate-600 hover:border-slate-500'
+                        }`}
+                        title={isRecording ? 'Stop recording' : 'Start voice transcription (Premium)'}
+                      >
+                        <Mic size={18} className={isRecording ? 'animate-pulse' : ''} />
+                      </button>
+                    </div>
+                  )}
+
                   {/* Premium Feature Hint for Non-Premium Users */}
                   {!isPremiumUser && (
-                    <div className="absolute top-2 right-2">
+                    <div className="absolute bottom-3 right-3">
                       <div className="group relative">
                         <button
                           type="button"
                           onClick={handleVoiceRecord}
-                          className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition-colors opacity-60"
+                          className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition-colors opacity-60 border border-slate-200"
                           title="Voice transcription available with Pro upgrade"
                         >
-                          <Mic size={14} />
+                          <Mic size={16} />
                         </button>
                         <div className="absolute -top-12 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                           <div className="flex items-center space-x-1">
@@ -359,8 +363,8 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                 
                 {isPremiumUser && (
                   <div className="mt-2 text-xs text-slate-500 flex items-center space-x-1">
-                    <Sparkles size={12} className="text-purple-500" />
-                    <span>Click the microphone to use AI voice transcription</span>
+                    <Sparkles size={12} className="text-slate-600" />
+                    <span>Click the microphone in the text box to use AI voice transcription</span>
                   </div>
                 )}
               </div>
