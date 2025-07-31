@@ -382,6 +382,17 @@ export default function ChronologicalTimelineView({
                             <h5 className="font-semibold text-slate-900 text-sm leading-tight">
                               {chapter.title}
                             </h5>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingChapter(chapter)
+                                setShowEditModal(true)
+                              }}
+                              className="w-6 h-6 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded transition-all duration-200 flex items-center justify-center opacity-60 hover:opacity-100"
+                              title="Edit Chapter"
+                            >
+                              <Edit size={12} />
+                            </button>
                           </div>
                           <div className="text-xs text-slate-500 mb-1">
                             {startYear} - {endYear === currentYear ? 'Present' : endYear}
@@ -526,7 +537,7 @@ export default function ChronologicalTimelineView({
                         )}
 
                         {/* Chapter Actions */}
-                        <div className="p-3 space-y-2">
+                        <div className="p-3">
                           <button
                             onClick={() => {
                               console.log('🔗 CHAPTER: Starting memory creation for chapter:', chapter.id, chapter.title)
@@ -536,17 +547,6 @@ export default function ChronologicalTimelineView({
                           >
                             <Plus size={10} />
                             <span>Add Memory</span>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setEditingChapter(chapter)
-                              setShowEditModal(true)
-                            }}
-                            className="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 py-1.5 px-3 rounded text-xs font-medium transition-all duration-200 flex items-center justify-center space-x-1"
-                          >
-                            <Edit size={10} />
-                            <span>Edit Chapter</span>
                           </button>
                         </div>
                       </div>

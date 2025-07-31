@@ -28,6 +28,12 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   const [selectedHeaderImage, setSelectedHeaderImage] = useState<File | null>(null)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
+  
+  // Image positioning state
+  const [imageZoom, setImageZoom] = useState(1)
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
   // Format date for input field
   const formatDateForInput = (dateString: string | null | undefined): string => {
@@ -57,6 +63,9 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       })
       setSelectedHeaderImage(null)
       setPreviewImageUrl(null)
+      // Reset image positioning
+      setImageZoom(1)
+      setImagePosition({ x: 0, y: 0 })
     }
   }, [chapter, isOpen])
 
@@ -93,7 +102,102 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       }
       const newPreviewUrl = URL.createObjectURL(file)
       setPreviewImageUrl(newPreviewUrl)
+      // Reset image positioning for new image
+      setImageZoom(1)
+      setImagePosition({ x: 0, y: 0 })
     }
+  }
+
+  // Image positioning handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y })
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return
+    setImagePosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleZoomChange = (newZoom: number) => {
+    setImageZoom(Math.max(0.5, Math.min(3, newZoom)))
+  }
+
+  // Create cropped image based on current position and zoom
+  const createCroppedImage = (): Promise<File | null> => {
+    return new Promise((resolve) => {
+      if (!previewImageUrl) {
+        resolve(null)
+        return
+      }
+
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(null)
+        return
+      }
+
+      const img = new Image()
+      img.onload = () => {
+        // Set canvas to chapter header dimensions (16:5 aspect ratio)
+        canvas.width = 400
+        canvas.height = 128 // Same as h-32 (128px)
+
+        // Calculate how the image fits in the preview container (128px height)
+        const previewHeight = 128
+        const previewWidth = 400
+        const imgAspect = img.naturalWidth / img.naturalHeight
+        const previewAspect = previewWidth / previewHeight
+
+        let displayWidth, displayHeight
+        if (imgAspect > previewAspect) {
+          // Image is wider, fit to height
+          displayHeight = previewHeight
+          displayWidth = displayHeight * imgAspect
+        } else {
+          // Image is taller, fit to width
+          displayWidth = previewWidth
+          displayHeight = displayWidth / imgAspect
+        }
+
+        // Scale according to zoom
+        const scaledWidth = displayWidth * imageZoom
+        const scaledHeight = displayHeight * imageZoom
+
+        // Fill the entire canvas with the image, cropping as needed
+        ctx.fillStyle = '#f1f5f9' // slate-100 background
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+        // Draw the positioned and scaled image
+        ctx.drawImage(
+          img,
+          imagePosition.x,
+          imagePosition.y,
+          scaledWidth,
+          scaledHeight
+        )
+
+        // Convert canvas to blob and then to File
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], 'cropped-header.jpg', { type: 'image/jpeg' })
+            resolve(file)
+          } else {
+            resolve(null)
+          }
+        }, 'image/jpeg', 0.9)
+      }
+      
+      img.src = previewImageUrl
+    })
   }
 
   // Remove header image
@@ -125,7 +229,17 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       formData.append('location', editingChapter.location)
       
       if (selectedHeaderImage) {
-        formData.append('headerImage', selectedHeaderImage)
+        // If user has positioned/zoomed the image, create cropped version
+        if (imageZoom !== 1 || imagePosition.x !== 0 || imagePosition.y !== 0) {
+          const croppedImage = await createCroppedImage()
+          if (croppedImage) {
+            formData.append('headerImage', croppedImage)
+          } else {
+            formData.append('headerImage', selectedHeaderImage)
+          }
+        } else {
+          formData.append('headerImage', selectedHeaderImage)
+        }
       } else if (editingChapter.headerImageUrl === null) {
         formData.append('removeHeaderImage', 'true')
       }
@@ -191,20 +305,92 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
           <div>
             <label className="block text-sm font-semibold text-slate-900 mb-2">Header Image</label>
             
-            {/* Current or Preview Image */}
+            {/* Enhanced Image Preview with Positioning */}
             {(previewImageUrl || editingChapter.headerImageUrl) && (
-              <div className="relative mb-4">
-                <img
-                  src={previewImageUrl || editingChapter.headerImageUrl || ''}
-                  alt="Header preview"
-                  className="w-full h-32 object-cover rounded-lg border border-slate-200"
-                />
-                <button
-                  onClick={removeHeaderImage}
-                  className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 transition-colors"
-                >
-                  <X size={16} />
-                </button>
+              <div className="mb-4 space-y-4">
+                {/* Preview Container - Shows how image will look in chapter header */}
+                <div className="relative">
+                  <div className="relative h-32 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden">
+                    <img
+                      src={previewImageUrl || editingChapter.headerImageUrl || ''}
+                      alt="Header preview"
+                      className="absolute cursor-move select-none"
+                      style={{
+                        width: `${100 * imageZoom}%`,
+                        height: `${100 * imageZoom}%`,
+                        transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                        minWidth: '100%',
+                        minHeight: '100%',
+                        objectFit: 'cover'
+                      }}
+                      onMouseDown={handleMouseDown}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUp}
+                      onMouseLeave={handleMouseUp}
+                      draggable={false}
+                    />
+                    {/* Overlay to show this is a preview */}
+                    <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                      Preview
+                    </div>
+                  </div>
+                  
+                  {/* Remove Image Button */}
+                  <button
+                    onClick={removeHeaderImage}
+                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 transition-colors z-10"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Image Controls */}
+                <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-700">Image Position & Zoom</span>
+                    <button
+                      onClick={() => {
+                        setImageZoom(1)
+                        setImagePosition({ x: 0, y: 0 })
+                      }}
+                      className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  
+                  {/* Zoom Controls */}
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xs text-slate-600 w-12">Zoom:</span>
+                    <button
+                      onClick={() => handleZoomChange(imageZoom - 0.1)}
+                      className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="3"
+                      step="0.1"
+                      value={imageZoom}
+                      onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                      className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <button
+                      onClick={() => handleZoomChange(imageZoom + 0.1)}
+                      className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
+                    >
+                      +
+                    </button>
+                    <span className="text-xs text-slate-600 w-12">{Math.round(imageZoom * 100)}%</span>
+                  </div>
+                  
+                  {/* Instructions */}
+                  <p className="text-xs text-slate-500 italic">
+                    💡 Drag the image to reposition it, use zoom controls to scale. Preview shows how it will appear in your chapter.
+                  </p>
+                </div>
               </div>
             )}
             
