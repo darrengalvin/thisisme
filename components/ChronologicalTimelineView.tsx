@@ -47,6 +47,22 @@ export default function ChronologicalTimelineView({
   // Memory detail modal state
   const [selectedMemory, setSelectedMemory] = useState<MemoryWithRelations | null>(null)
   const [showMemoryModal, setShowMemoryModal] = useState(false)
+  const [memorySourceChapter, setMemorySourceChapter] = useState<TimeZoneWithRelations | null>(null)
+  
+  // Chapter detail modal state
+  const [selectedChapter, setSelectedChapter] = useState<TimeZoneWithRelations | null>(null)
+  const [showChapterModal, setShowChapterModal] = useState(false)
+  
+  // Visible chapters tracking for dynamic connection lines
+  const [visibleChapters, setVisibleChapters] = useState<Set<string>>(new Set())
+  const [connectionLines, setConnectionLines] = useState<Array<{
+    id: string
+    startX: number
+    startY: number
+    endX: number
+    endY: number
+    color: string
+  }>>([])
 
   const birthYear = propBirthYear || 1981 // From user profile with fallback
   const currentYear = new Date().getFullYear()
@@ -160,6 +176,315 @@ export default function ChronologicalTimelineView({
     }
   }, [zoomLevel, currentViewYear])
 
+  // Intersection Observer for tracking visible chapters
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setVisibleChapters((prev) => {
+          const newVisible = new Set(prev)
+          entries.forEach((entry) => {
+            const chapterId = entry.target.id?.replace('chapter-', '')
+            if (chapterId) {
+              // Only show connection line if chapter is FULLY visible (100% in viewport)
+              if (entry.isIntersecting && entry.intersectionRatio >= 0.99) {
+                newVisible.add(chapterId)
+              } else {
+                // Remove line as soon as any part gets cut off
+                newVisible.delete(chapterId)
+              }
+            }
+          })
+          return newVisible
+        })
+      },
+      {
+        threshold: [0, 0.1, 0.5, 1.0], // Multiple thresholds for precise control
+        rootMargin: '0px 0px 0px 0px' // No margin - strict viewport boundaries
+      }
+    )
+
+    // Observe all chapter elements with a small delay to ensure DOM is ready
+    const setupObserver = () => {
+      const chapterElements = document.querySelectorAll('[id^="chapter-"]')
+      chapterElements.forEach((el) => observer.observe(el))
+      
+      // Initially set first few chapters as visible if they exist
+      const initialVisible = new Set<string>()
+      Array.from(chapterElements).slice(0, 3).forEach((el) => {
+        const chapterId = el.id?.replace('chapter-', '')
+        if (chapterId) {
+          initialVisible.add(chapterId)
+        }
+      })
+      if (initialVisible.size > 0) {
+        setVisibleChapters(initialVisible)
+      }
+    }
+
+    if (chapters.length > 0) {
+      setTimeout(setupObserver, 100) // Small delay to ensure chapters are rendered
+    }
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [chapters, zoomLevel, currentViewYear]) // Re-run when chapters change OR timeline view changes
+
+  // Update connection lines when visible chapters change
+  useEffect(() => {
+    const updateConnectionLines = () => {
+      const lines: Array<{
+        id: string
+        startX: number
+        startY: number
+        endX: number
+        endY: number
+        color: string
+      }> = []
+
+      visibleChapters.forEach((chapterId) => {
+        const chapterElement = document.getElementById(`chapter-${chapterId}`)
+        const timelineBar = document.querySelector('.h-1.bg-gradient-to-r') // The actual timeline bar
+        const timelineMarker = document.querySelector(`[data-timeline-marker="${chapterId}"]`)
+        
+        if (chapterElement && timelineBar && timelineMarker) {
+          try {
+            const chapterRect = chapterElement.getBoundingClientRect()
+            const timelineBarRect = timelineBar.getBoundingClientRect()
+            const markerRect = timelineMarker.getBoundingClientRect()
+            
+            // Validate that we have valid rects (not empty/zero)
+            if (chapterRect.height === 0 || timelineBarRect.height === 0 || markerRect.width === 0) {
+              return // Skip this chapter if elements aren't properly rendered
+            }
+            
+            // Use marker's X position but connect directly to the timeline bar
+            const startX = markerRect.left + markerRect.width / 2
+            const startY = timelineBarRect.bottom + 2 // Just 2px below the timeline bar for tight connection
+            const endX = chapterRect.left + chapterRect.width / 2
+            const endY = chapterRect.top - 1 // Stop 1px before touching the chapter box edge
+          
+            lines.push({
+              id: chapterId,
+              startX,
+              startY,
+              endX,
+              endY,
+              color: `hsl(${(parseInt(chapterId) * 137.5) % 360}, 70%, 60%)`
+            })
+          } catch (error) {
+            // Skip this chapter if there's an error calculating positions
+            console.warn(`Error calculating connection line for chapter ${chapterId}:`, error)
+          }
+        }
+      })
+
+      setConnectionLines(lines)
+    }
+
+    // Use RAF to ensure DOM is ready
+    if (visibleChapters.size > 0) {
+      requestAnimationFrame(updateConnectionLines)
+    } else {
+      setConnectionLines([])
+    }
+  }, [visibleChapters])
+
+  // Clear and redraw connection lines when timeline view changes
+  useEffect(() => {
+    // Immediately clear all connection lines and visible chapters
+    setConnectionLines([])
+    setVisibleChapters(new Set())
+    
+    // Multi-stage redraw process to ensure timeline markers are properly positioned
+    const redrawLines = async () => {
+      // Stage 1: Wait for initial DOM updates
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      // Stage 2: Check if timeline markers exist, if not wait longer
+      let attempts = 0
+      const maxAttempts = 10
+      
+      while (attempts < maxAttempts) {
+        const timelineMarkers = document.querySelectorAll('[data-timeline-marker]')
+        if (timelineMarkers.length > 0) {
+          break // Markers are ready
+        }
+        await new Promise(resolve => setTimeout(resolve, 100))
+        attempts++
+      }
+      
+      // Stage 3: Final positioning check and visibility calculation
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Force complete recalculation after all DOM changes settle
+      const chapterElements = document.querySelectorAll('[id^="chapter-"]')
+      const newVisible = new Set<string>()
+      const visibleChapters: Array<{id: string, visibility: number}> = []
+      
+      chapterElements.forEach((el) => {
+        const rect = el.getBoundingClientRect()
+        const windowHeight = window.innerHeight
+        
+        // Calculate how much of the chapter is visible
+        const visibleTop = Math.max(0, rect.top)
+        const visibleBottom = Math.min(windowHeight, rect.bottom)
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop)
+        const visibilityRatio = visibleHeight / rect.height
+        
+        if (visibilityRatio >= 0.99) { // Must be fully visible
+          const chapterId = el.id?.replace('chapter-', '')
+          // Double-check that timeline marker exists and is positioned
+          const marker = document.querySelector(`[data-timeline-marker="${chapterId}"]`)
+          if (chapterId && marker) {
+            const markerRect = marker.getBoundingClientRect()
+            // Only add if marker has valid position (not 0,0)
+            if (markerRect.left > 0 && markerRect.top > 0) {
+              visibleChapters.push({ id: chapterId, visibility: visibilityRatio })
+            }
+          }
+        }
+      })
+      
+      // All fully visible chapters with positioned markers get connection lines
+      visibleChapters.forEach(chapter => newVisible.add(chapter.id))
+      
+      setVisibleChapters(newVisible)
+    }
+    
+    redrawLines()
+  }, [zoomLevel, currentViewYear]) // Re-run when timeline view changes
+
+  // Force redraw connection lines (can be called manually)
+  const forceRedrawLines = useCallback(() => {
+    setConnectionLines([])
+    setVisibleChapters(new Set())
+    
+    // Wait for state to clear, then recalculate
+    setTimeout(() => {
+      const chapterElements = document.querySelectorAll('[id^="chapter-"]')
+      const newVisible = new Set<string>()
+      
+      chapterElements.forEach((el) => {
+        const rect = el.getBoundingClientRect()
+        const windowHeight = window.innerHeight
+        const visibleHeight = Math.max(0, Math.min(windowHeight, rect.bottom) - Math.max(0, rect.top))
+        const visibilityRatio = visibleHeight / rect.height
+        
+        if (visibilityRatio >= 0.99) {
+          const chapterId = el.id?.replace('chapter-', '')
+          const marker = document.querySelector(`[data-timeline-marker="${chapterId}"]`)
+          if (chapterId && marker) {
+            const markerRect = marker.getBoundingClientRect()
+            if (markerRect.left > 0 && markerRect.top > 0) {
+              newVisible.add(chapterId)
+            }
+          }
+        }
+      })
+      
+      setVisibleChapters(newVisible)
+    }, 100)
+  }, [])
+
+  // Update connection lines on scroll with throttling
+  useEffect(() => {
+    let rafId: number
+
+    const handleScroll = () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
+      
+      rafId = requestAnimationFrame(() => {
+        // Always clear old lines first to prevent triangle effect
+        const lines: Array<{
+          id: string
+          startX: number
+          startY: number
+          endX: number
+          endY: number
+          color: string
+        }> = []
+
+        if (visibleChapters.size > 0) {
+          // Double-check visibility during scroll to prevent crossover lines
+          const currentlyVisible = new Set<string>()
+          
+          visibleChapters.forEach((chapterId) => {
+            const chapterElement = document.getElementById(`chapter-${chapterId}`)
+            
+            // Verify chapter is still significantly visible during scroll
+            if (chapterElement) {
+              const rect = chapterElement.getBoundingClientRect()
+              const visibleHeight = Math.max(0, Math.min(window.innerHeight, rect.bottom) - Math.max(0, rect.top))
+              const visibilityRatio = visibleHeight / rect.height
+              
+              if (visibilityRatio >= 0.99) { // Must be fully visible during scroll
+                currentlyVisible.add(chapterId)
+              }
+            }
+          })
+          
+          // Only create lines for currently visible chapters
+          currentlyVisible.forEach((chapterId) => {
+            const chapterElement = document.getElementById(`chapter-${chapterId}`)
+            const timelineBar = document.querySelector('.h-1.bg-gradient-to-r')
+            const timelineMarker = document.querySelector(`[data-timeline-marker="${chapterId}"]`)
+            
+            if (chapterElement && timelineBar && timelineMarker) {
+              try {
+                const chapterRect = chapterElement.getBoundingClientRect()
+                const timelineBarRect = timelineBar.getBoundingClientRect()
+                const markerRect = timelineMarker.getBoundingClientRect()
+                
+                // Validate that we have valid rects
+                if (chapterRect.height === 0 || timelineBarRect.height === 0 || markerRect.width === 0) {
+                  return // Skip this chapter if elements aren't properly rendered
+                }
+                
+                lines.push({
+                  id: chapterId,
+                  startX: markerRect.left + markerRect.width / 2,
+                  startY: timelineBarRect.bottom + 2,
+                  endX: chapterRect.left + chapterRect.width / 2,
+                  endY: chapterRect.top - 1,
+                  color: `hsl(${(parseInt(chapterId) * 137.5) % 360}, 70%, 60%)`
+                })
+              } catch (error) {
+                // Skip this chapter if there's an error
+                console.warn(`Error calculating scroll connection line for chapter ${chapterId}:`, error)
+              }
+            }
+          })
+        }
+
+        // Always set connection lines (even if empty) to clear old ones
+        setConnectionLines(lines)
+      })
+    }
+
+    // Also trigger redraw on animation completion
+    const handleAnimationEnd = () => {
+      setTimeout(forceRedrawLines, 50)
+    }
+    
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('resize', handleScroll, { passive: true })
+    window.addEventListener('transitionend', handleAnimationEnd, { passive: true })
+    window.addEventListener('animationend', handleAnimationEnd, { passive: true })
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleScroll)
+      window.removeEventListener('transitionend', handleAnimationEnd)
+      window.removeEventListener('animationend', handleAnimationEnd)
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
+    }
+  }, [visibleChapters])
+
   const handleZoomIn = () => {
     if (zoomLevel === 'decades') {
       setZoomLevel('years')
@@ -255,9 +580,9 @@ export default function ChronologicalTimelineView({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
-      {/* Horizontal Zoomable Timeline - Always show for timeline view */}
+      {/* Desktop: Horizontal Zoomable Timeline */}
       {birthYear && (
-        <div className="fixed top-[88px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 p-4 lg:p-6 shadow-sm">
+        <div className="hidden md:block fixed top-[88px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 pt-4 lg:pt-6 px-4 lg:px-6 pb-2 shadow-sm">
           <div className="text-center mb-4 lg:mb-6">
             <h3 className="text-lg lg:text-xl font-bold text-slate-900 mb-2">
               Your Life Timeline
@@ -270,7 +595,74 @@ export default function ChronologicalTimelineView({
           {/* Timeline Visualization */}
           <div className="relative">
             {/* Main timeline line */}
-            <div className="h-1 bg-gradient-to-r from-slate-300 via-slate-400 to-slate-500 rounded-full mb-2"></div>
+            <div className="h-1 bg-gradient-to-r from-slate-300 via-slate-400 to-slate-500 rounded-full mb-0 relative">
+              {/* Chapter markers on timeline */}
+              {chapters.filter(chapter => chapter && chapter.id && chapter.title).map((chapter) => {
+                const chapterDate = new Date(chapter.startDate || new Date());
+                const timelineStart = new Date(animatedYears[0]?.year || new Date().getFullYear(), animatedYears[0]?.month || 0);
+                const timelineEnd = new Date(animatedYears[animatedYears.length - 1]?.year || new Date().getFullYear(), animatedYears[animatedYears.length - 1]?.month || 11);
+                const timelineSpan = timelineEnd.getTime() - timelineStart.getTime();
+                const chapterOffset = ((chapterDate.getTime() - timelineStart.getTime()) / timelineSpan) * 100;
+                
+                
+                if (chapterOffset >= 0 && chapterOffset <= 100) {
+                  return (
+                    <div
+                      key={`timeline-marker-${chapter.id}`}
+                      className="absolute top-0 transform -translate-x-1/2 -translate-y-1/2"
+                      style={{ left: `${chapterOffset}%` }}
+                    >
+                      <div 
+                        className="w-2 h-2 rounded-full border border-slate-400 opacity-60 hover:opacity-100 transition-all duration-300 hover:scale-150 cursor-pointer timeline-marker relative hover:shadow-md"
+                        style={{ 
+                          backgroundColor: `hsl(${(parseInt(chapter.id) * 137.5) % 360}, 60%, 55%)`,
+                          borderColor: `hsl(${(parseInt(chapter.id) * 137.5) % 360}, 60%, 40%)`
+                        }}
+                        data-timeline-marker={chapter.id}
+                        title={`Click to scroll to: ${chapter.title} (${chapterDate.toLocaleDateString()})`}
+                        onClick={() => {
+                          const chapterElement = document.getElementById(`chapter-${chapter.id}`);
+                          chapterElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }}
+                      >
+                        {/* Subtle connection indicator pointing down */}
+                        <div 
+                          className="absolute top-full left-1/2 transform -translate-x-1/2 opacity-0 hover:opacity-60 transition-opacity duration-300"
+                          style={{ 
+                            width: '0', 
+                            height: '0', 
+                            borderLeft: '2px solid transparent',
+                            borderRight: '2px solid transparent',
+                            borderTop: `3px solid hsl(${(parseInt(chapter.id) * 137.5) % 360}, 60%, 45%)`,
+                            filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.1))'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+            
+            {/* Dynamic connection lines for visible chapters */}
+            <div className="fixed inset-0 pointer-events-none z-50">
+              <svg className="w-full h-full overflow-visible">
+                {connectionLines.map((line) => (
+                  <line
+                    key={`connection-${line.id}`}
+                    x1={line.startX}
+                    y1={line.startY}
+                    x2={line.endX}
+                    y2={line.endY}
+                    stroke="rgb(148, 163, 184)"
+                    strokeWidth="1"
+                    opacity="0.6"
+                    className="transition-opacity duration-300"
+                  />
+                ))}
+              </svg>
+            </div>
             
             {/* Year markers */}
             <div className="flex justify-between items-center relative">
@@ -292,12 +684,141 @@ export default function ChronologicalTimelineView({
         </div>
       )}
 
-      {/* Spacer for fixed timeline */}
-      {birthYear && <div className="h-[200px]"></div>}
+      {/* Mobile: Vertical Timeline */}
+      {birthYear && (
+        <div className="md:hidden">
+          {/* Mobile Header */}
+          <div className="sticky top-[88px] z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 px-4 py-3 shadow-sm">
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-slate-900 mb-1">Your Life Timeline</h3>
+              <p className="text-slate-600 text-sm">{birthYear} - {currentYear} • {currentYear - birthYear} years</p>
+            </div>
+            
+            {/* Mobile Zoom Controls */}
+            <div className="flex items-center justify-center space-x-2 mt-3">
+              <button
+                onClick={handleZoomOut}
+                disabled={zoomLevel === 'decades'}
+                className="p-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+              >
+                <ZoomOut size={16} />
+              </button>
+              <span className="text-sm font-medium text-slate-700 px-3">
+                {zoomLevel === 'decades' && 'Decades'}
+                {zoomLevel === 'years' && 'Years'}
+                {zoomLevel === 'months' && 'Months'}
+              </span>
+              <button
+                onClick={handleZoomIn}
+                disabled={zoomLevel === 'months'}
+                className="p-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+              >
+                <ZoomIn size={16} />
+              </button>
+            </div>
+          </div>
 
-      {/* Scrollable Chapter Canvas Area */}
+          {/* Mobile Vertical Timeline Content */}
+          <div className="pt-4 px-4 pb-8">
+            <div className="relative">
+              {/* Vertical timeline line */}
+              <div className="absolute left-16 top-0 bottom-0 w-0.5 bg-gradient-to-b from-slate-300 via-slate-400 to-slate-500"></div>
+              
+              {/* Chapters in chronological order */}
+              <div className="space-y-6">
+                {chapters
+                  .filter(chapter => chapter && chapter.id && chapter.title)
+                  .sort((a, b) => {
+                    const aDate = a.startDate ? new Date(a.startDate).getTime() : 0
+                    const bDate = b.startDate ? new Date(b.startDate).getTime() : 0
+                    return aDate - bDate
+                  })
+                  .map((chapter, index) => {
+                    const chapterMemories = memories.filter(m => m.timeZoneId === chapter.id)
+                    const startYear = chapter.startDate ? new Date(chapter.startDate).getFullYear() : birthYear
+                    const endYear = chapter.endDate ? new Date(chapter.endDate).getFullYear() : currentYear
+                    
+                    return (
+                      <div key={`mobile-chapter-${chapter.id}`} className="relative flex items-start">
+                        {/* Timeline marker */}
+                        <div className="flex-shrink-0 relative">
+                          <div 
+                            className="w-4 h-4 rounded-full border-2 border-white shadow-md relative z-10"
+                            style={{ 
+                              backgroundColor: `hsl(${(parseInt(chapter.id) * 137.5) % 360}, 60%, 55%)`,
+                              left: '58px'
+                            }}
+                          />
+                          {/* Year label */}
+                          <div className="absolute left-0 top-1/2 transform -translate-y-1/2 text-xs font-medium text-slate-600 bg-white/90 px-2 py-1 rounded shadow-sm whitespace-nowrap">
+                            {startYear}
+                            {startYear !== endYear && `-${endYear}`}
+                          </div>
+                        </div>
+                        
+                        {/* Chapter card */}
+                        <div 
+                          id={`mobile-chapter-${chapter.id}`}
+                          className="ml-8 flex-1 bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow duration-200"
+                        >
+                          {/* Chapter header */}
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-slate-900 text-base mb-1">{chapter.title}</h4>
+                              <p className="text-sm text-slate-600">
+                                {chapter.startDate ? new Date(chapter.startDate).toLocaleDateString() : 'Unknown'} - {chapter.endDate ? new Date(chapter.endDate).toLocaleDateString() : 'Present'}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditingChapter(chapter)
+                                setShowEditModal(true)
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                              <Edit size={14} />
+                            </button>
+                          </div>
+
+                          {/* Chapter description */}
+                          {chapter.description && (
+                            <p className="text-sm text-slate-700 mb-3 overflow-hidden" style={{ 
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical' as const
+                            }}>
+                              {chapter.description}
+                            </p>
+                          )}
+
+                          {/* Location */}
+                          {chapter.location && (
+                            <p className="text-xs text-slate-500 mb-2">📍 {chapter.location}</p>
+                          )}
+
+                          {/* Memory count */}
+                          <div className="flex items-center justify-between text-xs text-slate-500">
+                            <span>{chapterMemories.length} {chapterMemories.length === 1 ? 'memory' : 'memories'}</span>
+                            {chapterMemories.length > 0 && (
+                              <span className="text-blue-600">View memories →</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Spacer for fixed timeline - Desktop only */}
+      {birthYear && <div className="hidden md:block h-[160px]"></div>}
+
+      {/* Desktop: Scrollable Chapter Canvas Area */}
       {birthYear && chapters.length > 0 && (
-        <div className="h-[calc(100vh-300px)] overflow-y-auto bg-white border-t border-slate-200 shadow-inner">
+        <div className="hidden md:block h-[calc(100vh-300px)] overflow-y-auto bg-white border-t border-slate-200 shadow-inner">
           {/* Connection lines to timeline above */}
           <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-slate-100/50 to-transparent pointer-events-none"></div>
           <div className="relative" style={{ 
@@ -417,17 +938,57 @@ export default function ChronologicalTimelineView({
                   return (
                     <div
                       key={chapter.id}
-                      className="absolute"
+                      id={`chapter-${chapter.id}`}
+                      className="absolute transition-all duration-700 ease-out"
                       style={{
                         top: `${verticalOffset}px`,
                         left: `${Math.max(0, Math.min(chapterStartOffset, 85))}%`,
-                        width: `${Math.min(maxWidth, Math.max(minWidth, (chapterDuration * 8)))}px`
+                        width: `${Math.min(maxWidth, Math.max(minWidth, (chapterDuration * 8)))}px`,
+                        transformOrigin: 'center top'
                       }}
                     >
-                      {/* Connection line to timeline above */}
-                      <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 w-0.5 h-12 bg-slate-400"></div>
+                      {/* Date Range Header */}
+                      <div className="mb-2 text-center">
+                        <div className="inline-flex items-center px-3 py-1 bg-slate-800 text-white text-xs font-mono rounded-full shadow-sm">
+                          <span>
+                            {startYear}{endYear !== startYear && endYear !== currentYear && ` - ${endYear}`}
+                            {endYear === currentYear && startYear !== currentYear && ' - Present'}
+                            {startYear === endYear && startYear === currentYear && 'Present'}
+                          </span>
+                        </div>
+                      </div>
                       
-                      <div className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-visible">
+                      <div 
+                        className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out overflow-visible relative hover:-translate-y-0.5 hover:scale-[1.02] cursor-pointer"
+                        onClick={() => {
+                          setSelectedChapter(chapter)
+                          setShowChapterModal(true)
+                        }}
+                        style={{
+                          background: `linear-gradient(135deg, 
+                            rgba(255,255,255,1) 0%, 
+                            rgba(255,255,255,0.95) 50%, 
+                            hsla(${(parseInt(chapter.id) * 137.5) % 360}, 10%, 95%, 0.3) 100%)`
+                        }}
+                        onMouseEnter={() => {
+                          const timelineMarker = document.querySelector(`[data-timeline-marker="${chapter.id}"]`) as HTMLElement;
+                          if (timelineMarker) {
+                            timelineMarker.style.transform = 'scale(1.4) translate(-50%, -50%)';
+                            timelineMarker.style.boxShadow = '0 0 20px rgba(99, 102, 241, 0.6)';
+                            timelineMarker.style.borderWidth = '3px';
+                            timelineMarker.style.zIndex = '10';
+                          }
+                        }}
+                        onMouseLeave={() => {
+                          const timelineMarker = document.querySelector(`[data-timeline-marker="${chapter.id}"]`) as HTMLElement;
+                          if (timelineMarker) {
+                            timelineMarker.style.transform = 'translate(-50%, -50%)';
+                            timelineMarker.style.boxShadow = '';
+                            timelineMarker.style.borderWidth = '2px';
+                            timelineMarker.style.zIndex = '';
+                          }
+                        }}
+                      >
                         {/* Chapter Header Image */}
                         {chapter.headerImageUrl && (
                           <div className="relative bg-slate-100">
@@ -539,6 +1100,7 @@ export default function ChronologicalTimelineView({
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       setSelectedMemory(memory)
+                                      setMemorySourceChapter(null) // Clear source chapter for timeline memories
                                       setShowMemoryModal(true)
                                     }}
                                     onMouseEnter={() => console.log('🖱️ HOVER ENTER:', memory.title)}
@@ -671,10 +1233,10 @@ export default function ChronologicalTimelineView({
                 })}
 
                 {/* Add Chapter button removed - now in header */}
-              </div>
             </div>
           </div>
-      )}
+        </div>
+          )}
 
       {/* Content Area Below Timeline */}
       <div className={`p-4 lg:p-8 ${(memories.length === 0 && chapters.length === 0) ? 'mt-0' : 'mt-8'} pb-96`}>
@@ -819,7 +1381,22 @@ export default function ChronologicalTimelineView({
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
             {/* Modal Header */}
             <div className="relative">
-              {/* Close Button */}
+              {/* Close/Back Button */}
+              {memorySourceChapter ? (
+                <button
+                  onClick={() => {
+                    setShowMemoryModal(false)
+                    setSelectedMemory(null)
+                    setSelectedChapter(memorySourceChapter)
+                    setShowChapterModal(true)
+                    setMemorySourceChapter(null)
+                  }}
+                  className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white rounded-lg px-3 py-1.5 flex items-center transition-all duration-200 z-10 text-sm"
+                >
+                  <ChevronLeft size={16} className="mr-1" />
+                  Back to Chapter
+                </button>
+              ) : (
               <button
                 onClick={() => {
                   setShowMemoryModal(false)
@@ -829,6 +1406,7 @@ export default function ChronologicalTimelineView({
               >
                 <X size={20} />
               </button>
+              )}
               
               {/* Main Media */}
               {selectedMemory.media && selectedMemory.media.length > 0 ? (
@@ -964,14 +1542,169 @@ export default function ChronologicalTimelineView({
         </div>
       )}
 
-      {/* Debug: Bottom indicator to test scrolling */}
-      <div className="h-96 bg-gradient-to-t from-blue-50 to-transparent flex items-end justify-center pb-8">
-        <div className="text-center">
-          <div className="text-lg font-bold text-slate-700 mb-2">🎯 Scroll Test</div>
-          <p className="text-sm text-slate-500">If you can see this, scrolling is working!</p>
-          <p className="text-xs text-slate-400 mt-2">Timeline should stay fixed at top</p>
+      {/* Chapter Detail Modal */}
+      {showChapterModal && selectedChapter && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
+            {/* Modal Header */}
+            <div className="relative">
+              {/* Close Button */}
+              <button
+                onClick={() => {
+                  setShowChapterModal(false)
+                  setSelectedChapter(null)
+                }}
+                className="absolute top-4 right-4 w-10 h-10 bg-black/20 hover:bg-black/40 text-white rounded-full flex items-center justify-center transition-all duration-200 z-10"
+              >
+                <X size={20} />
+              </button>
+
+              {/* Chapter Header Image */}
+              {selectedChapter.headerImageUrl && (
+                <div className="relative h-64 bg-slate-100">
+                  <img 
+                    src={selectedChapter.headerImageUrl} 
+                    alt={selectedChapter.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/20"></div>
+                  <div className="absolute bottom-6 left-6 text-white">
+                    <h2 className="text-3xl font-bold mb-2">{selectedChapter.title}</h2>
+                    <p className="text-white/90">
+                      {selectedChapter.startDate ? new Date(selectedChapter.startDate).getFullYear() : 'Unknown'} - {selectedChapter.endDate ? (new Date(selectedChapter.endDate).getFullYear() === currentYear ? 'Present' : new Date(selectedChapter.endDate).getFullYear()) : 'Present'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* No Header Image Fallback */}
+              {!selectedChapter.headerImageUrl && (
+                <div className="bg-gradient-to-r from-slate-100 to-slate-200 h-32 flex items-center justify-center">
+                  <div className="text-center">
+                    <h2 className="text-3xl font-bold text-slate-800 mb-2">{selectedChapter.title}</h2>
+                    <p className="text-slate-600">
+                      {selectedChapter.startDate ? new Date(selectedChapter.startDate).getFullYear() : 'Unknown'} - {selectedChapter.endDate ? (new Date(selectedChapter.endDate).getFullYear() === currentYear ? 'Present' : new Date(selectedChapter.endDate).getFullYear()) : 'Present'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-16rem)]">
+              {/* Chapter Description */}
+              {selectedChapter.description && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-slate-900 mb-3">About this Chapter</h3>
+                  <p className="text-slate-700 leading-relaxed">{selectedChapter.description}</p>
+                </div>
+              )}
+
+              {/* Subtle Edit Chapter Link */}
+              <div className="mb-6">
+                <button
+                  onClick={() => {
+                    setEditingChapter(selectedChapter)
+                    setShowEditModal(true)
+                    setShowChapterModal(false)
+                  }}
+                  className="inline-flex items-center text-sm text-slate-500 hover:text-slate-700 transition-colors duration-200 group"
+                >
+                  <Edit size={14} className="mr-1 group-hover:scale-110 transition-transform duration-200" />
+                  Edit Chapter
+                </button>
+              </div>
+
+              {/* Chapter Memories */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Memories in this Chapter</h3>
+                  {onStartCreating && (
+                    <button
+                      onClick={() => {
+                        onStartCreating(selectedChapter.id, selectedChapter.title)
+                        setShowChapterModal(false)
+                      }}
+                      className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors duration-200"
+                    >
+                      <Plus size={14} className="mr-1" />
+                      Add Memory
+                    </button>
+                  )}
+                </div>
+
+                {/* Memory Thumbnails Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {memories
+                    .filter(memory => memory.timeZoneId === selectedChapter.id)
+                    .map((memory) => (
+                      <div
+                        key={memory.id}
+                        className="group cursor-pointer rounded-lg overflow-hidden border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200"
+                        onClick={() => {
+                          setSelectedMemory(memory)
+                          setMemorySourceChapter(selectedChapter)
+                          setShowMemoryModal(true)
+                          setShowChapterModal(false)
+                        }}
+                      >
+                        {(() => {
+                          const thumbnail = getMediaThumbnail(memory)
+                          return thumbnail && (
+                            <div className="aspect-video bg-slate-100 relative overflow-hidden">
+                              <img
+                                src={thumbnail}
+                                alt="Memory thumbnail"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                              />
+                              {memory.media && memory.media.length > 1 && (
+                                <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                                  +{memory.media.length - 1}
+                                </div>
+                              )}
+                          </div>
+                          )
+                        })()}
+                        <div className="p-3">
+                          <h4 className="font-medium text-slate-900 text-sm mb-1 line-clamp-2">
+                            {memory.title || 'Untitled Memory'}
+                          </h4>
+                          <p className="text-xs text-slate-500">
+                            {memory.createdAt ? new Date(memory.createdAt).toLocaleDateString() : 'No date'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+
+                {/* No Memories State */}
+                {memories.filter(memory => memory.timeZoneId === selectedChapter.id).length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-slate-400 mb-3">
+                      <Camera size={48} className="mx-auto" />
+                    </div>
+                    <p className="text-slate-600 mb-4">No memories in this chapter yet</p>
+                    {onStartCreating && (
+                      <button
+                        onClick={() => {
+                          onStartCreating(selectedChapter.id, selectedChapter.title)
+                          setShowChapterModal(false)
+                        }}
+                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+                      >
+                        <Plus size={16} className="mr-2" />
+                        Add First Memory
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+
     </div>
   )
 } 

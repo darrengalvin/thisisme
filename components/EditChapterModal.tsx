@@ -244,7 +244,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       const newPreviewUrl = URL.createObjectURL(file)
       setPreviewImageUrl(newPreviewUrl)
       
-      // Calculate initial zoom to show FULL image (not cropped)
+      // Calculate initial zoom to show FULL image (fit to container)
       const img = new Image()
       img.onload = () => {
         const previewWidth = 320 // w-80
@@ -252,20 +252,11 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         const imgAspect = img.naturalWidth / img.naturalHeight
         const previewAspect = previewWidth / previewHeight
         
-        let initialZoom
-        if (imgAspect > previewAspect) {
-          // Image is wider - fit to width to see full image
-          initialZoom = previewWidth / img.naturalWidth
-        } else {
-          // Image is taller - fit to height to see full image  
-          initialZoom = previewHeight / img.naturalHeight
-        }
-        
-        // Make sure zoom doesn't go below minimum
-        initialZoom = Math.max(0.1, Math.min(1, initialZoom))
+        // Start at 100% zoom to show image at natural size
+        let initialZoom = 1.0
         
         setImageZoom(initialZoom)
-        setImagePosition({ x: 0, y: 0 }) // Center the image
+        setImagePosition({ x: 0, y: 0 }) // Start centered
         setHasUserInteracted(false) // Reset interaction tracking
       }
       img.src = newPreviewUrl
@@ -284,16 +275,13 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
     const newX = e.clientX - dragStart.x
     const newY = e.clientY - dragStart.y
     
-    // Add boundary checking to prevent image from being dragged completely out of view
-    const previewWidth = 320 // w-80
-    const previewHeight = 240 // h-60
-    const imageWidth = previewWidth * imageZoom
-    const imageHeight = previewHeight * imageZoom
-    
-    const minX = -(imageWidth - previewWidth)
-    const maxX = 0
-    const minY = -(imageHeight - previewHeight)
-    const maxY = 0
+    // Boundary checking with CSS scale transform
+    // Allow more movement when zoomed in, less when zoomed out
+    const maxOffset = imageZoom > 1 ? 200 * (imageZoom - 1) : 50
+    const minX = -maxOffset
+    const maxX = maxOffset
+    const minY = -maxOffset
+    const maxY = maxOffset
     
     setImagePosition({
       x: Math.max(minX, Math.min(maxX, newX)),
@@ -307,34 +295,39 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   }
 
   const handleZoomChange = (newZoom: number) => {
-    // Dynamic zoom range - allow zooming out to see full image, zooming in to 5x
-    const minZoom = 0.05 // Allow very small zoom to see full image
-    const maxZoom = 5    // Allow zooming in quite a bit
+    // More reasonable zoom range
+    const minZoom = 0.2  // Minimum zoom to keep image visible
+    const maxZoom = 3    // Maximum zoom for detail viewing
     const clampedZoom = Math.max(minZoom, Math.min(maxZoom, newZoom))
+    
+    // Calculate how much the image size is changing
+    const zoomRatio = clampedZoom / imageZoom
+    
     setImageZoom(clampedZoom)
     setHasUserInteracted(true) // User is adjusting zoom
     
-    // Adjust position to keep image in bounds when zoom changes
+    // Keep image centered when zooming
     const previewWidth = 320 // w-80
     const previewHeight = 240 // h-60
-    const imageWidth = previewWidth * clampedZoom
-    const imageHeight = previewHeight * clampedZoom
     
-    const minX = -(imageWidth - previewWidth)
-    const maxX = 0
-    const minY = -(imageHeight - previewHeight)
-    const maxY = 0
-    
-    setImagePosition(prev => ({
-      x: Math.max(minX, Math.min(maxX, prev.x)),
-      y: Math.max(minY, Math.min(maxY, prev.y))
-    }))
+    // Keep position within reasonable bounds when zooming
+    // With CSS scale, we need to calculate bounds differently
+    setImagePosition(prev => {
+      // For zoom > 1, allow more movement; for zoom < 1, restrict movement
+      const maxOffset = clampedZoom > 1 ? 200 * (clampedZoom - 1) : 50
+      
+      return {
+        x: Math.max(-maxOffset, Math.min(maxOffset, prev.x)),
+        y: Math.max(-maxOffset, Math.min(maxOffset, prev.y))
+      }
+    })
   }
 
   // Create cropped image based on current position and zoom
   const createCroppedImage = (): Promise<File | null> => {
     return new Promise((resolve) => {
       if (!previewImageUrl) {
+        console.log('🖼️ CROP: No preview image URL')
         resolve(null)
         return
       }
@@ -342,48 +335,59 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
       if (!ctx) {
+        console.error('❌ CROP: Could not get canvas context')
         resolve(null)
         return
       }
 
+      console.log('🖼️ CROP: Starting image crop process', { imageZoom, imagePosition })
+
       const img = new Image()
       img.onload = () => {
-        // Set canvas to match actual chapter header proportions (closer to real output)
+        console.log('🖼️ CROP: Image loaded successfully', { 
+          naturalWidth: img.naturalWidth, 
+          naturalHeight: img.naturalHeight 
+        })
+        // Set canvas to match actual chapter header proportions
         canvas.width = 280 // Typical chapter card width
         canvas.height = 192 // h-48 (192px) - matches timeline chapter height
 
-        // Calculate how the image fits in the preview container
-        const previewHeight = 240 // h-60
+        // Calculate scaling factors from preview to final output
         const previewWidth = 320  // w-80
-        const imgAspect = img.naturalWidth / img.naturalHeight
-        const previewAspect = previewWidth / previewHeight
+        const previewHeight = 240 // h-60
+        const scaleX = canvas.width / previewWidth
+        const scaleY = canvas.height / previewHeight
 
-        let displayWidth, displayHeight
-        if (imgAspect > previewAspect) {
-          // Image is wider, fit to height
-          displayHeight = previewHeight
-          displayWidth = displayHeight * imgAspect
-        } else {
-          // Image is taller, fit to width
-          displayWidth = previewWidth
-          displayHeight = displayWidth / imgAspect
-        }
-
-        // Scale according to zoom
-        const scaledWidth = displayWidth * imageZoom
-        const scaledHeight = displayHeight * imageZoom
-
-        // Fill the entire canvas with the image, cropping as needed
+        // Fill canvas with background
         ctx.fillStyle = '#f1f5f9' // slate-100 background
         ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+        // With CSS scale, we need to calculate differently
+        // The image is scaled around its center, then translated by imagePosition
+        
+        // Calculate the scaled image dimensions
+        const scaledImageWidth = img.naturalWidth * imageZoom
+        const scaledImageHeight = img.naturalHeight * imageZoom
+        
+        // Calculate the position in the preview (centered + offset)
+        const previewCenterX = previewWidth / 2
+        const previewCenterY = previewHeight / 2
+        const imageLeft = previewCenterX - (scaledImageWidth / 2) + imagePosition.x
+        const imageTop = previewCenterY - (scaledImageHeight / 2) + imagePosition.y
+        
+        // Scale to final canvas size
+        const finalImageLeft = imageLeft * scaleX
+        const finalImageTop = imageTop * scaleY
+        const finalImageWidth = scaledImageWidth * scaleX
+        const finalImageHeight = scaledImageHeight * scaleY
 
         // Draw the positioned and scaled image
         ctx.drawImage(
           img,
-          imagePosition.x,
-          imagePosition.y,
-          scaledWidth,
-          scaledHeight
+          finalImageLeft,
+          finalImageTop,
+          finalImageWidth,
+          finalImageHeight
         )
 
         // Convert canvas to blob and then to File
@@ -395,6 +399,11 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
             resolve(null)
           }
         }, 'image/jpeg', 0.9)
+      }
+      
+      img.onerror = (error) => {
+        console.error('❌ CROP: Image failed to load', error)
+        resolve(null)
       }
       
       img.src = previewImageUrl
@@ -430,19 +439,38 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       formData.append('location', editingChapter.location)
       
       if (selectedHeaderImage) {
+        console.log('📤 UPLOAD: Processing header image', { 
+          hasUserInteracted,
+          fileSize: selectedHeaderImage.size,
+          fileName: selectedHeaderImage.name
+        })
+        
         // Only create cropped version if user has actually interacted with positioning/zoom
         if (hasUserInteracted) {
-          const croppedImage = await createCroppedImage()
-          if (croppedImage) {
-            formData.append('headerImage', croppedImage)
-          } else {
+          console.log('📤 UPLOAD: User has interacted, creating cropped image')
+          try {
+            const croppedImage = await createCroppedImage()
+            if (croppedImage) {
+              console.log('📤 UPLOAD: Cropped image created successfully', {
+                originalSize: selectedHeaderImage.size,
+                croppedSize: croppedImage.size
+              })
+              formData.append('headerImage', croppedImage)
+            } else {
+              console.log('📤 UPLOAD: Cropping failed, using original image')
+              formData.append('headerImage', selectedHeaderImage)
+            }
+          } catch (cropError) {
+            console.error('❌ UPLOAD: Cropping error, using original image', cropError)
             formData.append('headerImage', selectedHeaderImage)
           }
         } else {
           // User hasn't interacted - use original image
+          console.log('📤 UPLOAD: No user interaction, using original image')
           formData.append('headerImage', selectedHeaderImage)
         }
       } else if (editingChapter.headerImageUrl === null) {
+        console.log('📤 UPLOAD: Removing header image')
         formData.append('removeHeaderImage', 'true')
       }
 
@@ -467,8 +495,26 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         onClose()
         onSuccess()
       } else {
-        const errorData = await response.json()
-        toast.error(errorData.error || 'Failed to update chapter')
+        console.error('❌ UPLOAD: Server responded with error', {
+          status: response.status,
+          statusText: response.statusText
+        })
+        
+        let errorMessage = 'Failed to update chapter'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+          console.error('❌ UPLOAD: Server error details', errorData)
+        } catch (parseError) {
+          // Server returned HTML instead of JSON (500 error page)
+          const responseText = await response.text()
+          console.error('❌ UPLOAD: Server returned HTML error page', {
+            responseText: responseText.substring(0, 500) // First 500 chars
+          })
+          errorMessage = `Server error (${response.status}): ${response.statusText}`
+        }
+        
+        toast.error(errorMessage)
       }
     } catch (error) {
       console.error('Update error:', error)
@@ -537,12 +583,11 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
                         alt="Header preview"
                         className="absolute cursor-move select-none"
                         style={{
-                          width: `${100 * imageZoom}%`,
-                          height: `${100 * imageZoom}%`,
-                          transform: `translate(${imagePosition.x}px, ${imagePosition.y}px)`,
-                          minWidth: '100%',
-                          minHeight: '100%',
-                          objectFit: 'cover'
+                          left: '50%',
+                          top: '50%',
+                          transform: `translate(calc(-50% + ${imagePosition.x}px), calc(-50% + ${imagePosition.y}px)) scale(${imageZoom})`,
+                          maxWidth: 'none',
+                          maxHeight: 'none'
                         }}
                         onMouseDown={handleMouseDown}
                         draggable={false}
@@ -577,9 +622,10 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
                     <span className="text-sm font-medium text-slate-700">Image Position & Zoom</span>
                     <button
                       onClick={() => {
-                        setImageZoom(1)
+                        // Reset to 100% zoom and center
+                        setImageZoom(1.0)
                         setImagePosition({ x: 0, y: 0 })
-                        setHasUserInteracted(true) // User is resetting position
+                        setHasUserInteracted(true)
                       }}
                       className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
                     >
@@ -591,22 +637,22 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
                   <div className="flex items-center space-x-3">
                     <span className="text-xs text-slate-600 w-12">Zoom:</span>
                                           <button
-                        onClick={() => handleZoomChange(imageZoom * 0.8)} // Better scaling for zoom out
+                        onClick={() => handleZoomChange(imageZoom - 0.1)} // Consistent zoom steps
                         className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
                       >
                         -
                       </button>
                       <input
                         type="range"
-                        min="0.05"
-                        max="5"
+                        min="0.2"
+                        max="3"
                         step="0.05"
                         value={imageZoom}
                         onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
                         className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
                       />
                       <button
-                        onClick={() => handleZoomChange(imageZoom * 1.25)} // Better scaling for zoom in
+                        onClick={() => handleZoomChange(imageZoom + 0.1)} // Consistent zoom steps  
                         className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
                       >
                         +
@@ -616,7 +662,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
                   
                                       {/* Instructions */}
                     <p className="text-xs text-slate-500 italic">
-                      💡 Your full image is shown first (never cropped on upload). Zoom in to focus on details, drag to reposition. Preview shows exactly how it will appear in your chapter!
+                      💡 Image starts fitted to container. Zoom in to focus on specific areas, drag to reposition. The preview shows exactly how it will appear in your chapter header!
                     </p>
                 </div>
               </div>
