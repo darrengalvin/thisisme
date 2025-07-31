@@ -52,6 +52,7 @@ export default function ChronologicalTimelineView({
   // Chapter detail modal state
   const [selectedChapter, setSelectedChapter] = useState<TimeZoneWithRelations | null>(null)
   const [showChapterModal, setShowChapterModal] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   
   // Visible chapters tracking for dynamic connection lines
   const [visibleChapters, setVisibleChapters] = useState<Set<string>>(new Set())
@@ -578,6 +579,70 @@ export default function ChronologicalTimelineView({
 
   const animatedYears = generateAnimatedYears()
 
+  // Group overlapping chapters for mobile timeline
+  const groupOverlappingChapters = (chapters: TimeZoneWithRelations[]) => {
+    const sortedChapters = chapters
+      .filter(chapter => chapter && chapter.id && chapter.title)
+      .sort((a, b) => {
+        const aDate = a.startDate ? new Date(a.startDate).getTime() : 0
+        const bDate = b.startDate ? new Date(b.startDate).getTime() : 0
+        return aDate - bDate
+      })
+
+    const groups: Array<{
+      id: string
+      type: 'single' | 'group'
+      startYear: number
+      endYear: number
+      chapters: TimeZoneWithRelations[]
+      memories: MemoryWithRelations[]
+    }> = []
+
+    for (let i = 0; i < sortedChapters.length; i++) {
+      const currentChapter = sortedChapters[i]
+      const startYear = currentChapter.startDate ? new Date(currentChapter.startDate).getFullYear() : birthYear
+      const endYear = currentChapter.endDate ? new Date(currentChapter.endDate).getFullYear() : currentYear
+      
+      // Check if this chapter overlaps with any existing group
+      let addedToGroup = false
+      
+      for (let j = 0; j < groups.length; j++) {
+        const group = groups[j]
+        
+        // Check for overlap: chapters overlap if one starts before the other ends
+        const hasOverlap = !(endYear < group.startYear || startYear > group.endYear)
+        
+        if (hasOverlap) {
+          // Add to existing group
+          group.chapters.push(currentChapter)
+          group.memories.push(...memories.filter(m => m.timeZoneId === currentChapter.id))
+          group.startYear = Math.min(group.startYear, startYear)
+          group.endYear = Math.max(group.endYear, endYear)
+          group.type = group.chapters.length > 1 ? 'group' : 'single'
+          group.id = `group-${group.startYear}-${group.endYear}-${group.chapters.map(c => c.id).join('-')}`
+          addedToGroup = true
+          break
+        }
+      }
+      
+      if (!addedToGroup) {
+        // Create new group
+        groups.push({
+          id: `group-${startYear}-${endYear}-${currentChapter.id}`,
+          type: 'single',
+          startYear,
+          endYear,
+          chapters: [currentChapter],
+          memories: memories.filter(m => m.timeZoneId === currentChapter.id)
+        })
+      }
+    }
+
+    return groups
+  }
+
+  const mobileChapterGroups = groupOverlappingChapters(chapters)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
       {/* Desktop: Horizontal Zoomable Timeline */}
@@ -724,19 +789,17 @@ export default function ChronologicalTimelineView({
               {/* Vertical timeline line */}
               <div className="absolute left-16 top-0 bottom-0 w-0.5 bg-gradient-to-b from-slate-300 via-slate-400 to-slate-500"></div>
               
-              {/* Chapters in chronological order */}
+              {/* Chapter Groups in chronological order */}
               <div className="space-y-6">
-                {chapters
-                  .filter(chapter => chapter && chapter.id && chapter.title)
-                  .sort((a, b) => {
-                    const aDate = a.startDate ? new Date(a.startDate).getTime() : 0
-                    const bDate = b.startDate ? new Date(b.startDate).getTime() : 0
-                    return aDate - bDate
-                  })
-                  .map((chapter, index) => {
-                    const chapterMemories = memories.filter(m => m.timeZoneId === chapter.id)
-                    const startYear = chapter.startDate ? new Date(chapter.startDate).getFullYear() : birthYear
-                    const endYear = chapter.endDate ? new Date(chapter.endDate).getFullYear() : currentYear
+                {mobileChapterGroups.map((group, groupIndex) => {
+                  const isExpanded = expandedGroups.has(group.id)
+                  
+                  if (group.type === 'single') {
+                    // Render single chapter normally
+                    const chapter = group.chapters[0]
+                    const chapterMemories = group.memories
+                    const startYear = group.startYear
+                    const endYear = group.endYear
                     
                     return (
                       <div key={`mobile-chapter-${chapter.id}`} className="relative flex items-start">
@@ -894,7 +957,166 @@ export default function ChronologicalTimelineView({
                         </div>
                       </div>
                     )
-                  })}
+                  } else {
+                    // Render grouped chapters
+                    return (
+                      <div key={`mobile-group-${group.id}`} className="relative flex items-start">
+                        {/* Timeline marker with group indicator */}
+                        <div className="flex-shrink-0 relative">
+                          <div 
+                            className="w-5 h-5 rounded-full border-2 border-white shadow-md relative z-10 flex items-center justify-center text-xs font-bold text-white"
+                            style={{ 
+                              backgroundColor: `hsl(220, 60%, 55%)`,
+                              left: '56px'
+                            }}
+                          >
+                            {group.chapters.length}
+                          </div>
+                          {/* Year label - vertical */}
+                          <div className="absolute left-0 top-1/2 transform -translate-y-1/2 text-xs font-medium text-slate-600 bg-white/90 px-1.5 py-1 rounded shadow-sm text-center">
+                            <div className="leading-tight">
+                              {group.startYear}
+                            </div>
+                            {group.startYear !== group.endYear && (
+                              <>
+                                <div className="text-slate-400 leading-none">|</div>
+                                <div className="leading-tight">
+                                  {group.endYear}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Group card */}
+                        <div 
+                          className="ml-8 flex-1 bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200"
+                        >
+                          {/* Group header */}
+                          <div 
+                            className="p-4 cursor-pointer"
+                            onClick={() => {
+                              const newExpanded = new Set(expandedGroups)
+                              if (isExpanded) {
+                                newExpanded.delete(group.id)
+                              } else {
+                                newExpanded.add(group.id)
+                              }
+                              setExpandedGroups(newExpanded)
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-slate-900 text-base mb-1">
+                                  {group.chapters.length} Chapters in {group.startYear}
+                                  {group.startYear !== group.endYear && `-${group.endYear}`}
+                                </h4>
+                                <p className="text-sm text-slate-600 mb-2">
+                                  {group.chapters.map(c => c.title).join(' • ')}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {group.memories.length} total memories
+                                </p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="text-blue-600">
+                                  {isExpanded ? '−' : '+'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Expanded chapters */}
+                          {isExpanded && (
+                            <div className="border-t border-slate-100">
+                              {group.chapters.map((chapter, chapterIndex) => {
+                                const chapterMemories = memories.filter(m => m.timeZoneId === chapter.id)
+                                const startYear = chapter.startDate ? new Date(chapter.startDate).getFullYear() : birthYear
+                                const endYear = chapter.endDate ? new Date(chapter.endDate).getFullYear() : currentYear
+                                
+                                return (
+                                  <div 
+                                    key={`grouped-chapter-${chapter.id}`}
+                                    className="p-4 border-b border-slate-50 last:border-b-0 hover:bg-slate-50 cursor-pointer"
+                                    onClick={() => {
+                                      setSelectedChapter(chapter)
+                                      setShowChapterModal(true)
+                                    }}
+                                  >
+                                    {/* Chapter header */}
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div className="flex-1">
+                                        <h5 className="font-medium text-slate-900 text-sm mb-1">{chapter.title}</h5>
+                                        <p className="text-xs text-slate-600">
+                                          {startYear} - {endYear === currentYear ? 'Present' : endYear}
+                                        </p>
+                                      </div>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setEditingChapter(chapter)
+                                          setShowEditModal(true)
+                                        }}
+                                        className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                                      >
+                                        <Edit size={12} />
+                                      </button>
+                                    </div>
+
+                                    {/* Chapter description */}
+                                    {chapter.description && (
+                                      <p className="text-xs text-slate-700 mb-2 line-clamp-1">
+                                        {chapter.description}
+                                      </p>
+                                    )}
+
+                                    {/* Memory thumbnails mini grid */}
+                                    {chapterMemories.length > 0 && (
+                                      <div className="flex items-center space-x-1">
+                                        <div className="flex -space-x-1">
+                                          {chapterMemories.slice(0, 3).map((memory, memIndex) => {
+                                            const thumbnail = getMediaThumbnail(memory)
+                                            return (
+                                              <div
+                                                key={memory.id}
+                                                className="w-6 h-6 bg-slate-100 rounded border border-white overflow-hidden"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  setSelectedMemory(memory)
+                                                  setMemorySourceChapter(chapter)
+                                                  setShowMemoryModal(true)
+                                                }}
+                                              >
+                                                {thumbnail ? (
+                                                  <img
+                                                    src={thumbnail}
+                                                    alt={memory.title || 'Memory'}
+                                                    className="w-full h-full object-cover"
+                                                  />
+                                                ) : (
+                                                  <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                                                    <Camera size={8} className="text-slate-400" />
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                        <span className="text-xs text-slate-500 ml-2">
+                                          {chapterMemories.length} memories
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+                })}
               </div>
             </div>
           </div>
