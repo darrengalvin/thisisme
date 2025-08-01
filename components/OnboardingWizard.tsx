@@ -353,7 +353,7 @@ Please sign in using your existing password.`)
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto overscroll-contain">
         
         {/* Welcome Step */}
         {currentStep === 'welcome' && (
@@ -422,8 +422,8 @@ Please sign in using your existing password.`)
 
         {/* Name Step */}
         {currentStep === 'name' && (
-          <div className="p-8 lg:p-12">
-            <div className="flex items-center justify-between mb-8">
+          <div className="p-4 sm:p-6 lg:p-12">
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
               <button
                 onClick={handleBack}
                 className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
@@ -433,15 +433,15 @@ Please sign in using your existing password.`)
               <div className="text-sm text-slate-500">Step 1 of 3</div>
             </div>
             
-            <div className="text-center mb-8">
+            <div className="text-center mb-6 sm:mb-8">
               <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <User className="text-slate-600" size={24} />
               </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">What's your name?</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">What's your name?</h2>
               <p className="text-slate-600">This will personalise your timeline experience</p>
             </div>
 
-            <div className="mb-8">
+            <div className="mb-6 sm:mb-8">
               <input
                 type="text"
                 placeholder="Enter your name"
@@ -452,21 +452,23 @@ Please sign in using your existing password.`)
               />
             </div>
 
-            <button
-              onClick={handleNext}
-              disabled={!canProceed()}
-              className="w-full bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl text-lg font-semibold transition-colors flex items-center justify-center space-x-2"
-            >
-              <span>Continue</span>
-              <ArrowRight size={20} />
-            </button>
+            <div className="pb-4 sm:pb-0">
+              <button
+                onClick={handleNext}
+                disabled={!canProceed()}
+                className="w-full bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl text-lg font-semibold transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>Continue</span>
+                <ArrowRight size={20} />
+              </button>
+            </div>
           </div>
         )}
 
         {/* Birth Date Step */}
         {currentStep === 'birth-date' && (
-          <div className="p-8 lg:p-12">
-            <div className="flex items-center justify-between mb-8">
+          <div className="p-4 sm:p-6 lg:p-12">
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
               <button
                 onClick={handleBack}
                 className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
@@ -476,11 +478,11 @@ Please sign in using your existing password.`)
               <div className="text-sm text-slate-500">Step 2 of 3</div>
             </div>
             
-            <div className="text-center mb-8">
+            <div className="text-center mb-6 sm:mb-8">
               <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Calendar className="text-slate-600" size={24} />
               </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">When were you born?</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">When were you born?</h2>
               <p className="text-slate-600 mb-4">This sets the starting point for your timeline</p>
               
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left">
@@ -493,7 +495,7 @@ Please sign in using your existing password.`)
               </div>
             </div>
 
-            <div className="space-y-6 mb-8">
+            <div className="space-y-4 sm:space-y-6 mb-6 sm:mb-8">
               {/* Option Toggle */}
               <div className="flex bg-slate-100 rounded-xl p-1">
                 <button
@@ -618,21 +620,23 @@ Please sign in using your existing password.`)
               )}
             </div>
 
-            <button
-              onClick={handleNext}
-              disabled={!canProceed()}
-              className="w-full bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl text-lg font-semibold transition-colors flex items-center justify-center space-x-2"
-            >
-              <span>Continue</span>
-              <ArrowRight size={20} />
-            </button>
+            <div className="pb-4 sm:pb-0">
+              <button
+                onClick={handleNext}
+                disabled={!canProceed()}
+                className="w-full bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl text-lg font-semibold transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>Continue</span>
+                <ArrowRight size={20} />
+              </button>
+            </div>
           </div>
         )}
 
         {/* Email Step */}
         {currentStep === 'email' && (
-          <div className="p-8 lg:p-12">
-            <div className="flex items-center justify-between mb-8">
+          <div className="p-4 sm:p-6 lg:p-12">
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
               <button
                 onClick={handleBack}
                 className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
@@ -642,11 +646,11 @@ Please sign in using your existing password.`)
               <div className="text-sm text-slate-500">Step 3 of 3</div>
             </div>
             
-            <div className="text-center mb-8">
+            <div className="text-center mb-6 sm:mb-8">
               <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Mail className="text-slate-600" size={24} />
               </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">What's your email address?</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">What's your email address?</h2>
               <p className="text-slate-600 mb-4">We'll create your LIFE account automatically – no complicated passwords needed!</p>
               
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left">
@@ -658,7 +662,7 @@ Please sign in using your existing password.`)
               </div>
             </div>
 
-            <div className="mb-8">
+            <div className="mb-6 sm:mb-8">
               <input
                 type="email"
                 placeholder="your.email@example.com"
@@ -669,14 +673,16 @@ Please sign in using your existing password.`)
               />
             </div>
 
-            <button
-              onClick={handleNext}
-              disabled={!canProceed()}
-              className="w-full bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl text-lg font-semibold transition-colors flex items-center justify-center space-x-2"
-            >
-              <span>Start My Timeline</span>
-              <Sparkles size={20} />
-            </button>
+            <div className="pb-4 sm:pb-0">
+              <button
+                onClick={handleNext}
+                disabled={!canProceed()}
+                className="w-full bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl text-lg font-semibold transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>Start My Timeline</span>
+                <Sparkles size={20} />
+              </button>
+            </div>
           </div>
         )}
 
