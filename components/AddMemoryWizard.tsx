@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check, Mic, Crown, Sparkles } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
+import VoiceRecorder from '@/components/VoiceRecorder'
 
 interface AddMemoryWizardProps {
   chapterId: string | null
@@ -32,9 +33,41 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     files: []
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isPremiumUser, setIsPremiumUser] = useState(false) // TODO: Get from user profile/subscription
-  const [isRecording, setIsRecording] = useState(false)
-  const [showVoiceFeature, setShowVoiceFeature] = useState(false)
+  const [isPremiumUser, setIsPremiumUser] = useState(false)
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
+  const [premiumLoading, setPremiumLoading] = useState(true)
+
+  useEffect(() => {
+    const checkPremiumStatus = async () => {
+      if (!user) {
+        setPremiumLoading(false)
+        return
+      }
+      
+      // Temporary override for specific user
+      console.log('Checking premium for user:', user.email)
+      if (user.email === 'dgalvin@yourcaio.co.uk') {
+        console.log('✅ Premium enabled for dgalvin@yourcaio.co.uk')
+        setIsPremiumUser(true)
+        setPremiumLoading(false)
+        return
+      }
+      
+      try {
+        const response = await fetch('/api/user/premium-status')
+        if (response.ok) {
+          const data = await response.json()
+          setIsPremiumUser(data.isPremium)
+        }
+      } catch (error) {
+        console.error('Error checking premium status:', error)
+      } finally {
+        setPremiumLoading(false)
+      }
+    }
+    
+    checkPremiumStatus()
+  }, [user])
 
   const steps = [
     {
@@ -169,21 +202,15 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       return
     }
     
-    if (isRecording) {
-      // Stop recording
-      setIsRecording(false)
-      // TODO: Stop actual recording and process transcription
-      alert('🎉 Recording stopped! AI transcription will be processed and added to your memory description.')
-    } else {
-      // Start recording
-      setIsRecording(true)
-      // TODO: Start actual voice recording
-      alert('🎤 Recording started! Speak naturally about your memory and our AI will transcribe it for you.')
-    }
+    setShowVoiceRecorder(true)
   }
 
-  const handleShowVoiceFeature = () => {
-    setShowVoiceFeature(!showVoiceFeature)
+  const handleVoiceTranscription = (transcribedText: string) => {
+    setMemoryData(prev => ({
+      ...prev,
+      description: prev.description ? `${prev.description}\n\n${transcribedText}` : transcribedText
+    }))
+    setShowVoiceRecorder(false)
   }
 
   const canProceed = () => {
@@ -230,20 +257,6 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
             />
           </div>
 
-          {/* Debug Toggle for Testing (TODO: Remove in production) */}
-          <div className="flex justify-center mb-4">
-            <button
-              type="button"
-              onClick={() => setIsPremiumUser(!isPremiumUser)}
-              className={`text-xs px-3 py-1 rounded-full transition-colors ${
-                isPremiumUser 
-                  ? 'bg-amber-100 text-amber-700 border border-amber-200' 
-                  : 'bg-slate-100 text-slate-600 border border-slate-200'
-              }`}
-            >
-              {isPremiumUser ? '👑 Pro Mode' : '👤 Regular Mode'} (Click to toggle)
-            </button>
-          </div>
 
           {/* Chapter Context */}
           {chapterTitle && (
@@ -298,27 +311,9 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                     value={memoryData.description}
                     onChange={(e) => setMemoryData(prev => ({ ...prev, description: e.target.value }))}
                     rows={4}
-                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent resize-none transition-all ${
-                      isRecording 
-                        ? 'border-red-300 focus:ring-red-500 bg-red-50/50' 
-                        : 'border-slate-300 focus:ring-slate-800'
-                    } ${isPremiumUser ? 'pr-16' : ''}`}
-                    disabled={isRecording}
+                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent resize-none transition-all border-slate-300 focus:ring-slate-800 ${isPremiumUser ? 'pr-16' : ''}`}
                   />
                   
-                  {isRecording && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-red-50/80 rounded-xl">
-                      <div className="flex items-center space-x-3 text-red-600">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-6 bg-red-500 rounded animate-pulse"></div>
-                          <div className="w-2 h-8 bg-red-500 rounded animate-pulse" style={{animationDelay: '0.1s'}}></div>
-                          <div className="w-2 h-4 bg-red-500 rounded animate-pulse" style={{animationDelay: '0.2s'}}></div>
-                          <div className="w-2 h-7 bg-red-500 rounded animate-pulse" style={{animationDelay: '0.3s'}}></div>
-                        </div>
-                        <span className="font-medium">Listening...</span>
-                      </div>
-                    </div>
-                  )}
                   
                   {/* Premium Voice Button - Positioned on textarea */}
                   {isPremiumUser && (
@@ -326,14 +321,10 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                       <button
                         type="button"
                         onClick={handleVoiceRecord}
-                        className={`p-2.5 rounded-full transition-all duration-200 shadow-lg ${
-                          isRecording 
-                            ? 'bg-red-500 text-white shadow-red-200 animate-pulse border-2 border-red-300' 
-                            : 'bg-slate-700 hover:bg-slate-800 text-white hover:shadow-xl border-2 border-slate-600 hover:border-slate-500'
-                        }`}
-                        title={isRecording ? 'Stop recording' : 'Start voice transcription (Premium)'}
+                        className="p-2.5 rounded-full transition-all duration-200 shadow-lg bg-slate-700 hover:bg-slate-800 text-white hover:shadow-xl border-2 border-slate-600 hover:border-slate-500"
+                        title="Start voice transcription (Premium)"
                       >
-                        <Mic size={18} className={isRecording ? 'animate-pulse' : ''} />
+                        <Mic size={18} />
                       </button>
                     </div>
                   )}
@@ -581,6 +572,15 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
           )}
         </div>
       </div>
+      
+      {/* Voice Recorder Modal */}
+      {showVoiceRecorder && (
+        <VoiceRecorder
+          onTranscription={handleVoiceTranscription}
+          onClose={() => setShowVoiceRecorder(false)}
+          isPremium={isPremiumUser}
+        />
+      )}
     </div>
   )
 } 

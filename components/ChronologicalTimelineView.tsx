@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, ZoomIn, ZoomOut, Calendar, Play, Camera, Eye, MessageCircle, Heart, Share, Edit, Info, X, MapPin } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, ZoomIn, ZoomOut, Calendar, Play, Camera, Eye, MessageCircle, Heart, Share, Edit, Info, X, MapPin, Box, List } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import EditChapterModal from './EditChapterModal'
@@ -55,6 +55,7 @@ export default function ChronologicalTimelineView({
   const [selectedChapter, setSelectedChapter] = useState<TimeZoneWithRelations | null>(null)
   const [showChapterModal, setShowChapterModal] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [is3DMode, setIs3DMode] = useState(true)
   
   const birthYear = propBirthYear || 1981 // From user profile with fallback
   const currentYear = new Date().getFullYear()
@@ -335,13 +336,32 @@ export default function ChronologicalTimelineView({
       {/* Desktop: Horizontal Zoomable Timeline */}
       {birthYear && (
         <div className="hidden md:block fixed top-[88px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 pt-4 lg:pt-6 px-4 lg:px-6 pb-2 shadow-sm">
-          <div className="text-center mb-4 lg:mb-6">
+          <div className="text-center mb-4 lg:mb-6 relative">
             <h3 className="text-lg lg:text-xl font-bold text-slate-900 mb-2">
               Your Life Timeline
             </h3>
             <p className="text-slate-600 text-sm lg:text-base">
               {birthYear} - {currentYear} • {currentYear - birthYear} years
             </p>
+            
+            {/* 3D Mode Toggle - Desktop */}
+            <div className="absolute top-0 right-0 flex items-center">
+              <span className="text-xs text-slate-500 mr-2">View Mode:</span>
+              <button
+                onClick={() => setIs3DMode(!is3DMode)}
+                className={`p-2 rounded-lg transition-colors ${
+                  is3DMode 
+                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+                title={is3DMode ? 'Switch to List View' : 'Switch to 3D Globe View'}
+              >
+                {is3DMode ? <Box size={16} /> : <List size={16} />}
+              </button>
+              <span className="text-xs text-slate-500 ml-2">
+                {is3DMode ? '3D Globe' : 'List View'}
+              </span>
+            </div>
           </div>
 
           {/* Timeline Visualization */}
@@ -448,6 +468,24 @@ export default function ChronologicalTimelineView({
               >
                 <ZoomIn size={16} />
               </button>
+              
+              {/* 3D Mode Toggle */}
+              <div className="ml-4 flex items-center">
+                <button
+                  onClick={() => setIs3DMode(!is3DMode)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    is3DMode 
+                      ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                  title={is3DMode ? 'Switch to List View' : 'Switch to 3D Globe View'}
+                >
+                  {is3DMode ? <Box size={16} /> : <List size={16} />}
+                </button>
+                <span className="text-xs text-slate-500 ml-1">
+                  {is3DMode ? '3D' : 'List'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -997,10 +1035,12 @@ export default function ChronologicalTimelineView({
                               memories={chapterMemories}
                               chapterTitle={chapter.title}
                               visible={hoveredChapter === chapter.id}
+                              chapterColor={{ hue, saturation, lightness }}
+                              is3DMode={is3DMode}
                             />
                             
                             {/* Compact chapter details integrated with globe */}
-                            <div className="mt-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/50 p-3 w-72 pointer-events-auto">
+                            <div className="mt-8 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/50 p-3 w-72 pointer-events-auto">
                               <div className="space-y-2">
                                 <div className="text-center border-b border-slate-100 pb-2">
                                   <p className="text-sm font-medium text-slate-600">

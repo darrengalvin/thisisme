@@ -1,0 +1,5 @@
+[33m295611b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m Fix mobile responsiveness in onboarding wizard - ensure continue button is always accessible
+[33m610d05f[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: Improve premium voice transcription UX and design alignment
+[33m8765759[m feat: Add premium AI voice transcription feature for memory descriptions
+[33m07eb7cb[m fix: Make 'Somewhere within this chapter' date option non-mandatory
+[33m55ae2df[m feat: Implement complete memory interaction functionality
