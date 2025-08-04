@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, ZoomIn, ZoomOut, Calendar, Play, Camera, Eye, MessageCircle, Heart, Share, Edit, Info, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, ZoomIn, ZoomOut, Calendar, Play, Camera, Eye, MessageCircle, Heart, Share, Edit, Info, X, MapPin } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import EditChapterModal from './EditChapterModal'
@@ -43,6 +43,7 @@ export default function ChronologicalTimelineView({
   // Edit chapter modal state
   const [editingChapter, setEditingChapter] = useState<TimeZoneWithRelations | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [hoveredChapter, setHoveredChapter] = useState<string | null>(null)
   
   // Memory detail modal state
   const [selectedMemory, setSelectedMemory] = useState<MemoryWithRelations | null>(null)
@@ -54,17 +55,6 @@ export default function ChronologicalTimelineView({
   const [showChapterModal, setShowChapterModal] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   
-  // Visible chapters tracking for dynamic connection lines
-  const [visibleChapters, setVisibleChapters] = useState<Set<string>>(new Set())
-  const [connectionLines, setConnectionLines] = useState<Array<{
-    id: string
-    startX: number
-    startY: number
-    endX: number
-    endY: number
-    color: string
-  }>>([])
-
   const birthYear = propBirthYear || 1981 // From user profile with fallback
   const currentYear = new Date().getFullYear()
   
@@ -177,314 +167,10 @@ export default function ChronologicalTimelineView({
     }
   }, [zoomLevel, currentViewYear])
 
-  // Intersection Observer for tracking visible chapters
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        setVisibleChapters((prev) => {
-          const newVisible = new Set(prev)
-          entries.forEach((entry) => {
-            const chapterId = entry.target.id?.replace('chapter-', '')
-            if (chapterId) {
-              // Only show connection line if chapter is FULLY visible (100% in viewport)
-              if (entry.isIntersecting && entry.intersectionRatio >= 0.99) {
-                newVisible.add(chapterId)
-              } else {
-                // Remove line as soon as any part gets cut off
-                newVisible.delete(chapterId)
-              }
-            }
-          })
-          return newVisible
-        })
-      },
-      {
-        threshold: [0, 0.1, 0.5, 1.0], // Multiple thresholds for precise control
-        rootMargin: '0px 0px 0px 0px' // No margin - strict viewport boundaries
-      }
-    )
 
-    // Observe all chapter elements with a small delay to ensure DOM is ready
-    const setupObserver = () => {
-      const chapterElements = document.querySelectorAll('[id^="chapter-"]')
-      chapterElements.forEach((el) => observer.observe(el))
-      
-      // Initially set first few chapters as visible if they exist
-      const initialVisible = new Set<string>()
-      Array.from(chapterElements).slice(0, 3).forEach((el) => {
-        const chapterId = el.id?.replace('chapter-', '')
-        if (chapterId) {
-          initialVisible.add(chapterId)
-        }
-      })
-      if (initialVisible.size > 0) {
-        setVisibleChapters(initialVisible)
-      }
-    }
 
-    if (chapters.length > 0) {
-      setTimeout(setupObserver, 100) // Small delay to ensure chapters are rendered
-    }
 
-    return () => {
-      observer.disconnect()
-    }
-  }, [chapters, zoomLevel, currentViewYear]) // Re-run when chapters change OR timeline view changes
 
-  // Update connection lines when visible chapters change
-  useEffect(() => {
-    const updateConnectionLines = () => {
-      const lines: Array<{
-        id: string
-        startX: number
-        startY: number
-        endX: number
-        endY: number
-        color: string
-      }> = []
-
-      visibleChapters.forEach((chapterId) => {
-        const chapterElement = document.getElementById(`chapter-${chapterId}`)
-        const timelineBar = document.querySelector('.h-1.bg-gradient-to-r') // The actual timeline bar
-        const timelineMarker = document.querySelector(`[data-timeline-marker="${chapterId}"]`)
-        
-        if (chapterElement && timelineBar && timelineMarker) {
-          try {
-            const chapterRect = chapterElement.getBoundingClientRect()
-            const timelineBarRect = timelineBar.getBoundingClientRect()
-            const markerRect = timelineMarker.getBoundingClientRect()
-            
-            // Validate that we have valid rects (not empty/zero)
-            if (chapterRect.height === 0 || timelineBarRect.height === 0 || markerRect.width === 0) {
-              return // Skip this chapter if elements aren't properly rendered
-            }
-            
-            // Use marker's X position but connect directly to the timeline bar
-            const startX = markerRect.left + markerRect.width / 2
-            const startY = timelineBarRect.bottom + 2 // Just 2px below the timeline bar for tight connection
-            const endX = chapterRect.left + chapterRect.width / 2
-            const endY = chapterRect.top - 1 // Stop 1px before touching the chapter box edge
-          
-            lines.push({
-              id: chapterId,
-              startX,
-              startY,
-              endX,
-              endY,
-              color: `hsl(${(parseInt(chapterId) * 137.5) % 360}, 70%, 60%)`
-            })
-          } catch (error) {
-            // Skip this chapter if there's an error calculating positions
-            console.warn(`Error calculating connection line for chapter ${chapterId}:`, error)
-          }
-        }
-      })
-
-      setConnectionLines(lines)
-    }
-
-    // Use RAF to ensure DOM is ready
-    if (visibleChapters.size > 0) {
-      requestAnimationFrame(updateConnectionLines)
-    } else {
-      setConnectionLines([])
-    }
-  }, [visibleChapters])
-
-  // Clear and redraw connection lines when timeline view changes
-  useEffect(() => {
-    // Immediately clear all connection lines and visible chapters
-    setConnectionLines([])
-    setVisibleChapters(new Set())
-    
-    // Multi-stage redraw process to ensure timeline markers are properly positioned
-    const redrawLines = async () => {
-      // Stage 1: Wait for initial DOM updates
-      await new Promise(resolve => setTimeout(resolve, 200))
-      
-      // Stage 2: Check if timeline markers exist, if not wait longer
-      let attempts = 0
-      const maxAttempts = 10
-      
-      while (attempts < maxAttempts) {
-        const timelineMarkers = document.querySelectorAll('[data-timeline-marker]')
-        if (timelineMarkers.length > 0) {
-          break // Markers are ready
-        }
-        await new Promise(resolve => setTimeout(resolve, 100))
-        attempts++
-      }
-      
-      // Stage 3: Final positioning check and visibility calculation
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // Force complete recalculation after all DOM changes settle
-      const chapterElements = document.querySelectorAll('[id^="chapter-"]')
-      const newVisible = new Set<string>()
-      const visibleChapters: Array<{id: string, visibility: number}> = []
-      
-      chapterElements.forEach((el) => {
-        const rect = el.getBoundingClientRect()
-        const windowHeight = window.innerHeight
-        
-        // Calculate how much of the chapter is visible
-        const visibleTop = Math.max(0, rect.top)
-        const visibleBottom = Math.min(windowHeight, rect.bottom)
-        const visibleHeight = Math.max(0, visibleBottom - visibleTop)
-        const visibilityRatio = visibleHeight / rect.height
-        
-        if (visibilityRatio >= 0.99) { // Must be fully visible
-          const chapterId = el.id?.replace('chapter-', '')
-          // Double-check that timeline marker exists and is positioned
-          const marker = document.querySelector(`[data-timeline-marker="${chapterId}"]`)
-          if (chapterId && marker) {
-            const markerRect = marker.getBoundingClientRect()
-            // Only add if marker has valid position (not 0,0)
-            if (markerRect.left > 0 && markerRect.top > 0) {
-              visibleChapters.push({ id: chapterId, visibility: visibilityRatio })
-            }
-          }
-        }
-      })
-      
-      // All fully visible chapters with positioned markers get connection lines
-      visibleChapters.forEach(chapter => newVisible.add(chapter.id))
-      
-      setVisibleChapters(newVisible)
-    }
-    
-    redrawLines()
-  }, [zoomLevel, currentViewYear]) // Re-run when timeline view changes
-
-  // Force redraw connection lines (can be called manually)
-  const forceRedrawLines = useCallback(() => {
-    setConnectionLines([])
-    setVisibleChapters(new Set())
-    
-    // Wait for state to clear, then recalculate
-    setTimeout(() => {
-      const chapterElements = document.querySelectorAll('[id^="chapter-"]')
-      const newVisible = new Set<string>()
-      
-      chapterElements.forEach((el) => {
-        const rect = el.getBoundingClientRect()
-        const windowHeight = window.innerHeight
-        const visibleHeight = Math.max(0, Math.min(windowHeight, rect.bottom) - Math.max(0, rect.top))
-        const visibilityRatio = visibleHeight / rect.height
-        
-        if (visibilityRatio >= 0.99) {
-          const chapterId = el.id?.replace('chapter-', '')
-          const marker = document.querySelector(`[data-timeline-marker="${chapterId}"]`)
-          if (chapterId && marker) {
-            const markerRect = marker.getBoundingClientRect()
-            if (markerRect.left > 0 && markerRect.top > 0) {
-              newVisible.add(chapterId)
-            }
-          }
-        }
-      })
-      
-      setVisibleChapters(newVisible)
-    }, 100)
-  }, [])
-
-  // Update connection lines on scroll with throttling
-  useEffect(() => {
-    let rafId: number
-
-    const handleScroll = () => {
-      if (rafId) {
-        cancelAnimationFrame(rafId)
-      }
-      
-      rafId = requestAnimationFrame(() => {
-        // Always clear old lines first to prevent triangle effect
-        const lines: Array<{
-          id: string
-          startX: number
-          startY: number
-          endX: number
-          endY: number
-          color: string
-        }> = []
-
-        if (visibleChapters.size > 0) {
-          // Double-check visibility during scroll to prevent crossover lines
-          const currentlyVisible = new Set<string>()
-          
-          visibleChapters.forEach((chapterId) => {
-            const chapterElement = document.getElementById(`chapter-${chapterId}`)
-            
-            // Verify chapter is still significantly visible during scroll
-            if (chapterElement) {
-              const rect = chapterElement.getBoundingClientRect()
-              const visibleHeight = Math.max(0, Math.min(window.innerHeight, rect.bottom) - Math.max(0, rect.top))
-              const visibilityRatio = visibleHeight / rect.height
-              
-              if (visibilityRatio >= 0.99) { // Must be fully visible during scroll
-                currentlyVisible.add(chapterId)
-              }
-            }
-          })
-          
-          // Only create lines for currently visible chapters
-          currentlyVisible.forEach((chapterId) => {
-            const chapterElement = document.getElementById(`chapter-${chapterId}`)
-            const timelineBar = document.querySelector('.h-1.bg-gradient-to-r')
-            const timelineMarker = document.querySelector(`[data-timeline-marker="${chapterId}"]`)
-            
-            if (chapterElement && timelineBar && timelineMarker) {
-              try {
-                const chapterRect = chapterElement.getBoundingClientRect()
-                const timelineBarRect = timelineBar.getBoundingClientRect()
-                const markerRect = timelineMarker.getBoundingClientRect()
-                
-                // Validate that we have valid rects
-                if (chapterRect.height === 0 || timelineBarRect.height === 0 || markerRect.width === 0) {
-                  return // Skip this chapter if elements aren't properly rendered
-                }
-                
-                lines.push({
-                  id: chapterId,
-                  startX: markerRect.left + markerRect.width / 2,
-                  startY: timelineBarRect.bottom + 2,
-                  endX: chapterRect.left + chapterRect.width / 2,
-                  endY: chapterRect.top - 1,
-                  color: `hsl(${(parseInt(chapterId) * 137.5) % 360}, 70%, 60%)`
-                })
-              } catch (error) {
-                // Skip this chapter if there's an error
-                console.warn(`Error calculating scroll connection line for chapter ${chapterId}:`, error)
-              }
-            }
-          })
-        }
-
-        // Always set connection lines (even if empty) to clear old ones
-        setConnectionLines(lines)
-      })
-    }
-
-    // Also trigger redraw on animation completion
-    const handleAnimationEnd = () => {
-      setTimeout(forceRedrawLines, 50)
-    }
-    
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    window.addEventListener('resize', handleScroll, { passive: true })
-    window.addEventListener('transitionend', handleAnimationEnd, { passive: true })
-    window.addEventListener('animationend', handleAnimationEnd, { passive: true })
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-      window.removeEventListener('resize', handleScroll)
-      window.removeEventListener('transitionend', handleAnimationEnd)
-      window.removeEventListener('animationend', handleAnimationEnd)
-      if (rafId) {
-        cancelAnimationFrame(rafId)
-      }
-    }
-  }, [visibleChapters])
 
   const handleZoomIn = () => {
     if (zoomLevel === 'decades') {
@@ -708,25 +394,6 @@ export default function ChronologicalTimelineView({
                 }
                 return null;
               })}
-            </div>
-            
-            {/* Dynamic connection lines for visible chapters */}
-            <div className="fixed inset-0 pointer-events-none z-50">
-              <svg className="w-full h-full overflow-visible">
-                {connectionLines.map((line) => (
-                  <line
-                    key={`connection-${line.id}`}
-                    x1={line.startX}
-                    y1={line.startY}
-                    x2={line.endX}
-                    y2={line.endY}
-                    stroke="rgb(148, 163, 184)"
-                    strokeWidth="1"
-                    opacity="0.6"
-                    className="transition-opacity duration-300"
-                  />
-                ))}
-              </svg>
             </div>
             
             {/* Year markers */}
@@ -1201,86 +868,57 @@ export default function ChronologicalTimelineView({
                   const chapterStartOffset = ((adjustedStartYear - timelineStartYear) / totalYears) * 100
                   const chapterDuration = ((adjustedEndYear - adjustedStartYear + 1) / totalYears) * 100
                   
-                  const minWidth = 180
-                  const maxWidth = 280
+                  // Calculate blob size based on memory count
+                  const memoryCount = chapterMemories.length
+                  const blobSize = Math.min(50, Math.max(32, 32 + Math.sqrt(memoryCount) * 3)) // 32-50px based on memories
                   
-                  // Smart stacking: if chapters overlap in the current zoom view, stack them vertically
-                  let verticalOffset = 80
+                  // Implement proper vertical stacking for overlapping chapters
+                  let verticalOffset = 60 // Base offset from timeline
                   
-                  // Look at all previous chapters and see if any overlap with current chapter IN THE CURRENT ZOOM VIEW
+                  // Check for overlap with previous chapters
                   for (let i = 0; i < chapterIndex; i++) {
                     const otherChapter = chapters[i]
-                    if (!otherChapter || !otherChapter.startDate || !otherChapter.endDate) continue
+                    if (!otherChapter?.startDate || !otherChapter?.endDate) continue
                     
                     const otherStartYear = new Date(otherChapter.startDate).getFullYear()
                     const otherEndYear = new Date(otherChapter.endDate).getFullYear()
                     
-                    // Check if the other chapter also overlaps with current timeline view
-                    const otherChapterOverlapsTimeline = (
-                      (otherStartYear >= timelineStartYear && otherStartYear <= timelineEndYear) ||
-                      (otherEndYear >= timelineStartYear && otherEndYear <= timelineEndYear) ||
-                      (otherStartYear <= timelineStartYear && otherEndYear >= timelineEndYear)
-                    )
+                    // Check if this chapter overlaps with the current one's position
+                    const currentChapterStartOffset = ((adjustedStartYear - timelineStartYear) / totalYears) * 100
+                    const otherChapterStartOffset = ((Math.max(otherStartYear, timelineStartYear) - timelineStartYear) / totalYears) * 100
                     
-                    // Only consider overlap if both chapters are visible in current zoom
-                    if (otherChapterOverlapsTimeline) {
-                      // Check for overlap in the current zoom range (more precise)
-                      const adjustedOtherStartYear = Math.max(otherStartYear, timelineStartYear)
-                      const adjustedOtherEndYear = Math.min(otherEndYear, timelineEndYear)
-                      
-                      // Calculate visual overlap based on current zoom level
-                      let hasVisualOverlap = false
-                      
-                      if (zoomLevel === 'months') {
-                        // In month view, chapters in the same year should stack
-                        hasVisualOverlap = adjustedStartYear === adjustedOtherStartYear
-                      } else {
-                        // For decades and years, check if date ranges overlap
-                        hasVisualOverlap = !(adjustedEndYear < adjustedOtherStartYear || adjustedStartYear > adjustedOtherEndYear)
-                      }
-                      
-                      if (hasVisualOverlap) {
-                        verticalOffset += 350 // Stack this chapter 350px lower
-                      }
+                    // If they're close horizontally (within 8% of timeline), stack vertically
+                    if (Math.abs(currentChapterStartOffset - otherChapterStartOffset) < 8) {
+                      verticalOffset += 70 // Stack with 70px spacing
                     }
                   }
+                  
+                  // Generate a consistent color for this chapter
+                  const hue = (parseInt(chapter.id.replace(/[^0-9]/g, '').slice(0, 8), 10) * 137.5) % 360
+                  const saturation = 70 + (chapterIndex % 3) * 5 // Vary saturation slightly
+                  const lightness = 60 + (chapterIndex % 2) * 5 // Vary lightness slightly
                   
                   return (
                     <div
                       key={chapter.id}
                       id={`chapter-${chapter.id}`}
-                      className="absolute transition-all duration-700 ease-out"
+                      className="absolute group"
                       style={{
                         top: `${verticalOffset}px`,
-                        left: `${Math.max(0, Math.min(chapterStartOffset, 85))}%`,
-                        width: `${Math.min(maxWidth, Math.max(minWidth, (chapterDuration * 8)))}px`,
-                        transformOrigin: 'center top'
+                        left: `${Math.max(1, Math.min(chapterStartOffset, 95))}%`,
+                        transform: 'translateX(-50%)',
+                        zIndex: hoveredChapter === chapter.id ? 50 : 10
                       }}
                     >
-                      {/* Date Range Header */}
-                      <div className="mb-2 text-center">
-                        <div className="inline-flex items-center px-3 py-1 bg-slate-800 text-white text-xs font-mono rounded-full shadow-sm">
-                          <span>
-                            {startYear}{endYear !== startYear && endYear !== currentYear && ` - ${endYear}`}
-                            {endYear === currentYear && startYear !== currentYear && ' - Present'}
-                            {startYear === endYear && startYear === currentYear && 'Present'}
-                          </span>
-                        </div>
-                      </div>
-                      
+                      {/* Chapter Blob */}
                       <div 
-                        className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 ease-out overflow-visible relative hover:-translate-y-0.5 hover:scale-[1.02] cursor-pointer"
+                        className="relative cursor-pointer transition-all duration-300 hover:scale-110"
                         onClick={() => {
                           setSelectedChapter(chapter)
                           setShowChapterModal(true)
                         }}
-                        style={{
-                          background: `linear-gradient(135deg, 
-                            rgba(255,255,255,1) 0%, 
-                            rgba(255,255,255,0.95) 50%, 
-                            hsla(${(parseInt(chapter.id) * 137.5) % 360}, 10%, 95%, 0.3) 100%)`
-                        }}
                         onMouseEnter={() => {
+                          setHoveredChapter(chapter.id)
                           const timelineMarker = document.querySelector(`[data-timeline-marker="${chapter.id}"]`) as HTMLElement;
                           if (timelineMarker) {
                             timelineMarker.style.transform = 'scale(1.4) translate(-50%, -50%)';
@@ -1290,6 +928,7 @@ export default function ChronologicalTimelineView({
                           }
                         }}
                         onMouseLeave={() => {
+                          setHoveredChapter(null)
                           const timelineMarker = document.querySelector(`[data-timeline-marker="${chapter.id}"]`) as HTMLElement;
                           if (timelineMarker) {
                             timelineMarker.style.transform = 'translate(-50%, -50%)';
@@ -1299,246 +938,131 @@ export default function ChronologicalTimelineView({
                           }
                         }}
                       >
-                        {/* Chapter Header Image */}
-                        {chapter.headerImageUrl && (
-                          <div className="relative bg-slate-100">
-                            <img 
-                              src={chapter.headerImageUrl} 
-                              alt={chapter.title}
-                              className="w-full h-auto max-h-48 object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/10"></div>
-                          </div>
-                        )}
-                        
-                        {/* Chapter Header */}
-                        <div className="p-3 border-b border-slate-100">
-                          <div className="flex items-start justify-between mb-1">
-                            <h5 className="font-semibold text-slate-900 text-sm leading-tight">
-                              {chapter.title}
-                            </h5>
-                            <div className="flex items-center space-x-1">
-                              {/* Info Icon with Hover Details */}
-                              <div className="relative group">
-                                <button
-                                  className="w-6 h-6 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded transition-all duration-200 flex items-center justify-center opacity-60 hover:opacity-100"
-                                  title="Chapter Details"
-                                >
-                                  <Info size={12} />
-                                </button>
-                                
-                                {/* Hover Tooltip */}
-                                <div className="absolute left-0 bottom-full mb-2 w-80 bg-white rounded-lg shadow-2xl border border-slate-200 p-4 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-[99999]" style={{ zIndex: 99999 }}>
-                                  <div className="space-y-3">
-                                    <div className="border-b border-slate-100 pb-2">
-                                      <h4 className="font-semibold text-slate-900 text-sm">{chapter.title}</h4>
-                                      <p className="text-xs text-slate-500">
-                                        {startYear} - {endYear === currentYear ? 'Present' : endYear}
-                                      </p>
-                                    </div>
-                                    
-                                    {chapter.description && (
-                                      <div>
-                                        <p className="text-xs font-medium text-slate-700 mb-1">Description:</p>
-                                        <p className="text-xs text-slate-600 leading-relaxed">{chapter.description}</p>
-                                      </div>
-                                    )}
-                                    
-                                    {chapter.location && (
-                                      <div>
-                                        <p className="text-xs font-medium text-slate-700 mb-1">Location:</p>
-                                        <p className="text-xs text-slate-600">{chapter.location}</p>
-                                      </div>
-                                    )}
-                                    
-                                    <div className="pt-2 border-t border-slate-100">
-                                      <p className="text-xs text-slate-500">
-                                        {chapterMemories.length} {chapterMemories.length === 1 ? 'memory' : 'memories'} in this chapter
-                                      </p>
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Arrow pointing up to button */}
-                                  <div className="absolute -bottom-1 left-6 w-2 h-2 bg-white border-l border-b border-slate-200 transform rotate-45"></div>
-                                </div>
-                              </div>
-                              
-                              {/* Edit Icon */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setEditingChapter(chapter)
-                                  setShowEditModal(true)
-                                }}
-                                className="w-6 h-6 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded transition-all duration-200 flex items-center justify-center opacity-60 hover:opacity-100"
-                                title="Edit Chapter"
-                              >
-                                <Edit size={12} />
-                              </button>
+                        {/* The Blob itself */}
+                        <div 
+                          className="rounded-full shadow-lg border-3 border-white flex items-center justify-center relative transition-all duration-200 hover:shadow-xl hover:scale-105"
+                          style={{
+                            width: `${blobSize}px`,
+                            height: `${blobSize}px`,
+                            background: `linear-gradient(135deg, hsl(${hue}, ${saturation}%, ${lightness}%) 0%, hsl(${hue}, ${saturation}%, ${lightness - 10}%) 100%)`,
+                          }}
+                        >
+                          <span className="text-white font-bold drop-shadow-sm" style={{ fontSize: `${Math.max(12, blobSize * 0.3)}px` }}>
+                            {chapter.title.charAt(0).toUpperCase()}
+                          </span>
+                          {chapterMemories.length > 0 && (
+                            <div 
+                              className="absolute -top-1 -right-1 bg-white rounded-full text-slate-700 font-bold flex items-center justify-center border-2 shadow-sm"
+                              style={{
+                                width: `${Math.max(18, blobSize * 0.4)}px`,
+                                height: `${Math.max(18, blobSize * 0.4)}px`,
+                                fontSize: `${Math.max(9, blobSize * 0.2)}px`,
+                                borderColor: `hsl(${hue}, ${saturation}%, ${lightness}%)`
+                              }}
+                            >
+                              {chapterMemories.length}
                             </div>
-                          </div>
-                          <div className="text-xs text-slate-500 mb-1">
-                            {startYear} - {endYear === currentYear ? 'Present' : endYear}
-                          </div>
-                          {chapter.description && (
-                            <p className="text-xs text-slate-600 line-clamp-2">{chapter.description}</p>
                           )}
                         </div>
 
-                        {/* Memory Thumbnails */}
-                        {chapterMemories.length > 0 && (
-                          <div className="p-3 border-b border-slate-50">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs font-medium text-slate-700">
-                                {chapterMemories.length} {chapterMemories.length === 1 ? 'Memory' : 'Memories'}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-4 gap-1">
-                              {chapterMemories.slice(0, 4).map((memory, memIndex) => {
-                                const thumbnail = getMediaThumbnail(memory)
-                                const mediaType = getMediaType(memory)
-                                const memoryDate = memory.createdAt ? new Date(memory.createdAt).toLocaleDateString('en-GB', {
-                                  day: 'numeric',
-                                  month: 'long', 
-                                  year: 'numeric'
-                                }) : 'No date'
-                                
-                                return (
-                                  <div
-                                    key={memory.id}
-                                    className="relative aspect-square bg-slate-100 rounded overflow-hidden group cursor-pointer hover:ring-2 hover:ring-blue-500 hover:bg-blue-50 transition-all duration-200 hover:z-[60]"
+                        {/* Hover Card - shown on hover */}
+                        <div className={`absolute left-1/2 transform -translate-x-1/2 mt-2 transition-all duration-300 pointer-events-none ${
+                          hoveredChapter === chapter.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+                        }`}>
+                          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 p-4 w-72 pointer-events-auto">
+                            {/* Chapter Header Image in hover card */}
+                            {chapter.headerImageUrl && (
+                              <div className="-m-4 mb-3">
+                                <img 
+                                  src={chapter.headerImageUrl} 
+                                  alt={chapter.title}
+                                  className="w-full h-32 object-cover rounded-t-xl"
+                                />
+                              </div>
+                            )}
+                            
+                            <div className="space-y-3">
+                              <div>
+                                <h4 className="font-bold text-slate-900 text-base">{chapter.title}</h4>
+                                <p className="text-sm text-slate-600">
+                                  {startYear} - {endYear === currentYear ? 'Present' : endYear}
+                                </p>
+                              </div>
+                              
+                              {chapter.description && (
+                                <p className="text-sm text-slate-700 leading-relaxed line-clamp-3">
+                                  {chapter.description}
+                                </p>
+                              )}
+                              
+                              {chapter.location && (
+                                <div className="flex items-center text-sm text-slate-600">
+                                  <MapPin size={14} className="mr-1" />
+                                  {chapter.location}
+                                </div>
+                              )}
+                              
+                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                <span className="text-sm font-medium text-slate-700">
+                                  {chapterMemories.length} {chapterMemories.length === 1 ? 'memory' : 'memories'}
+                                </span>
+                                <div className="flex items-center space-x-2">
+                                  <button
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      setSelectedMemory(memory)
-                                      setMemorySourceChapter(null) // Clear source chapter for timeline memories
-                                      setShowMemoryModal(true)
+                                      setEditingChapter(chapter)
+                                      setShowEditModal(true)
                                     }}
-                                    onMouseEnter={() => console.log('🖱️ HOVER ENTER:', memory.title)}
-                                    onMouseLeave={() => console.log('🖱️ HOVER LEAVE:', memory.title)}
+                                    className="text-xs text-slate-600 hover:text-slate-900 font-medium"
                                   >
-                                    {thumbnail ? (
-                                      <>
-                                        <img
-                                          src={thumbnail}
-                                          alt={memory.title || 'Memory'}
-                                          className="w-full h-full object-cover"
-                                        />
-                                        {mediaType === 'video' && (
-                                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                                            <Play size={8} className="text-white" />
-                                          </div>
-                                        )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                          <div className="absolute top-1 right-1">
-                                            <Eye size={8} className="text-white drop-shadow-sm" />
-                                          </div>
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <div className="w-full h-full bg-slate-200 flex items-center justify-center group-hover:bg-slate-300 transition-colors">
-                                        <Camera size={8} className="text-slate-400" />
-                                      </div>
-                                    )}
+                                    Edit
+                                  </button>
+                                  <span className="text-slate-300">•</span>
+                                  <span className="text-xs text-blue-600 font-medium">
+                                    Click to view
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Memory thumbnails in hover card */}
+                              {chapterMemories.length > 0 && (
+                                <div className="grid grid-cols-6 gap-1">
+                                  {chapterMemories.slice(0, 6).map((memory) => {
+                                    const thumbnail = getMediaThumbnail(memory)
                                     
-                                    {/* Enhanced Hover Preview Card - centered and always visible */}
-                                    <div className="fixed top-1/4 left-1/2 transform -translate-x-1/2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-[9999] overflow-hidden">
-                                      {/* Small indicator dot */}
-                                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border border-slate-200 rotate-45 shadow-lg"></div>
-                                      {/* Large image preview */}
-                                      {thumbnail ? (
-                                        <div className="relative h-48 bg-slate-100">
+                                    return (
+                                      <div
+                                        key={memory.id}
+                                        className="relative aspect-square bg-slate-100 rounded overflow-hidden"
+                                      >
+                                        {thumbnail ? (
                                           <img
                                             src={thumbnail}
                                             alt={memory.title || 'Memory'}
                                             className="w-full h-full object-cover"
                                           />
-                                          {mediaType === 'video' && (
-                                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                                              <div className="bg-white/95 rounded-full p-4 shadow-lg">
-                                                <Play size={20} className="text-slate-700" />
-                                              </div>
-                                            </div>
-                                          )}
-                                          <div className="absolute top-3 right-3 bg-black/70 text-white text-xs px-3 py-1 rounded-full font-medium">
-                                            {mediaType === 'video' ? '🎥 Video' : '📸 Image'}
-                                          </div>
-                                          {/* Gradient overlay for better text readability */}
-                                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
-                                        </div>
-                                      ) : (
-                                        <div className="h-56 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                                          <div className="text-center">
-                                            <Camera size={40} className="text-slate-400 mx-auto mb-3" />
-                                            <p className="text-slate-500 text-sm font-medium">No media attached</p>
-                                          </div>
-                                        </div>
-                                      )}
-                                      
-                                      {/* Memory information */}
-                                      <div className="p-5">
-                                        <h4 className="font-bold text-slate-900 text-lg mb-2 line-clamp-2">
-                                          {memory.title || 'Untitled Memory'}
-                                        </h4>
-                                        
-                                        <div className="flex items-center text-slate-600 text-sm mb-3">
-                                          <Calendar size={16} className="mr-2 text-blue-500" />
-                                          <span className="font-medium">{memoryDate}</span>
-                                        </div>
-                                        
-                                        {memory.textContent && (
-                                          <div className="text-slate-700 text-sm leading-relaxed mb-4 bg-slate-50 p-3 rounded-lg">
-                                            <p className="italic">
-                                              "{memory.textContent.length > 150 
-                                                ? memory.textContent.substring(0, 150) + '...'
-                                                : memory.textContent
-                                              }"
-                                            </p>
-                                          </div>
+                                        ) : (
+                                          <div className="w-full h-full bg-slate-200" />
                                         )}
-                                        
-                                        {memory.media && memory.media.length > 1 && (
-                                          <div className="mb-3 inline-flex items-center bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full font-medium">
-                                            📎 {memory.media.length} media items
-                                          </div>
-                                        )}
-                                        
-                                        <div className="pt-3 border-t border-slate-100">
-                                          <p className="text-xs text-slate-500 flex items-center justify-between">
-                                            <span>💫 Part of "{chapter.title}"</span>
-                                            <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">Click to view</span>
-                                          </p>
-                                        </div>
                                       </div>
-                                    </div>
+                                    )
+                                  })}
+                                  {chapterMemories.length > 6 && (
+                                    <div className="aspect-square bg-slate-100 rounded flex items-center justify-center">
+                                      <span className="text-[10px] text-slate-500 font-medium">+{chapterMemories.length - 6}
+                                    </span>
                                   </div>
-                                )
-                              })}
-                              {chapterMemories.length > 4 && (
-                                <div className="aspect-square bg-slate-200 rounded flex items-center justify-center">
-                                  <span className="text-xs font-medium text-slate-600">
-                                    +{chapterMemories.length - 4}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        )}
-
-                        {/* Chapter Actions */}
-                        <div className="p-3">
-                          <button
-                            onClick={() => {
-                              console.log('🔗 CHAPTER: Starting memory creation for chapter:', chapter.id, chapter.title)
-                              onStartCreating?.(chapter.id, chapter.title)
-                            }}
-                            className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-1.5 px-3 rounded text-xs font-medium transition-all duration-200 flex items-center justify-center space-x-1"
-                          >
-                            <Plus size={10} />
-                            <span>Add Memory</span>
-                          </button>
+                          
+                          {/* Arrow pointing to blob */}
+                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-white border-l border-t border-slate-200 rotate-45"></div>
                         </div>
                       </div>
                     </div>
+                  </div>
                   )
                 })}
 
