@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Plus, ZoomIn, ZoomOut, Calendar, Play, Camer
 import { useAuth } from '@/components/AuthProvider'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import EditChapterModal from './EditChapterModal'
+import MemoryGlobe from './MemoryGlobe'
 
 type ZoomLevel = 'decades' | 'years' | 'months'
 
@@ -965,104 +966,59 @@ export default function ChronologicalTimelineView({
                           )}
                         </div>
 
-                        {/* Hover Card - shown on hover */}
-                        <div className={`absolute left-1/2 transform -translate-x-1/2 mt-2 transition-all duration-300 pointer-events-none ${
-                          hoveredChapter === chapter.id ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+                        {/* 3D Memory Globe - shown on hover */}
+                        <div className={`absolute left-1/2 transform -translate-x-1/2 mt-4 transition-all duration-500 pointer-events-none ${
+                          hoveredChapter === chapter.id ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'
                         }`}>
-                          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 p-4 w-72 pointer-events-auto">
-                            {/* Chapter Header Image in hover card */}
-                            {chapter.headerImageUrl && (
-                              <div className="-m-4 mb-3">
-                                <img 
-                                  src={chapter.headerImageUrl} 
-                                  alt={chapter.title}
-                                  className="w-full h-32 object-cover rounded-t-xl"
-                                />
-                              </div>
-                            )}
-                            
-                            <div className="space-y-3">
-                              <div>
-                                <h4 className="font-bold text-slate-900 text-base">{chapter.title}</h4>
+                          <MemoryGlobe
+                            memories={chapterMemories}
+                            chapterTitle={chapter.title}
+                            visible={hoveredChapter === chapter.id}
+                          />
+                          
+                          {/* Chapter details below globe */}
+                          <div className="mt-8 bg-white/90 backdrop-blur-sm rounded-xl shadow-xl border border-slate-200/50 p-4 w-64 pointer-events-auto">
+                            <div className="space-y-2">
+                              <div className="text-center border-b border-slate-100 pb-2">
                                 <p className="text-sm text-slate-600">
                                   {startYear} - {endYear === currentYear ? 'Present' : endYear}
                                 </p>
                               </div>
                               
                               {chapter.description && (
-                                <p className="text-sm text-slate-700 leading-relaxed line-clamp-3">
+                                <p className="text-xs text-slate-700 leading-relaxed line-clamp-2 text-center">
                                   {chapter.description}
                                 </p>
                               )}
                               
                               {chapter.location && (
-                                <div className="flex items-center text-sm text-slate-600">
-                                  <MapPin size={14} className="mr-1" />
+                                <div className="flex items-center justify-center text-xs text-slate-600">
+                                  <MapPin size={12} className="mr-1" />
                                   {chapter.location}
                                 </div>
                               )}
                               
-                              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                                <span className="text-sm font-medium text-slate-700">
-                                  {chapterMemories.length} {chapterMemories.length === 1 ? 'memory' : 'memories'}
+                              <div className="flex items-center justify-center space-x-3 pt-2 text-xs">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setEditingChapter(chapter)
+                                    setShowEditModal(true)
+                                  }}
+                                  className="text-slate-600 hover:text-slate-900 font-medium"
+                                >
+                                  Edit
+                                </button>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-blue-600 font-medium">
+                                  Click to view
                                 </span>
-                                <div className="flex items-center space-x-2">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setEditingChapter(chapter)
-                                      setShowEditModal(true)
-                                    }}
-                                    className="text-xs text-slate-600 hover:text-slate-900 font-medium"
-                                  >
-                                    Edit
-                                  </button>
-                                  <span className="text-slate-300">•</span>
-                                  <span className="text-xs text-blue-600 font-medium">
-                                    Click to view
-                                  </span>
-                                </div>
                               </div>
-                              
-                              {/* Memory thumbnails in hover card */}
-                              {chapterMemories.length > 0 && (
-                                <div className="grid grid-cols-6 gap-1">
-                                  {chapterMemories.slice(0, 6).map((memory) => {
-                                    const thumbnail = getMediaThumbnail(memory)
-                                    
-                                    return (
-                                      <div
-                                        key={memory.id}
-                                        className="relative aspect-square bg-slate-100 rounded overflow-hidden"
-                                      >
-                                        {thumbnail ? (
-                                          <img
-                                            src={thumbnail}
-                                            alt={memory.title || 'Memory'}
-                                            className="w-full h-full object-cover"
-                                          />
-                                        ) : (
-                                          <div className="w-full h-full bg-slate-200" />
-                                        )}
-                                      </div>
-                                    )
-                                  })}
-                                  {chapterMemories.length > 6 && (
-                                    <div className="aspect-square bg-slate-100 rounded flex items-center justify-center">
-                                      <span className="text-[10px] text-slate-500 font-medium">+{chapterMemories.length - 6}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                            </div>
                           </div>
-                          
-                          {/* Arrow pointing to blob */}
-                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-white border-l border-t border-slate-200 rotate-45"></div>
                         </div>
                       </div>
                     </div>
-                  </div>
                   )
                 })}
 
