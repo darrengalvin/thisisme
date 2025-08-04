@@ -1,152 +1,53 @@
 'use client'
 
-import React, { useRef, useMemo, useEffect, useState } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Sphere, Text, Html } from '@react-three/drei'
+import React, { useState, useEffect } from 'react'
 import { MemoryWithRelations } from '@/lib/types'
-import * as THREE from 'three'
 
 interface FloatingMemoryProps {
   memory: MemoryWithRelations
-  position: [number, number, number]
-  index: number
+  style: React.CSSProperties
+  delay: number
 }
 
-function FloatingMemory({ memory, position, index }: FloatingMemoryProps) {
-  const meshRef = useRef<THREE.Mesh>(null)
+function FloatingMemory({ memory, style, delay }: FloatingMemoryProps) {
   const [hovered, setHovered] = useState(false)
   
   // Get memory thumbnail
   const thumbnail = memory.media?.[0]?.storage_url || memory.media?.[0]?.thumbnail_url
-  
-  // Create texture from thumbnail
-  const texture = useMemo(() => {
-    if (!thumbnail) return null
-    const loader = new THREE.TextureLoader()
-    return loader.load(thumbnail)
-  }, [thumbnail])
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      // Gentle orbital motion
-      const time = state.clock.getElapsedTime()
-      const radius = 0.8 + Math.sin(time * 0.5 + index) * 0.1
-      const speed = 0.3 + index * 0.1
-      
-      meshRef.current.position.x = position[0] + Math.sin(time * speed + index * 2) * 0.2
-      meshRef.current.position.y = position[1] + Math.cos(time * speed * 0.7 + index * 3) * 0.15
-      meshRef.current.position.z = position[2] + Math.sin(time * speed * 0.5 + index * 4) * 0.1
-      
-      // Gentle rotation
-      meshRef.current.rotation.x += 0.01
-      meshRef.current.rotation.y += 0.02
-      
-      // Scale on hover
-      const targetScale = hovered ? 1.2 : 1
-      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1)
-    }
-  })
 
   return (
-    <mesh
-      ref={meshRef}
-      position={position}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
+    <div
+      className="absolute w-8 h-8 rounded transition-all duration-300 cursor-pointer group"
+      style={{
+        ...style,
+        animationDelay: `${delay}s`,
+        transform: `${style.transform} ${hovered ? 'scale(1.2)' : 'scale(1)'}`,
+        zIndex: hovered ? 20 : 10
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <planeGeometry args={[0.15, 0.15]} />
-      <meshLambertMaterial
-        map={texture}
-        transparent
-        opacity={0.9}
-        side={THREE.DoubleSide}
-      />
-      {!texture && (
-        <meshLambertMaterial
-          color="#3b82f6"
-          transparent
-          opacity={0.8}
+      {thumbnail ? (
+        <img
+          src={thumbnail}
+          alt={memory.title || 'Memory'}
+          className="w-full h-full object-cover rounded border-2 border-white shadow-lg"
         />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 rounded border-2 border-white shadow-lg flex items-center justify-center">
+          <span className="text-white text-xs font-bold">
+            {memory.title?.charAt(0) || 'M'}
+          </span>
+        </div>
       )}
       
-      {/* Memory title on hover */}
+      {/* Memory tooltip on hover */}
       {hovered && (
-        <Html position={[0, 0.15, 0]} center>
-          <div className="bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none">
-            {memory.title || 'Memory'}
-          </div>
-        </Html>
+        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none z-30">
+          {memory.title || 'Memory'}
+        </div>
       )}
-    </mesh>
-  )
-}
-
-function GlobeContainer({ memories }: { memories: MemoryWithRelations[] }) {
-  const sphereRef = useRef<THREE.Mesh>(null)
-  
-  // Generate random positions inside sphere
-  const memoryPositions = useMemo(() => {
-    return memories.slice(0, 12).map(() => {
-      // Generate random position inside sphere with radius 0.8
-      const radius = Math.random() * 0.6 + 0.1
-      const theta = Math.random() * Math.PI * 2
-      const phi = Math.random() * Math.PI
-      
-      return [
-        radius * Math.sin(phi) * Math.cos(theta),
-        radius * Math.sin(phi) * Math.sin(theta),
-        radius * Math.cos(phi)
-      ] as [number, number, number]
-    })
-  }, [memories])
-
-  useFrame((state) => {
-    if (sphereRef.current) {
-      // Subtle globe rotation
-      sphereRef.current.rotation.y += 0.005
-    }
-  })
-
-  return (
-    <>
-      {/* Glass sphere container */}
-      <Sphere ref={sphereRef} args={[1, 32, 32]}>
-        <meshPhysicalMaterial
-          transparent
-          opacity={0.15}
-          transmission={0.9}
-          roughness={0.1}
-          metalness={0.1}
-          clearcoat={1}
-          clearcoatRoughness={0.1}
-          color="#ffffff"
-        />
-      </Sphere>
-      
-      {/* Wireframe sphere for subtle structure */}
-      <Sphere args={[1.01, 16, 16]}>
-        <meshBasicMaterial
-          color="#60a5fa"
-          wireframe
-          transparent
-          opacity={0.1}
-        />
-      </Sphere>
-      
-      {/* Floating memories */}
-      {memories.slice(0, 12).map((memory, index) => (
-        <FloatingMemory
-          key={memory.id}
-          memory={memory}
-          position={memoryPositions[index]}
-          index={index}
-        />
-      ))}
-      
-      {/* Ambient interior lighting */}
-      <pointLight position={[0, 0, 0]} intensity={0.5} color="#ffffff" />
-      <ambientLight intensity={0.3} />
-    </>
+    </div>
   )
 }
 
@@ -157,18 +58,71 @@ interface MemoryGlobeProps {
 }
 
 export default function MemoryGlobe({ memories, chapterTitle, visible }: MemoryGlobeProps) {
+  const [memoryPositions, setMemoryPositions] = useState<Array<{
+    x: number
+    y: number
+    rotation: number
+    animationDuration: number
+  }>>([])
+
+  // Generate positions when component mounts or memories change
+  useEffect(() => {
+    if (memories.length === 0) return
+    
+    const positions = memories.slice(0, 12).map((_, index) => {
+      // Generate positions in a circular/spherical pattern
+      const angle = (index / Math.min(memories.length, 12)) * Math.PI * 2
+      const radius = 60 + Math.random() * 40 // 60-100px from center
+      const x = Math.cos(angle) * radius + Math.random() * 20 - 10
+      const y = Math.sin(angle) * radius + Math.random() * 20 - 10
+      
+      return {
+        x,
+        y,
+        rotation: Math.random() * 360,
+        animationDuration: 8 + Math.random() * 4 // 8-12s
+      }
+    })
+    
+    setMemoryPositions(positions)
+  }, [memories])
+
   if (!visible || memories.length === 0) {
     return null
   }
 
   return (
     <div className="w-64 h-64 relative">
-      <Canvas
-        camera={{ position: [0, 0, 3], fov: 50 }}
-        style={{ background: 'transparent' }}
-      >
-        <GlobeContainer memories={memories} />
-      </Canvas>
+      {/* Glass sphere container */}
+      <div className="absolute inset-4 rounded-full border-2 border-blue-200/30 bg-gradient-to-br from-blue-50/20 to-purple-50/20 backdrop-blur-sm shadow-2xl">
+        {/* Inner glow effect */}
+        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-white/10 to-transparent"></div>
+        
+        {/* Wireframe grid overlay for 3D effect */}
+        <div className="absolute inset-0 rounded-full border border-blue-300/20"></div>
+        <div className="absolute inset-4 rounded-full border border-blue-300/15"></div>
+        <div className="absolute inset-8 rounded-full border border-blue-300/10"></div>
+        
+        {/* Floating memories */}
+        {memories.slice(0, 12).map((memory, index) => {
+          const position = memoryPositions[index]
+          if (!position) return null
+          
+          return (
+            <FloatingMemory
+              key={memory.id}
+              memory={memory}
+              delay={index * 0.2}
+              style={{
+                left: `calc(50% + ${position.x}px)`,
+                top: `calc(50% + ${position.y}px)`,
+                transform: `translate(-50%, -50%) rotate(${position.rotation}deg)`,
+                animation: `float ${position.animationDuration}s infinite ease-in-out`
+              }}
+            />
+          )
+        })}
+      </div>
       
       {/* Chapter title below globe */}
       <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center">
@@ -177,6 +131,24 @@ export default function MemoryGlobe({ memories, chapterTitle, visible }: MemoryG
           {memories.length} {memories.length === 1 ? 'memory' : 'memories'}
         </p>
       </div>
+      
+      {/* CSS Animations */}
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% { 
+            transform: translate(-50%, -50%) rotate(0deg) translateY(0px); 
+          }
+          25% { 
+            transform: translate(-50%, -50%) rotate(90deg) translateY(-5px); 
+          }
+          50% { 
+            transform: translate(-50%, -50%) rotate(180deg) translateY(0px); 
+          }
+          75% { 
+            transform: translate(-50%, -50%) rotate(270deg) translateY(5px); 
+          }
+        }
+      `}</style>
     </div>
   )
 }
