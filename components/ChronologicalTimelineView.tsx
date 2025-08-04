@@ -966,14 +966,20 @@ export default function ChronologicalTimelineView({
                           )}
                         </div>
 
-                        {/* 3D Memory Globe - shown on hover with extended interaction zone */}
+                        {/* 3D Memory Globe - shown on hover with smart positioning */}
                         <div 
-                          className={`absolute left-1/2 transform -translate-x-1/2 transition-all duration-700 ease-out ${
+                          className={`absolute transition-all duration-700 ease-out ${
                             hoveredChapter === chapter.id ? 'opacity-100 translate-y-4 scale-100' : 'opacity-0 translate-y-8 scale-90'
                           }`}
                           style={{
+                            // Smart positioning to prevent edge clipping
+                            left: chapterStartOffset < 25 ? '200px' : // If chapter is too far left, position globe away from left edge
+                                  chapterStartOffset > 75 ? 'calc(100vw - 400px)' : // If too far right, position away from right edge  
+                                  '50%', // Otherwise center on chapter
+                            transform: chapterStartOffset >= 25 && chapterStartOffset <= 75 ? 'translateX(-50%)' : 'none',
                             pointerEvents: hoveredChapter === chapter.id ? 'auto' : 'none',
-                            zIndex: hoveredChapter === chapter.id ? 100 : 1
+                            zIndex: hoveredChapter === chapter.id ? 100 : 1,
+                            minWidth: '350px' // Ensure globe has minimum space
                           }}
                           onMouseEnter={() => setHoveredChapter(chapter.id)}
                           onMouseLeave={() => {
@@ -994,7 +1000,7 @@ export default function ChronologicalTimelineView({
                             />
                             
                             {/* Compact chapter details integrated with globe */}
-                            <div className="mt-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/50 p-3 w-80 pointer-events-auto">
+                            <div className="mt-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/50 p-3 w-72 pointer-events-auto">
                               <div className="space-y-2">
                                 <div className="text-center border-b border-slate-100 pb-2">
                                   <p className="text-sm font-medium text-slate-600">
