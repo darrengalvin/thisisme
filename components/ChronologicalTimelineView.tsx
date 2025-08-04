@@ -966,53 +966,71 @@ export default function ChronologicalTimelineView({
                           )}
                         </div>
 
-                        {/* 3D Memory Globe - shown on hover */}
-                        <div className={`absolute left-1/2 transform -translate-x-1/2 mt-4 transition-all duration-500 pointer-events-none ${
-                          hoveredChapter === chapter.id ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'
-                        }`}>
-                          <MemoryGlobe
-                            memories={chapterMemories}
-                            chapterTitle={chapter.title}
-                            visible={hoveredChapter === chapter.id}
-                          />
-                          
-                          {/* Chapter details below globe */}
-                          <div className="mt-8 bg-white/90 backdrop-blur-sm rounded-xl shadow-xl border border-slate-200/50 p-4 w-64 pointer-events-auto">
-                            <div className="space-y-2">
-                              <div className="text-center border-b border-slate-100 pb-2">
-                                <p className="text-sm text-slate-600">
-                                  {startYear} - {endYear === currentYear ? 'Present' : endYear}
-                                </p>
-                              </div>
-                              
-                              {chapter.description && (
-                                <p className="text-xs text-slate-700 leading-relaxed line-clamp-2 text-center">
-                                  {chapter.description}
-                                </p>
-                              )}
-                              
-                              {chapter.location && (
-                                <div className="flex items-center justify-center text-xs text-slate-600">
-                                  <MapPin size={12} className="mr-1" />
-                                  {chapter.location}
+                        {/* 3D Memory Globe - shown on hover with extended interaction zone */}
+                        <div 
+                          className={`absolute left-1/2 transform -translate-x-1/2 transition-all duration-700 ease-out ${
+                            hoveredChapter === chapter.id ? 'opacity-100 translate-y-4 scale-100' : 'opacity-0 translate-y-8 scale-90'
+                          }`}
+                          style={{
+                            pointerEvents: hoveredChapter === chapter.id ? 'auto' : 'none',
+                            zIndex: hoveredChapter === chapter.id ? 100 : 1
+                          }}
+                          onMouseEnter={() => setHoveredChapter(chapter.id)}
+                          onMouseLeave={() => {
+                            // Add small delay before hiding to prevent flickering
+                            setTimeout(() => {
+                              const stillHovering = document.querySelector('.memory-globe-container:hover');
+                              if (!stillHovering) {
+                                setHoveredChapter(null);
+                              }
+                            }, 100);
+                          }}
+                        >
+                          <div className="memory-globe-container">
+                            <MemoryGlobe
+                              memories={chapterMemories}
+                              chapterTitle={chapter.title}
+                              visible={hoveredChapter === chapter.id}
+                            />
+                            
+                            {/* Compact chapter details integrated with globe */}
+                            <div className="mt-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/50 p-3 w-80 pointer-events-auto">
+                              <div className="space-y-2">
+                                <div className="text-center border-b border-slate-100 pb-2">
+                                  <p className="text-sm font-medium text-slate-600">
+                                    {startYear} - {endYear === currentYear ? 'Present' : endYear}
+                                  </p>
                                 </div>
-                              )}
-                              
-                              <div className="flex items-center justify-center space-x-3 pt-2 text-xs">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setEditingChapter(chapter)
-                                    setShowEditModal(true)
-                                  }}
-                                  className="text-slate-600 hover:text-slate-900 font-medium"
-                                >
-                                  Edit
-                                </button>
-                                <span className="text-slate-300">•</span>
-                                <span className="text-blue-600 font-medium">
-                                  Click to view
-                                </span>
+                                
+                                {chapter.description && (
+                                  <p className="text-xs text-slate-700 leading-relaxed line-clamp-2 text-center">
+                                    {chapter.description}
+                                  </p>
+                                )}
+                                
+                                {chapter.location && (
+                                  <div className="flex items-center justify-center text-xs text-slate-600">
+                                    <MapPin size={12} className="mr-1" />
+                                    {chapter.location}
+                                  </div>
+                                )}
+                                
+                                <div className="flex items-center justify-center space-x-4 pt-2 text-xs">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setEditingChapter(chapter)
+                                      setShowEditModal(true)
+                                    }}
+                                    className="text-slate-600 hover:text-slate-900 font-medium transition-colors px-2 py-1 rounded hover:bg-slate-100"
+                                  >
+                                    Edit Chapter
+                                  </button>
+                                  <span className="text-slate-300">•</span>
+                                  <span className="text-blue-600 font-medium">
+                                    Hover memories to explore
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>

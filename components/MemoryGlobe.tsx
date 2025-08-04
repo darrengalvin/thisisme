@@ -1,50 +1,74 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { MemoryWithRelations } from '@/lib/types'
 
 interface FloatingMemoryProps {
   memory: MemoryWithRelations
-  style: React.CSSProperties
-  delay: number
+  position: { x: number; y: number; z: number; scale: number }
+  index: number
+  globeHovered: boolean
 }
 
-function FloatingMemory({ memory, style, delay }: FloatingMemoryProps) {
-  const [hovered, setHovered] = useState(false)
+function FloatingMemory({ memory, position, index, globeHovered }: FloatingMemoryProps) {
+  const [individualHover, setIndividualHover] = useState(false)
   
   // Get memory thumbnail
   const thumbnail = memory.media?.[0]?.storage_url || memory.media?.[0]?.thumbnail_url
+  
+  // Calculate 3D-like positioning and scaling based on Z position
+  const depth = (position.z + 100) / 200 // Normalize z to 0-1
+  const scale = 0.4 + (depth * 0.8) // Scale from 0.4 to 1.2 based on depth
+  const opacity = 0.3 + (depth * 0.7) // Opacity from 0.3 to 1.0
+  const blur = Math.max(0, (1 - depth) * 2) // Blur background memories
+  
+  // Individual hover makes memory much larger and prominent
+  const finalScale = individualHover ? scale * 2.5 : globeHovered ? scale * 1.5 : scale * 0.8
+  const finalOpacity = individualHover ? 1 : globeHovered ? opacity : 0.4
 
   return (
     <div
-      className="absolute w-8 h-8 rounded transition-all duration-300 cursor-pointer group"
+      className="absolute transition-all duration-300 cursor-pointer group"
       style={{
-        ...style,
-        animationDelay: `${delay}s`,
-        transform: `${style.transform} ${hovered ? 'scale(1.2)' : 'scale(1)'}`,
-        zIndex: hovered ? 20 : 10
+        left: `calc(50% + ${position.x}px)`,
+        top: `calc(50% + ${position.y}px)`,
+        transform: `translate(-50%, -50%) scale(${finalScale})`,
+        opacity: finalOpacity,
+        filter: `blur(${blur}px)`,
+        zIndex: Math.floor(depth * 100) + (individualHover ? 1000 : 0),
+        width: '48px',
+        height: '48px',
+        animationDelay: `${index * 0.3}s`
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => setIndividualHover(true)}
+      onMouseLeave={() => setIndividualHover(false)}
     >
       {thumbnail ? (
         <img
           src={thumbnail}
           alt={memory.title || 'Memory'}
-          className="w-full h-full object-cover rounded border-2 border-white shadow-lg"
+          className="w-full h-full object-cover rounded-lg border-2 border-white shadow-2xl"
+          style={{
+            filter: individualHover ? 'brightness(1.1) contrast(1.1)' : 'none'
+          }}
         />
       ) : (
-        <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 rounded border-2 border-white shadow-lg flex items-center justify-center">
-          <span className="text-white text-xs font-bold">
+        <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg border-2 border-white shadow-2xl flex items-center justify-center">
+          <span className="text-white text-sm font-bold">
             {memory.title?.charAt(0) || 'M'}
           </span>
         </div>
       )}
       
-      {/* Memory tooltip on hover */}
-      {hovered && (
-        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none z-30">
-          {memory.title || 'Memory'}
+      {/* Enhanced memory tooltip on individual hover */}
+      {individualHover && (
+        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-black/95 text-white text-sm px-3 py-2 rounded-lg whitespace-nowrap pointer-events-none z-50 min-w-max">
+          <div className="font-semibold">{memory.title || 'Memory'}</div>
+          {memory.createdAt && (
+            <div className="text-xs opacity-75">
+              {new Date(memory.createdAt).toLocaleDateString()}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -61,26 +85,32 @@ export default function MemoryGlobe({ memories, chapterTitle, visible }: MemoryG
   const [memoryPositions, setMemoryPositions] = useState<Array<{
     x: number
     y: number
-    rotation: number
-    animationDuration: number
+    z: number
+    scale: number
   }>>([])
+  const [globeHovered, setGlobeHovered] = useState(false)
+  const globeRef = useRef<HTMLDivElement>(null)
 
-  // Generate positions when component mounts or memories change
+  // Generate 3D positions when component mounts or memories change
   useEffect(() => {
     if (memories.length === 0) return
     
-    const positions = memories.slice(0, 12).map((_, index) => {
-      // Generate positions in a circular/spherical pattern
-      const angle = (index / Math.min(memories.length, 12)) * Math.PI * 2
-      const radius = 60 + Math.random() * 40 // 60-100px from center
-      const x = Math.cos(angle) * radius + Math.random() * 20 - 10
-      const y = Math.sin(angle) * radius + Math.random() * 20 - 10
+    const positions = memories.slice(0, 15).map((_, index) => {
+      // Create 3D sphere distribution
+      const phi = Math.acos(1 - 2 * Math.random()) // Random phi (0 to π)
+      const theta = Math.random() * 2 * Math.PI // Random theta (0 to 2π)
+      const radius = 80 + Math.random() * 60 // Radius from center (80-140px)
+      
+      // Convert spherical to Cartesian coordinates
+      const x = radius * Math.sin(phi) * Math.cos(theta)
+      const y = radius * Math.sin(phi) * Math.sin(theta)
+      const z = radius * Math.cos(phi)
       
       return {
-        x,
-        y,
-        rotation: Math.random() * 360,
-        animationDuration: 8 + Math.random() * 4 // 8-12s
+        x: x * 0.8, // Flatten X slightly for better visibility
+        y: y * 0.6, // Flatten Y more for better visibility
+        z: z, // Keep full Z for depth effect
+        scale: 0.8 + Math.random() * 0.4 // Random scale variation
       }
     })
     
@@ -92,19 +122,55 @@ export default function MemoryGlobe({ memories, chapterTitle, visible }: MemoryG
   }
 
   return (
-    <div className="w-64 h-64 relative">
-      {/* Glass sphere container */}
-      <div className="absolute inset-4 rounded-full border-2 border-blue-200/30 bg-gradient-to-br from-blue-50/20 to-purple-50/20 backdrop-blur-sm shadow-2xl">
-        {/* Inner glow effect */}
-        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-white/10 to-transparent"></div>
+    <div className="w-80 h-80 relative pointer-events-auto">
+      {/* Extended hover zone - much larger than visual globe */}
+      <div 
+        className="absolute inset-0 rounded-full cursor-pointer"
+        onMouseEnter={() => setGlobeHovered(true)}
+        onMouseLeave={() => setGlobeHovered(false)}
+        style={{ 
+          padding: '40px', // Extends hover zone beyond visual boundary
+          margin: '-40px' // Negative margin to maintain positioning
+        }}
+      >
+        {/* Glass sphere container with enhanced 3D effects */}
+        <div 
+          ref={globeRef}
+          className="absolute inset-12 rounded-full transition-all duration-500"
+          style={{
+            background: `
+              radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3) 0%, transparent 50%),
+              radial-gradient(circle at 70% 70%, rgba(59,130,246,0.1) 0%, transparent 50%),
+              linear-gradient(135deg, rgba(147,197,253,0.2) 0%, rgba(59,130,246,0.1) 50%, rgba(147,51,234,0.15) 100%)
+            `,
+            border: '2px solid rgba(59,130,246,0.3)',
+            boxShadow: `
+              inset 0 0 60px rgba(255,255,255,0.1),
+              0 0 60px rgba(59,130,246,0.2),
+              0 20px 40px rgba(0,0,0,0.1)
+            `,
+            backdropFilter: 'blur(10px)',
+            transform: globeHovered ? 'scale(1.05)' : 'scale(1)',
+          }}
+        >
+          {/* Multiple depth layers for 3D effect */}
+          <div className="absolute inset-4 rounded-full border border-blue-300/20 bg-gradient-to-br from-white/5 to-transparent"></div>
+          <div className="absolute inset-8 rounded-full border border-blue-300/15"></div>
+          <div className="absolute inset-12 rounded-full border border-blue-300/10"></div>
+          
+          {/* Highlight sphere for extra 3D depth */}
+          <div 
+            className="absolute top-8 left-8 w-16 h-16 rounded-full bg-gradient-to-br from-white/20 to-transparent"
+            style={{
+              filter: 'blur(8px)',
+              transform: globeHovered ? 'scale(1.2)' : 'scale(1)',
+              transition: 'transform 0.3s ease'
+            }}
+          ></div>
+        </div>
         
-        {/* Wireframe grid overlay for 3D effect */}
-        <div className="absolute inset-0 rounded-full border border-blue-300/20"></div>
-        <div className="absolute inset-4 rounded-full border border-blue-300/15"></div>
-        <div className="absolute inset-8 rounded-full border border-blue-300/10"></div>
-        
-        {/* Floating memories */}
-        {memories.slice(0, 12).map((memory, index) => {
+        {/* Floating memories with 3D positioning */}
+        {memories.slice(0, 15).map((memory, index) => {
           const position = memoryPositions[index]
           if (!position) return null
           
@@ -112,40 +178,36 @@ export default function MemoryGlobe({ memories, chapterTitle, visible }: MemoryG
             <FloatingMemory
               key={memory.id}
               memory={memory}
-              delay={index * 0.2}
-              style={{
-                left: `calc(50% + ${position.x}px)`,
-                top: `calc(50% + ${position.y}px)`,
-                transform: `translate(-50%, -50%) rotate(${position.rotation}deg)`,
-                animation: `float ${position.animationDuration}s infinite ease-in-out`
-              }}
+              position={position}
+              index={index}
+              globeHovered={globeHovered}
             />
           )
         })}
       </div>
       
       {/* Chapter title below globe */}
-      <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center">
-        <h4 className="font-bold text-slate-900 text-sm">{chapterTitle}</h4>
-        <p className="text-xs text-slate-600">
+      <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 text-center">
+        <h4 className="font-bold text-slate-900 text-base">{chapterTitle}</h4>
+        <p className="text-sm text-slate-600">
           {memories.length} {memories.length === 1 ? 'memory' : 'memories'}
         </p>
       </div>
       
-      {/* CSS Animations */}
+      {/* Enhanced CSS Animations */}
       <style jsx>{`
         @keyframes float {
           0%, 100% { 
-            transform: translate(-50%, -50%) rotate(0deg) translateY(0px); 
+            transform: translateY(0px) rotateX(0deg) rotateY(0deg); 
           }
           25% { 
-            transform: translate(-50%, -50%) rotate(90deg) translateY(-5px); 
+            transform: translateY(-8px) rotateX(5deg) rotateY(5deg); 
           }
           50% { 
-            transform: translate(-50%, -50%) rotate(180deg) translateY(0px); 
+            transform: translateY(0px) rotateX(0deg) rotateY(10deg); 
           }
           75% { 
-            transform: translate(-50%, -50%) rotate(270deg) translateY(5px); 
+            transform: translateY(8px) rotateX(-5deg) rotateY(5deg); 
           }
         }
       `}</style>
