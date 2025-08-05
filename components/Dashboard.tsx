@@ -135,7 +135,7 @@ export default function Dashboard() {
         const newMemories = data.data || []
         
         // Log detailed memory info for debugging sync issues
-        console.log('🔍 DASHBOARD: Memory details:', newMemories.map(m => ({
+        console.log('🔍 DASHBOARD: Memory details:', newMemories.map((m: any) => ({
           id: m.id?.slice(0, 8) + '...',
           title: m.title || 'Untitled',
           createdAt: m.createdAt,
@@ -155,12 +155,12 @@ export default function Dashboard() {
         }
         
         // Filter out memories that have failed to delete OR been permanently deleted
-        const filteredMemories = newMemories.filter(memory => 
+        const filteredMemories = newMemories.filter((memory: any) => 
           !failedDeletes.has(memory.id) && !permanentlyDeleted.has(memory.id)
         )
         
-        const failedCount = newMemories.filter(m => failedDeletes.has(m.id)).length
-        const permanentCount = newMemories.filter(m => permanentlyDeleted.has(m.id)).length
+        const failedCount = newMemories.filter((m: any) => failedDeletes.has(m.id)).length
+        const permanentCount = newMemories.filter((m: any) => permanentlyDeleted.has(m.id)).length
         const totalFiltered = failedCount + permanentCount
         
         if (totalFiltered > 0) {
@@ -335,7 +335,7 @@ export default function Dashboard() {
     })
     
     // Add to failed deletes to prevent reappearance
-    setFailedDeletes(prev => new Set([...prev, memoryToDelete.id]))
+    setFailedDeletes(prev => new Set([...Array.from(prev), memoryToDelete.id]))
     
     // Close modal
     setShowDeleteModal(false)
@@ -400,7 +400,7 @@ export default function Dashboard() {
         console.log('🔄 DASHBOARD: Memory not found in database - this might be a sync issue')
         
         // Track this failed delete
-        setFailedDeletes(prev => new Set([...prev, memoryToDelete.id]))
+        setFailedDeletes(prev => new Set([...Array.from(prev), memoryToDelete.id]))
         
         // Check if this memory was recently created (within last 5 minutes)
         const memoryAge = memoryToDelete.createdAt ? Date.now() - new Date(memoryToDelete.createdAt).getTime() : 0
@@ -506,12 +506,12 @@ export default function Dashboard() {
         }
         
         // Apply failed delete and permanent delete filtering to memories passed to TimelineView
-        const filteredMemoriesForTimeline = memories.filter(memory => 
+        const filteredMemoriesForTimeline = memories.filter((memory: any) => 
           !failedDeletes.has(memory.id) && !permanentlyDeleted.has(memory.id)
         )
         if (filteredMemoriesForTimeline.length !== memories.length) {
-          const failedCount = memories.filter(m => failedDeletes.has(m.id)).length
-          const permanentCount = memories.filter(m => permanentlyDeleted.has(m.id)).length
+          const failedCount = memories.filter((m: any) => failedDeletes.has(m.id)).length
+          const permanentCount = memories.filter((m: any) => permanentlyDeleted.has(m.id)).length
           console.log(`🔄 DASHBOARD: Passing ${filteredMemoriesForTimeline.length}/${memories.length} memories to TimelineView (filtered out ${failedCount} failed deletes, ${permanentCount} permanently deleted)`)
         }
         
@@ -557,7 +557,7 @@ export default function Dashboard() {
                               onClick={() => {
                                 console.log('💥 DEBUG: PERMANENTLY DELETING memory:', memoryId)
                                 // Add to permanently deleted list
-                                setPermanentlyDeleted(prev => new Set([...prev, memoryId]))
+                                setPermanentlyDeleted(prev => new Set([...Array.from(prev), memoryId]))
                                 setFailedDeletes(prev => {
                                   const updated = new Set(prev)
                                   updated.delete(memoryId)
@@ -629,12 +629,12 @@ export default function Dashboard() {
         }
         
         // Apply failed delete and permanent delete filtering to memories passed to ChronologicalTimelineView
-        const filteredMemoriesForChrono = memories.filter(memory => 
+        const filteredMemoriesForChrono = memories.filter((memory: any) => 
           !failedDeletes.has(memory.id) && !permanentlyDeleted.has(memory.id)
         )
         if (filteredMemoriesForChrono.length !== memories.length) {
-          const failedCount = memories.filter(m => failedDeletes.has(m.id)).length
-          const permanentCount = memories.filter(m => permanentlyDeleted.has(m.id)).length
+          const failedCount = memories.filter((m: any) => failedDeletes.has(m.id)).length
+          const permanentCount = memories.filter((m: any) => permanentlyDeleted.has(m.id)).length
           console.log(`🔄 DASHBOARD: Passing ${filteredMemoriesForChrono.length}/${memories.length} memories to ChronologicalTimelineView (filtered out ${failedCount} failed deletes, ${permanentCount} permanently deleted)`)
         }
         
@@ -688,7 +688,7 @@ export default function Dashboard() {
                               onClick={() => {
                                 console.log('💥 DEBUG: PERMANENTLY DELETING memory:', memoryId)
                                 // Add to permanently deleted list
-                                setPermanentlyDeleted(prev => new Set([...prev, memoryId]))
+                                setPermanentlyDeleted(prev => new Set([...Array.from(prev), memoryId]))
                                 setFailedDeletes(prev => {
                                   const updated = new Set(prev)
                                   updated.delete(memoryId)

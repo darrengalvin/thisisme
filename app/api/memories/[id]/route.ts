@@ -64,12 +64,12 @@ export async function PUT(
       if (mediaToRemove) {
         // Delete physical files
         try {
-          if (mediaToRemove.storage_url) {
-            const filePath = join(process.cwd(), 'public', mediaToRemove.storage_url)
+          if (mediaToRemove.storageUrl) {
+            const filePath = join(process.cwd(), 'public', mediaToRemove.storageUrl)
             await unlink(filePath)
           }
-          if (mediaToRemove.thumbnail_url) {
-            const thumbnailPath = join(process.cwd(), 'public', mediaToRemove.thumbnail_url)
+          if (mediaToRemove.thumbnailUrl) {
+            const thumbnailPath = join(process.cwd(), 'public', mediaToRemove.thumbnailUrl)
             await unlink(thumbnailPath)
           }
         } catch (error) {
@@ -113,11 +113,11 @@ export async function PUT(
           data: {
             memoryId: memoryId,
             type: mediaType,
-            storage_url: `/uploads/${uniqueFilename}`,
-            thumbnail_url: mediaType === 'IMAGE' ? `/uploads/${uniqueFilename}` : null,
-            file_size: file.size,
-            mime_type: file.type,
-            original_filename: file.name
+            storageUrl: `/uploads/${uniqueFilename}`,
+            thumbnailUrl: mediaType === 'IMAGE' ? `/uploads/${uniqueFilename}` : null,
+            fileSize: file.size,
+            mimeType: file.type,
+            fileName: file.name
           }
         })
         

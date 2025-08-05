@@ -53,7 +53,7 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
   }
 
   // Get primary image
-  const primaryImage = memory.media?.[0]?.storage_url || memory.media?.[0]?.thumbnail_url
+  const primaryImage = memory.media?.[0]?.storage_url || memory.media?.[0]?.thumbnail_url || undefined
 
   return (
     <div 
@@ -152,11 +152,11 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
           )}
 
           {/* Location if available */}
-          {memory.location && (
+          {memory.timeZone?.location && (
             <div className="mb-6">
               <div className="flex items-center text-slate-600 bg-slate-50 rounded-lg p-3">
                 <MapPin className="w-5 h-5 mr-2 text-slate-500" />
-                <span className="font-medium">{memory.location}</span>
+                <span className="font-medium">{memory.timeZone?.location}</span>
               </div>
             </div>
           )}
@@ -172,7 +172,7 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
                 {memory.media.slice(1).map((media, index) => (
                   <div key={index} className="aspect-square rounded-lg overflow-hidden shadow-sm">
                     <img
-                      src={media.storage_url || media.thumbnail_url}
+                      src={media.storage_url || media.thumbnail_url || ''}
                       alt={`Memory ${index + 2}`}
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
                     />

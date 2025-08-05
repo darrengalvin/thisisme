@@ -206,8 +206,8 @@ export default function ChronologicalTimelineView({
         return aDate - bDate
       })
 
-    const groups = []
-    let currentGroup = []
+    const groups: TimeZoneWithRelations[][] = []
+    let currentGroup: TimeZoneWithRelations[] = []
     
     for (const chapter of sortedChapters) {
       if (currentGroup.length === 0) {
@@ -557,7 +557,11 @@ export default function ChronologicalTimelineView({
                               is3DMode={is3DMode}
                               onMemoryClick={(memory) => handleMemoryClick(memory, chapter)}
                               onAddMemory={(chapterId, chapterTitle) => onStartCreating?.(chapterId, chapterTitle)}
-                              chapter={chapter}
+                              chapter={{
+                                ...chapter,
+                                startDate: chapter.startDate || undefined,
+                                endDate: chapter.endDate || undefined
+                              }}
                             />
                                 </div>
                                   </div>
@@ -795,7 +799,11 @@ export default function ChronologicalTimelineView({
                 is3DMode={is3DMode}
                 onMemoryClick={(memory) => handleMemoryClick(memory, chapters.find(c => c.id === hoveredChapter))}
                 onAddMemory={(chapterId, chapterTitle) => onStartCreating?.(chapterId, chapterTitle)}
-                chapter={chapters.find(c => c.id === hoveredChapter)}
+                chapter={chapters.find(c => c.id === hoveredChapter) ? {
+                  ...chapters.find(c => c.id === hoveredChapter)!,
+                  startDate: chapters.find(c => c.id === hoveredChapter)!.startDate || undefined,
+                  endDate: chapters.find(c => c.id === hoveredChapter)!.endDate || undefined
+                } : undefined}
               />
                                 </div>
             
