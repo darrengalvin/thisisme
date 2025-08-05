@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { MemoryWithRelations } from '@/lib/types'
 
 // 3D rotation utility functions
@@ -30,9 +30,12 @@ interface FloatingMemoryProps {
   rotationX: number
   rotationY: number
   onToggleView?: () => void
+  onMemoryClick?: (memory: MemoryWithRelations) => void
+  onMemoryHoverStart?: () => void
+  onMemoryHoverEnd?: () => void
 }
 
-function FloatingMemory({ memory, position, index, globeHovered, rotationX, rotationY, onToggleView }: FloatingMemoryProps) {
+function FloatingMemory({ memory, position, index, globeHovered, rotationX, rotationY, onToggleView, onMemoryClick, onMemoryHoverStart, onMemoryHoverEnd }: FloatingMemoryProps) {
   const [individualHover, setIndividualHover] = useState(false)
   
   // Get memory thumbnail
@@ -67,19 +70,34 @@ function FloatingMemory({ memory, position, index, globeHovered, rotationX, rota
         zIndex: Math.floor(depth * 100) + (individualHover ? 1000 : 0),
       }}
     >
-      {/* Extremely small hover detection - only the very center */}
+      {/* Enlarged hover detection area for easier clicking */}
       <div
-        className="absolute cursor-pointer rounded-full"
+        className="absolute cursor-pointer rounded-full transition-all duration-150"
         style={{
-          width: '20px',
-          height: '20px', 
+          width: '40px',
+          height: '40px', 
           left: '50%',
           top: '50%',
           transform: 'translate(-50%, -50%)',
-          zIndex: 1
+          zIndex: 1,
+          backgroundColor: individualHover ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+          border: individualHover ? '2px solid rgba(59, 130, 246, 0.3)' : '2px solid transparent'
         }}
-        onMouseEnter={() => setIndividualHover(true)}
-        onMouseLeave={() => setIndividualHover(false)}
+        onMouseEnter={() => {
+          console.log('🎯 MEMORY HOVER ENTER:', memory.title)
+          setIndividualHover(true)
+          onMemoryHoverStart?.()
+        }}
+        onMouseLeave={() => {
+          console.log('🎯 MEMORY HOVER LEAVE:', memory.title)
+          setIndividualHover(false)
+          onMemoryHoverEnd?.()
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          console.log('🎯 FLOATING MEMORY CLICK:', memory.title)
+          onMemoryClick?.(memory)
+        }}
       />
       
       {/* Visual element that scales */}
@@ -153,9 +171,10 @@ interface MemoryGlobeProps {
   chapterColor?: { hue: number; saturation: number; lightness: number }
   is3DMode?: boolean
   onToggleView?: () => void
+  onMemoryClick?: (memory: MemoryWithRelations) => void
 }
 
-export default function MemoryGlobe({ memories, chapterTitle, visible, chapterColor, is3DMode = true, onToggleView }: MemoryGlobeProps) {
+export default function MemoryGlobe({ memories, chapterTitle, visible, chapterColor, is3DMode = true, onToggleView, onMemoryClick }: MemoryGlobeProps) {
   const [memoryPositions, setMemoryPositions] = useState<Array<{
     x: number
     y: number
@@ -166,6 +185,7 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
   const [rotationX, setRotationX] = useState(0)
   const [rotationY, setRotationY] = useState(0)
   const [isRotating, setIsRotating] = useState(false)
+  const [anyMemoryHovered, setAnyMemoryHovered] = useState(false)
   const globeRef = useRef<HTMLDivElement>(null)
   const lastMousePos = useRef({ x: 0, y: 0 })
   const animationRef = useRef<number>()
@@ -196,9 +216,9 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
     setMemoryPositions(positions)
   }, [memories])
 
-  // Auto-rotation when not being manually rotated
+  // Auto-rotation when not being manually rotated and no memories are being hovered
   useEffect(() => {
-    if (!visible || isRotating) return
+    if (!visible || isRotating || anyMemoryHovered) return
     
     const animate = () => {
       setRotationY(prev => prev + 0.005) // Slow auto-rotation
@@ -212,11 +232,22 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
         cancelAnimationFrame(animationRef.current)
       }
     }
-  }, [visible, isRotating])
+  }, [visible, isRotating, anyMemoryHovered])
 
-  // Mouse interaction for manual rotation
+  // Memory hover callbacks
+  const handleMemoryHoverStart = useCallback(() => {
+    console.log('🎯 MEMORY HOVER START - Pausing globe rotation')
+    setAnyMemoryHovered(true)
+  }, [])
+
+  const handleMemoryHoverEnd = useCallback(() => {
+    console.log('🎯 MEMORY HOVER END - Resuming globe rotation')
+    setAnyMemoryHovered(false)
+  }, [])
+
+  // Mouse interaction for manual rotation (reduced sensitivity when memories are hovered)
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!globeRef.current) return
+    if (!globeRef.current || anyMemoryHovered) return // Don't rotate when trying to click memories
     
     const rect = globeRef.current.getBoundingClientRect()
     const centerX = rect.left + rect.width / 2
@@ -340,6 +371,9 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
               rotationX={rotationX}
               rotationY={rotationY}
               onToggleView={onToggleView}
+              onMemoryClick={onMemoryClick}
+              onMemoryHoverStart={handleMemoryHoverStart}
+              onMemoryHoverEnd={handleMemoryHoverEnd}
             />
           )
         })}

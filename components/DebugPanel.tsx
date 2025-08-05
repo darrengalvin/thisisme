@@ -220,18 +220,22 @@ export default function DebugPanel({
                 <span className="font-semibold">Expected Behavior</span>
               </div>
               <div className="space-y-1 text-xs text-indigo-300">
+                <div className="text-yellow-300 mb-1">
+                  📱 Mobile: {typeof window !== 'undefined' && window.innerWidth < 768 ? 'YES' : 'NO'} 
+                  | 🖥️ Desktop: {typeof window !== 'undefined' && window.innerWidth >= 768 ? 'YES' : 'NO'}
+                </div>
                 {is3DMode ? (
                   <>
-                    <div>• Hover chapter blob → Globe renders in DOM</div>
-                    <div>• Leave chapter → Globe removed from DOM</div>
+                    <div>• Desktop: Hover blob → Globe renders in DOM</div>
+                    <div>• Mobile: Tap blob → Globe appears below</div>
                     <div>• Globe space when empty = white space</div>
-                    <div>• Only actual globe content maintains hover</div>
+                    <div>• Both use same blob visual approach</div>
                   </>
                 ) : (
                   <>
-                    <div>• List view active</div>
-                    <div>• No 3D globes expected</div>
-                    <div>• Simple memory lists shown</div>
+                    <div>• Desktop: List view with hover previews</div>
+                    <div>• Mobile: Tap blobs for details</div>
+                    <div>• No 3D globes expected in list mode</div>
                   </>
                 )}
               </div>

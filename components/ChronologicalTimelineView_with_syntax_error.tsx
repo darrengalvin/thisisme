@@ -7,7 +7,6 @@ import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import EditChapterModal from './EditChapterModal'
 import MemoryGlobe from './MemoryGlobe'
 import DebugPanel from './DebugPanel'
-import ViewMemoryModal from './ViewMemoryModal'
 
 type ZoomLevel = 'decades' | 'years' | 'months'
 
@@ -63,28 +62,6 @@ export default function ChronologicalTimelineView({
   
   console.log('🎂 BIRTH YEAR:', { propBirthYear, used: birthYear })
   console.log('👤 TIMELINE USER:', { hasUser: !!user, userId: user?.id, userEmail: user?.email, userObject: user })
-
-  // Memory click handler - opens in view mode first
-  const handleMemoryClick = useCallback((memory: MemoryWithRelations, sourceChapter?: TimeZoneWithRelations) => {
-    console.log('🎯 MEMORY CLICKED (VIEW MODE):', memory.title, 'from chapter:', sourceChapter?.title)
-    setSelectedMemory(memory)
-    setMemorySourceChapter(sourceChapter || null)
-    setShowMemoryModal(true)
-  }, [])
-
-  // Memory modal handlers
-  const handleCloseMemoryModal = useCallback(() => {
-    setShowMemoryModal(false)
-    setSelectedMemory(null)
-    setMemorySourceChapter(null)
-  }, [])
-
-  const handleSaveMemory = useCallback((updatedMemory: MemoryWithRelations) => {
-    console.log('💾 MEMORY SAVED:', updatedMemory.title)
-    // TODO: Update memory in the memories array
-    // For now, just close the modal
-    handleCloseMemoryModal()
-  }, [handleCloseMemoryModal])
 
   // Fetch chapters
   const fetchChapters = useCallback(async () => {
@@ -530,7 +507,6 @@ export default function ChronologicalTimelineView({
                               visible={hoveredChapter === chapter.id}
                               chapterColor={{ hue, saturation, lightness }}
                               is3DMode={is3DMode}
-                              onMemoryClick={(memory) => handleMemoryClick(memory, chapter)}
                             />
                                 </div>
                                   </div>
@@ -544,8 +520,8 @@ export default function ChronologicalTimelineView({
         </div>
           )}
 
-      {/* Mobile: Vertical Timeline with Blobs */}
-      {birthYear && chapters.length > 0 && (
+      {/* Mobile: Vertical Timeline */}
+      {birthYear && (
         <div className="md:hidden">
           {/* Mobile Header */}
           <div className="sticky top-[88px] z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 px-4 py-3 shadow-sm">
@@ -576,28 +552,24 @@ export default function ChronologicalTimelineView({
               {/* Vertical timeline line */}
               <div className="absolute left-20 top-0 bottom-0 w-0.5 bg-gradient-to-b from-slate-300 via-slate-400 to-slate-500"></div>
               
-              {/* Chapter Blobs in chronological order */}
+              {/* Chapter Groups in chronological order */}
               <div className="space-y-6">
-                {chapters
-                  .filter(chapter => chapter && chapter.id && chapter.title)
-                  .sort((a, b) => {
-                    const aDate = new Date(a.startDate || new Date()).getTime()
-                    const bDate = new Date(b.startDate || new Date()).getTime()
-                    return aDate - bDate
-                  })
-                  .map((chapter, chapterIndex) => {
+                {mobileChapterGroups.map((group, groupIndex) => {
+                  if (group.length === 1) {
+                    // Single chapter
+                    const chapter = group[0]
                     const chapterMemories = memories.filter(m => m.timeZoneId === chapter.id)
                     const startYear = chapter.startDate ? new Date(chapter.startDate).getFullYear() : birthYear
                     const endYear = chapter.endDate ? new Date(chapter.endDate).getFullYear() : currentYear
                     
                     // Generate same colors as desktop
                     const hue = (parseInt(chapter.id.replace(/[^0-9]/g, '').slice(0, 8), 10) * 137.5) % 360
-                    const saturation = 70 + (chapterIndex % 3) * 5
-                    const lightness = 60 + (chapterIndex % 2) * 5
+                    const saturation = 70 + (groupIndex % 3) * 5
+                    const lightness = 60 + (groupIndex % 2) * 5
                     
-                    // Calculate blob size based on memory count (same as desktop, slightly larger for touch)
+                    // Calculate blob size based on memory count (same as desktop)
                     const memoryCount = chapterMemories.length
-                    const blobSize = Math.min(60, Math.max(40, 40 + Math.sqrt(memoryCount) * 4))
+                    const blobSize = Math.min(60, Math.max(40, 40 + Math.sqrt(memoryCount) * 4)) // Slightly larger for touch
                     
                     return (
                       <div key={`mobile-chapter-${chapter.id}`} className="relative flex items-center">
@@ -611,7 +583,7 @@ export default function ChronologicalTimelineView({
                                 <div className="leading-tight">{endYear}</div>
                               </>
                             )}
-                          </div>
+                           </div>
       </div>
 
                         {/* Timeline line connection */}
@@ -619,21 +591,23 @@ export default function ChronologicalTimelineView({
                         
                         {/* Chapter Blob (same as desktop) */}
                         <div 
-                          className="relative cursor-pointer transition-all duration-300"
+                          id={`mobile-chapter-${chapter.id}`}
+                          className="relative cursor-pointer transition-all duration-300 hover:scale-110"
                   onClick={() => {
                             console.log('📱 MOBILE BLOB TAP:', chapter.title)
                             if (is3DMode) {
                               // Toggle globe visibility for 3D mode
                               setHoveredChapter(hoveredChapter === chapter.id ? null : chapter.id)
                             } else {
-                              // Open chapter modal for list mode (when implemented)
-                              console.log('📱 LIST MODE - Chapter modal would open here')
+                              // Open chapter modal for list mode
+                              setSelectedChapter(chapter)
+                    setShowChapterModal(true)
                             }
                           }}
                         >
                           {/* The Blob itself (same styling as desktop) */}
                           <div 
-                            className="rounded-full shadow-lg border-3 border-white flex items-center justify-center relative transition-all duration-200"
+                            className="rounded-full shadow-lg border-3 border-white flex items-center justify-center relative transition-all duration-200 hover:shadow-xl hover:scale-105"
                             style={{
                               width: `${blobSize}px`,
                               height: `${blobSize}px`,
@@ -684,69 +658,60 @@ export default function ChronologicalTimelineView({
                            </div>
                        </div>
                   </div>
-                </div>
-                    )
-                  })}
+
               </div>
               
-              {/* Mobile Globe gets rendered separately - see below timeline container */}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile 3D Globe - Central Overlay (Mobile Only) */}
-      {hoveredChapter && is3DMode && (
-        <div 
-          className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setHoveredChapter(null)}
-        >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md max-h-[80vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Globe Header */}
-            <div className="bg-gradient-to-r from-slate-50 to-white px-6 py-4 border-b border-slate-200">
-                  <div className="text-center">
-                <h5 className="font-bold text-slate-900 text-lg mb-1">
-                  {chapters.find(c => c.id === hoveredChapter)?.title}
-                </h5>
-                <p className="text-slate-600 text-sm">
-                  {memories.filter(m => m.timeZoneId === hoveredChapter).length} memories
-                    </p>
+                      {/* Mobile 3D Globe - shown when tapped (positioned below the whole chapter row) */}
+                      {hoveredChapter === chapter.id && is3DMode && (
+                        <div className="mt-4 bg-white rounded-xl shadow-xl border border-slate-200 p-4 mx-4">
+                          <div className="text-center mb-4">
+                            <h5 className="font-medium text-slate-800 mb-1">{chapter.title} Memories</h5>
+              <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setHoveredChapter(null)
+                              }}
+                              className="text-slate-400 hover:text-slate-600 text-sm px-3 py-1 hover:bg-slate-100 rounded"
+                            >
+                              ✕ Close Globe
+              </button>
+                          </div>
+                          <MemoryGlobe
+                            memories={chapterMemories}
+                            chapterTitle={chapter.title}
+                            visible={true}
+                            chapterColor={{ hue, saturation, lightness }}
+                            is3DMode={is3DMode}
+                          />
+                                        </div>
+                      )}
+                    )
+                  }
+                  return null // Handle grouped chapters if needed
+                })}
                   </div>
-                <button
-                onClick={() => setHoveredChapter(null)}
-                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-              >
-                ✕
-                </button>
-              </div>
+                </div>
+            </div>
+                </div>
+              )}
 
-            {/* Globe Content */}
-            <div className="p-4 overflow-y-auto max-h-[60vh]">
-              <MemoryGlobe
-                memories={memories.filter(m => m.timeZoneId === hoveredChapter)}
-                chapterTitle={chapters.find(c => c.id === hoveredChapter)?.title || ''}
-                visible={true}
-                chapterColor={{ 
-                  hue: (parseInt((hoveredChapter || '').replace(/[^0-9]/g, '').slice(0, 8), 10) * 137.5) % 360,
-                  saturation: 70,
-                  lightness: 60
-                }}
-                is3DMode={is3DMode}
-                onMemoryClick={(memory) => handleMemoryClick(memory, chapters.find(c => c.id === hoveredChapter))}
-              />
-                                </div>
-            
-                        {/* Globe Footer with action hint */}
-                        <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-center">
-                          <p className="text-xs text-slate-500">
-                Tap floating pictures to view memories • Globe pauses when hovering • Tap outside to close
-                          </p>
-                        </div>
-                      </div>
-        </div>
+      {/* Edit Chapter Modal */}
+      {showEditModal && editingChapter && (
+        <EditChapterModal
+          chapter={editingChapter}
+          onClose={() => {
+            setShowEditModal(false)
+            setEditingChapter(null)
+          }}
+          onSave={(updatedChapter) => {
+            // Handle chapter update
+            console.log('📝 CHAPTER UPDATED:', updatedChapter)
+            setShowEditModal(false)
+            setEditingChapter(null)
+            // Refresh chapters
+            fetchChapters()
+          }}
+        />
       )}
 
       {/* Debug Panel */}
@@ -756,14 +721,6 @@ export default function ChronologicalTimelineView({
         globeVisible={hoveredChapter !== null}
         memories={memories}
         chapters={chapters}
-      />
-
-      {/* Memory Details Modal */}
-      <ViewMemoryModal
-        memory={selectedMemory}
-        isOpen={showMemoryModal}
-        onClose={handleCloseMemoryModal}
-        onSave={handleSaveMemory}
       />
     </div>
   )

@@ -1,0 +1,5 @@
+[33m697f0d1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/3d-memory-globes[m[33m, [m[1;31morigin/feature/3d-memory-globes[m[33m)[m Fix timeline hover functionality and white space issues
+[33m5c8c915[m Add voice transcription, premium features, admin functionality and enhance 3D memory globe visualization
+[33mcc6b8d0[m feat: Create truly interactive spinning 3D memory globe
+[33mfecfef1[m feat: Dramatically enhance 3D memory globe with true depth
+[33mc225bee[m fix: Replace Three.js with stable CSS-based 3D memory globe
