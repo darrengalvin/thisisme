@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { MemoryWithRelations } from '@/lib/types'
 // import MemoryCard from './MemoryCard' // Will create simplified version
 import { formatRelativeTime } from './utils'
+import DeleteConfirmationModal from './DeleteConfirmationModal'
 
 export default function MemoryFeed({ 
   memories: propMemories, 
@@ -19,6 +20,9 @@ export default function MemoryFeed({
   const [memories, setMemories] = useState<MemoryWithRelations[]>(propMemories || [])
   const [isLoading, setIsLoading] = useState(!propMemories)
   const [error, setError] = useState<string | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [memoryToDelete, setMemoryToDelete] = useState<MemoryWithRelations | null>(null)
+  const [isDeletingMemory, setIsDeletingMemory] = useState(false)
 
   useEffect(() => {
     if (!propMemories) {
@@ -62,13 +66,17 @@ export default function MemoryFeed({
     }
   }
 
-  const handleDeleteMemory = async (memory: MemoryWithRelations) => {
-    if (!confirm('Are you sure you want to delete this memory?')) {
-      return
-    }
+  const handleDeleteMemory = (memory: MemoryWithRelations) => {
+    setMemoryToDelete(memory)
+    setShowDeleteModal(true)
+  }
 
+  const confirmDeleteMemory = async () => {
+    if (!memoryToDelete) return
+    
+    setIsDeletingMemory(true)
     try {
-      const response = await fetch(`/api/memories/${memory.id}`, {
+      const response = await fetch(`/api/memories/${memoryToDelete.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${getAuthToken()}`
@@ -77,16 +85,25 @@ export default function MemoryFeed({
 
       if (response.ok) {
         if (propOnDelete) {
-          propOnDelete(memory)
+          propOnDelete(memoryToDelete)
         } else {
-          setMemories(prev => prev.filter(m => m.id !== memory.id))
+          setMemories(prev => prev.filter(m => m.id !== memoryToDelete.id))
         }
+        setShowDeleteModal(false)
+        setMemoryToDelete(null)
       } else {
         setError('Failed to delete memory')
       }
     } catch (error) {
       setError('Something went wrong while deleting memory')
+    } finally {
+      setIsDeletingMemory(false)
     }
+  }
+
+  const cancelDeleteMemory = () => {
+    setShowDeleteModal(false)
+    setMemoryToDelete(null)
   }
 
   if (isLoading) {
@@ -232,6 +249,18 @@ export default function MemoryFeed({
           ))}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        title="Delete Memory"
+        message="Are you sure you want to delete this memory?"
+        itemName={memoryToDelete?.title || 'Untitled Memory'}
+        itemType="memory"
+        onConfirm={confirmDeleteMemory}
+        onCancel={cancelDeleteMemory}
+        isLoading={isDeletingMemory}
+      />
     </div>
   )
 } 

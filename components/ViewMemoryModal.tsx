@@ -1,19 +1,35 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Edit, Calendar, MapPin, Heart, Share2, Camera } from 'lucide-react'
+import { X, Edit, Calendar, MapPin, Share2, Camera, Crop } from 'lucide-react'
 import { MemoryWithRelations } from '@/lib/types'
 import EditMemoryModal from './EditMemoryModal'
+import ShareMemoryModal from './ShareMemoryModal'
+import ImageCropper from './ImageCropper'
+import toast from 'react-hot-toast'
 
 interface ViewMemoryModalProps {
   memory: MemoryWithRelations | null
   isOpen: boolean
   onClose: () => void
   onSave?: (updatedMemory: MemoryWithRelations) => void
+  onDelete?: (memory: MemoryWithRelations) => void
 }
 
-export default function ViewMemoryModal({ memory, isOpen, onClose, onSave }: ViewMemoryModalProps) {
+export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDelete }: ViewMemoryModalProps) {
   const [isEditing, setIsEditing] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [showImageCropper, setShowImageCropper] = useState(false)
+  const [tempImageForCrop, setTempImageForCrop] = useState<{ mediaId: string, imageUrl: string } | null>(null)
+  const [isUpdatingImage, setIsUpdatingImage] = useState(false)
+
+  console.log('👁️ VIEW MEMORY MODAL RENDER:', {
+    isOpen,
+    hasMemory: !!memory,
+    memoryTitle: memory?.title,
+    memoryId: memory?.id,
+    isEditing
+  })
 
   if (!isOpen || !memory) return null
 
@@ -28,6 +44,10 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave }: Vie
           setIsEditing(false)
           onSave?.(updatedMemory)
         }}
+        onDelete={(deletedMemory) => {
+          setIsEditing(false)
+          onDelete?.(deletedMemory)
+        }}
       />
     )
   }
@@ -36,7 +56,10 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave }: Vie
   const primaryImage = memory.media?.[0]?.storage_url || memory.media?.[0]?.thumbnail_url
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
       <div 
         className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -181,13 +204,12 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave }: Vie
         {/* Footer actions */}
         <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-between items-center">
           <div className="flex space-x-3">
-            <button className="flex items-center space-x-2 text-slate-600 hover:text-red-500 transition-colors">
-              <Heart className="w-4 h-4" />
-              <span className="text-sm">Favorite</span>
-            </button>
-            <button className="flex items-center space-x-2 text-slate-600 hover:text-blue-500 transition-colors">
+            <button 
+              onClick={() => setShowShareModal(true)}
+              className="flex items-center space-x-2 text-slate-600 hover:text-blue-500 transition-colors"
+            >
               <Share2 className="w-4 h-4" />
-              <span className="text-sm">Share</span>
+              <span className="text-sm">Share Memory</span>
             </button>
           </div>
           <div className="flex space-x-3">
@@ -199,13 +221,20 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave }: Vie
             </button>
             <button
               onClick={() => setIsEditing(true)}
-              className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium"
+              className="px-6 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg transition-colors font-medium"
             >
               Edit Memory
             </button>
           </div>
         </div>
       </div>
+
+      {/* Share Memory Modal */}
+      <ShareMemoryModal
+        memory={memory}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
     </div>
   )
 }

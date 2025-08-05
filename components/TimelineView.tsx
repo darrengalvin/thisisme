@@ -67,14 +67,14 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
   const handleShareMemory = (memory: MemoryWithRelations) => {
     if (navigator.share) {
       navigator.share({
-        title: memory.title || 'Memory from MyLife',
+        title: memory.title || 'Memory from This is Me',
         text: memory.textContent || 'Check out this memory!',
         url: window.location.origin
       }).catch(console.error)
     } else {
       // Fallback for browsers without native sharing
       navigator.clipboard.writeText(
-        `${memory.title || 'Memory'}: ${memory.textContent || 'A memory from MyLife'} - ${window.location.origin}`
+        `${memory.title || 'Memory'}: ${memory.textContent || 'A memory from This is Me'} - ${window.location.origin}`
       ).then(() => {
         alert('Memory details copied to clipboard!')
       }).catch(() => {
@@ -214,6 +214,24 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Header with Add Memory Button */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Your Memory Feed</h1>
+            <p className="text-slate-600 text-sm mt-1">
+              {filteredMemories.length} {filteredMemories.length === 1 ? 'memory' : 'memories'} 
+              {selectedChapterId && selectedChapter ? ` in ${selectedChapter.title}` : ' across all chapters'}
+            </p>
+          </div>
+          <button
+            onClick={() => onStartCreating?.()}
+            className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 min-w-[140px]"
+          >
+            <Plus size={16} />
+            <span>Add Memory</span>
+          </button>
+        </div>
+
         {/* Mobile Chapter Filter Bar */}
         <div className="lg:hidden mb-6">
           <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-4">
@@ -233,7 +251,7 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                   onClick={() => setSelectedChapterId(null)}
                   className={`w-full text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
                     selectedChapterId === null
-                      ? 'bg-blue-50 border-blue-200 text-blue-900 font-medium'
+                      ? 'bg-sky-50 border-sky-200 text-sky-900 font-medium'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
@@ -250,7 +268,7 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                       onClick={() => setSelectedChapterId(chapter.id)}
                       className={`w-full text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
                         selectedChapterId === chapter.id
-                          ? 'bg-blue-50 border-blue-200 text-blue-900 font-medium'
+                          ? 'bg-sky-50 border-sky-200 text-sky-900 font-medium'
                           : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                       }`}
                     >
@@ -283,7 +301,7 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                   onClick={() => setSelectedChapterId(null)}
                   className={`w-full text-left px-4 py-4 rounded-xl border transition-all duration-200 ${
                     selectedChapterId === null
-                      ? 'bg-blue-50 border-blue-200 text-blue-900 shadow-sm ring-1 ring-blue-200'
+                      ? 'bg-sky-50 border-sky-200 text-sky-900 shadow-sm ring-1 ring-sky-200'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
                   }`}
                 >
@@ -291,7 +309,7 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                     <span className="font-medium">All Memories</span>
                     <span className={`text-sm px-2 py-1 rounded-full ${
                       selectedChapterId === null 
-                        ? 'bg-blue-100 text-blue-700' 
+                        ? 'bg-sky-100 text-sky-700' 
                         : 'bg-slate-200 text-slate-600'
                     }`}>
                       {memories.length}
@@ -332,7 +350,7 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                           onClick={() => setSelectedChapterId(chapter.id)}
                           className={`w-full text-left p-4 rounded-xl border transition-all duration-200 ${
                             isSelected
-                              ? 'bg-blue-50 border-blue-200 text-blue-900 shadow-sm ring-1 ring-blue-200'
+                              ? 'bg-sky-50 border-sky-200 text-sky-900 shadow-sm ring-1 ring-sky-200'
                               : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm'
                           }`}
                         >
@@ -353,7 +371,7 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                               <h4 className="font-semibold text-sm leading-tight">{chapter.title}</h4>
                               <span className={`text-xs px-2 py-1 rounded-full ml-2 ${
                                 isSelected 
-                                  ? 'bg-blue-100 text-blue-700' 
+                                  ? 'bg-sky-100 text-sky-700' 
                                   : 'bg-slate-200 text-slate-600'
                               }`}>
                                 {chapterMemories.length}
@@ -451,7 +469,7 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
             {selectedChapterId && selectedChapter && (
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium text-blue-900">
                       Filtering by: <span className="font-bold">{selectedChapter.title}</span>
                     </p>
@@ -459,12 +477,22 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                       Showing {filteredMemories.length} of {memories.length} memories
                     </p>
                   </div>
-                  <button
-                    onClick={() => setSelectedChapterId(null)}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                  >
-                    Clear Filter
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => onStartCreating?.(selectedChapterId, selectedChapter?.title)}
+                      className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+                      title={`Add new memory to ${selectedChapter.title}`}
+                    >
+                      <span className="text-base">+</span>
+                      <span>Add Memory</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedChapterId(null)}
+                      className="text-sky-600 hover:text-sky-800 text-sm font-medium"
+                    >
+                      Clear Filter
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -477,12 +505,21 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                   <p className="text-slate-600 mb-6">
                     Start adding photos, videos, and stories to the "{selectedChapter?.title}" chapter.
                   </p>
-                  <button
-                    onClick={() => setSelectedChapterId(null)}
-                    className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-medium transition-colors"
-                  >
-                    View All Memories
-                  </button>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button
+                      onClick={() => onStartCreating?.(selectedChapterId, selectedChapter?.title)}
+                      className="bg-sky-600 hover:bg-sky-700 text-white px-6 py-3 rounded-xl font-medium transition-colors flex items-center space-x-2"
+                    >
+                      <span className="text-lg">+</span>
+                      <span>Add Memory to "{selectedChapter?.title}"</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedChapterId(null)}
+                      className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-xl font-medium transition-colors"
+                    >
+                      View All Memories
+                    </button>
+                  </div>
                 </div>
               ) : (
                 // Empty state for when we have chapters but no memories
@@ -702,6 +739,15 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
           fetchChapters()
         }}
       />
+
+      {/* Mobile Floating Add Button - Alternative for small screens */}
+      <button
+        onClick={() => onStartCreating?.()}
+        className="sm:hidden fixed bottom-6 right-6 bg-sky-600 hover:bg-sky-700 text-white w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center z-10"
+        title="Add Memory"
+      >
+        <Plus size={20} />
+      </button>
 
     </div>
   )

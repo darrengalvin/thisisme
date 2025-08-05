@@ -66,11 +66,18 @@ export default function ChronologicalTimelineView({
 
   // Memory click handler - opens in view mode first
   const handleMemoryClick = useCallback((memory: MemoryWithRelations, sourceChapter?: TimeZoneWithRelations) => {
-    console.log('🎯 MEMORY CLICKED (VIEW MODE):', memory.title, 'from chapter:', sourceChapter?.title)
+    console.log('🎯 MEMORY CLICKED (VIEW MODE):', {
+      memoryTitle: memory.title,
+      memoryId: memory.id,
+      sourceChapter: sourceChapter?.title,
+      currentModalState: showMemoryModal,
+      hasSelectedMemory: !!selectedMemory
+    })
     setSelectedMemory(memory)
     setMemorySourceChapter(sourceChapter || null)
     setShowMemoryModal(true)
-  }, [])
+    console.log('🎯 MEMORY MODAL SHOULD OPEN NOW')
+  }, [showMemoryModal, selectedMemory])
 
   // Memory modal handlers
   const handleCloseMemoryModal = useCallback(() => {
@@ -242,28 +249,57 @@ export default function ChronologicalTimelineView({
               {birthYear} - {currentYear} • {currentYear - birthYear} years
             </p>
             
-            {/* 3D Mode Toggle - Desktop */}
+            {/* Chapter count indicator */}
+            <div className="mt-2">
+              {isLoadingChapters ? (
+                <p className="text-slate-500 text-xs">Loading chapters...</p>
+              ) : (
+                <p className="text-slate-500 text-xs">
+                  {chapters.length} life chapters loaded
+                </p>
+              )}
+            </div>
+            
+            {/* Default View Toggle - Desktop */}
             <div className="absolute top-0 right-0 flex items-center">
-              <span className="text-xs text-slate-500 mr-2">View Mode:</span>
+              <span className="text-xs text-slate-500 mr-3">Default View:</span>
+              <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200">
               <button
-                onClick={() => setIs3DMode(!is3DMode)}
-                className={`p-2 rounded-lg transition-colors ${
+                  onClick={() => {
+                    console.log('🔄 GLOBAL VIEW TOGGLE: Switching to Globe mode')
+                    setIs3DMode(true)
+                  }}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
                   is3DMode 
-                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-blue-500 text-white shadow-sm' 
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-white'
                 }`}
-                title={is3DMode ? 'Switch to List View' : 'Switch to 3D Globe View'}
+                  title="Default to Globe View"
               >
-                {is3DMode ? <Box size={16} /> : <List size={16} />}
+                  <Box size={14} className="mr-1 inline" />
+                  Globe
               </button>
-              <span className="text-xs text-slate-500 ml-2">
-                {is3DMode ? '3D Globe' : 'List View'}
-              </span>
+                <button
+                        onClick={() => {
+                    console.log('🔄 GLOBAL VIEW TOGGLE: Switching to List mode')
+                    setIs3DMode(false)
+                  }}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                    !is3DMode 
+                      ? 'bg-blue-500 text-white shadow-sm' 
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-white'
+                  }`}
+                  title="Default to List View"
+                >
+                  <List size={14} className="mr-1 inline" />
+                  List
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Timeline Visualization */}
-          <div className="relative">
+            <div className="relative">
             {/* Main timeline line */}
             <div className="h-1 bg-gradient-to-r from-slate-300 via-slate-400 to-slate-500 rounded-full mb-0 relative">
             {/* Year markers */}
@@ -281,18 +317,7 @@ export default function ChronologicalTimelineView({
                             </div>
                               </div>
               ))}
-              
-              {/* Show loading or chapter count */}
-              <div className="mt-8 text-center">
-                {isLoadingChapters ? (
-                  <p className="text-slate-500">Loading chapters...</p>
-                ) : (
-                  <p className="text-slate-600 text-sm">
-                    {chapters.length} life chapters loaded
-                                      </p>
-                                    )}
-                                                  </div>
-                                              </div>
+            </div>
           </div>
         </div>
       )}
@@ -531,6 +556,8 @@ export default function ChronologicalTimelineView({
                               chapterColor={{ hue, saturation, lightness }}
                               is3DMode={is3DMode}
                               onMemoryClick={(memory) => handleMemoryClick(memory, chapter)}
+                              onAddMemory={(chapterId, chapterTitle) => onStartCreating?.(chapterId, chapterTitle)}
+                              chapter={chapter}
                             />
                                 </div>
                                   </div>
@@ -553,21 +580,52 @@ export default function ChronologicalTimelineView({
               <h3 className="text-lg font-bold text-slate-900 mb-1">Your Life Timeline</h3>
               <p className="text-slate-600 text-sm">{birthYear} - {currentYear} • {currentYear - birthYear} years</p>
               </div>
+              
+              {/* Mobile Chapter count indicator */}
+              <div className="mt-2 text-center">
+                {isLoadingChapters ? (
+                  <p className="text-slate-500 text-xs">Loading chapters...</p>
+                ) : (
+                  <p className="text-slate-500 text-xs">
+                    {chapters.length} life chapters loaded
+                  </p>
+                )}
+              </div>
 
-            {/* Mobile 3D Mode Toggle */}
+            {/* Mobile Default View Toggle */}
             <div className="flex items-center justify-center mt-3">
-              <span className="text-xs text-slate-500 mr-2">View:</span>
-                    <button
-                onClick={() => setIs3DMode(!is3DMode)}
-                className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-                  is3DMode 
-                    ? 'bg-blue-100 text-blue-600' 
-                    : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                {is3DMode ? '3D Globe' : 'Simple List'}
-                    </button>
-                  </div>
+              <span className="text-xs text-slate-500 mr-3">Default:</span>
+              <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200">
+                <button
+                  onClick={() => {
+                    console.log('🔄 MOBILE GLOBAL VIEW TOGGLE: Switching to Globe mode')
+                    setIs3DMode(true)
+                  }}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                    is3DMode 
+                      ? 'bg-blue-500 text-white shadow-sm' 
+                      : 'text-slate-600 hover:text-slate-800'
+                  }`}
+                  title="Default to Globe View"
+                >
+                  🌍 Globe
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🔄 MOBILE GLOBAL VIEW TOGGLE: Switching to List mode')
+                    setIs3DMode(false)
+                  }}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                    !is3DMode 
+                      ? 'bg-blue-500 text-white shadow-sm' 
+                      : 'text-slate-600 hover:text-slate-800'
+                  }`}
+                  title="Default to List View"
+                >
+                  📋 List
+                </button>
+              </div>
+            </div>
                 </div>
 
           {/* Mobile Vertical Timeline Content */}
@@ -679,7 +737,7 @@ export default function ChronologicalTimelineView({
                                 {chapterMemories.length > 0 ? `${chapterMemories.length} memories` : 'No memories yet'}
                               </span>
                               <span className="text-xs text-blue-600 font-medium">
-                                {is3DMode ? 'Tap blob for 3D →' : 'Tap to explore →'}
+                                {is3DMode ? 'Tap blob for globe →' : 'Tap to explore →'}
                               </span>
                            </div>
                        </div>
@@ -695,7 +753,7 @@ export default function ChronologicalTimelineView({
         </div>
       )}
 
-      {/* Mobile 3D Globe - Central Overlay (Mobile Only) */}
+      {/* Mobile Globe - Central Overlay (Mobile Only) */}
       {hoveredChapter && is3DMode && (
         <div 
           className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -736,15 +794,17 @@ export default function ChronologicalTimelineView({
                 }}
                 is3DMode={is3DMode}
                 onMemoryClick={(memory) => handleMemoryClick(memory, chapters.find(c => c.id === hoveredChapter))}
+                onAddMemory={(chapterId, chapterTitle) => onStartCreating?.(chapterId, chapterTitle)}
+                chapter={chapters.find(c => c.id === hoveredChapter)}
               />
                                 </div>
             
                         {/* Globe Footer with action hint */}
-                        <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-center">
+                                                                        <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-center">
                           <p className="text-xs text-slate-500">
-                Tap floating pictures to view memories • Globe pauses when hovering • Tap outside to close
-                          </p>
-                        </div>
+                Tap pictures to view memories • Use 🌍/📋 toggle for this chapter • Tap outside to close
+              </p>
+            </div>
                       </div>
         </div>
       )}
@@ -764,6 +824,91 @@ export default function ChronologicalTimelineView({
         isOpen={showMemoryModal}
         onClose={handleCloseMemoryModal}
         onSave={handleSaveMemory}
+      />
+
+      {/* Chapter Detail Modal */}
+      {showChapterModal && selectedChapter && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-900">{selectedChapter.title}</h3>
+              <button
+                onClick={() => setShowChapterModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {selectedChapter.headerImageUrl && (
+                <div className="w-full h-32 rounded-lg overflow-hidden">
+                  <img
+                    src={selectedChapter.headerImageUrl}
+                    alt={selectedChapter.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <p className="text-sm text-slate-600">
+                  <strong>Period:</strong> {selectedChapter.startDate ? new Date(selectedChapter.startDate).toLocaleDateString() : 'Unknown'} - {selectedChapter.endDate ? new Date(selectedChapter.endDate).toLocaleDateString() : 'Present'}
+                </p>
+                
+                {selectedChapter.description && (
+                  <p className="text-sm text-slate-600">
+                    <strong>Description:</strong> {selectedChapter.description}
+                  </p>
+                )}
+
+                {selectedChapter.location && (
+                  <p className="text-sm text-slate-600">
+                    <strong>Location:</strong> {selectedChapter.location}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowChapterModal(false)}
+                className="px-4 py-2 text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setEditingChapter(selectedChapter)
+                  setShowEditModal(true)
+                  setShowChapterModal(false)
+                }}
+                className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors font-medium"
+              >
+                Edit Chapter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Chapter Modal */}
+      <EditChapterModal
+        chapter={editingChapter}
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setEditingChapter(null)
+        }}
+        onSuccess={() => {
+          setShowEditModal(false)
+          setEditingChapter(null)
+          // Trigger a refresh of the data
+          window.location.reload()
+        }}
       />
     </div>
   )

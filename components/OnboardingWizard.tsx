@@ -358,11 +358,11 @@ Please sign in using your existing password.`)
         {/* Welcome Step */}
         {currentStep === 'welcome' && (
           <div className="p-8 lg:p-12 text-center">
-            <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <span className="text-white text-3xl font-bold">L</span>
+            <div className="w-20 h-20 bg-sky-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <span className="text-white text-3xl font-bold">T</span>
             </div>
             <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-4">
-              Welcome to <span className="text-slate-800">LIFE</span>
+              Welcome to <span className="text-sky-600">This is Me</span>
             </h1>
             <p className="text-xl text-slate-600 mb-8 leading-relaxed">
               Your personal timeline awaits – a beautiful, chronological journey through your most precious memories, 
@@ -488,7 +488,7 @@ Please sign in using your existing password.`)
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left">
                 <h3 className="font-semibold text-slate-900 mb-2">💡 Why we need this:</h3>
                 <p className="text-sm text-slate-700 leading-relaxed">
-                  Your birth year becomes the foundation of your LIFE timeline. We'll create a beautiful chronological view 
+                  Your birth year becomes the foundation of your timeline. We'll create a beautiful chronological view 
                   starting from your birth and extending to today, helping you see your entire life journey at a glance. 
                   This makes it easy to organise memories by life phases and visualise how your story unfolds over time.
                 </p>
@@ -651,7 +651,7 @@ Please sign in using your existing password.`)
                 <Mail className="text-slate-600" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">What's your email address?</h2>
-              <p className="text-slate-600 mb-4">We'll create your LIFE account automatically – no complicated passwords needed!</p>
+              <p className="text-slate-600 mb-4">We'll create your This is Me account automatically – no complicated passwords needed!</p>
               
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left">
                 <h3 className="font-semibold text-slate-900 mb-2">🔒 Your privacy matters:</h3>
@@ -690,11 +690,11 @@ Please sign in using your existing password.`)
         {currentStep === 'timeline-building' && (
           <div className="p-8 lg:p-12 text-center">
             <div className="mb-8">
-              <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <div className="w-20 h-20 bg-sky-600 rounded-3xl flex items-center justify-center mx-auto mb-6 animate-pulse">
                 <Sparkles className="text-white" size={32} />
               </div>
               <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                ✨ Setting up {userData.name}'s LIFE Timeline
+                ✨ Setting up {userData.name}'s This is Me Timeline
               </h2>
               <p className="text-slate-600">
                 {userData.useBirthDateOnly ? userData.birthYear : (userData.birthDate ? new Date(userData.birthDate).getFullYear() : null) ? 
@@ -864,7 +864,7 @@ Please sign in using your existing password.`)
             <div className="w-20 h-20 bg-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="text-emerald-600" size={32} />
             </div>
-            <h2 className="text-3xl font-bold text-slate-900 mb-2">Welcome to LIFE!</h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-2">Welcome to This is Me!</h2>
             <p className="text-slate-600 mb-8">
               Your timeline is ready and your account has been created. Start capturing your life's moments!
             </p>
@@ -872,9 +872,9 @@ Please sign in using your existing password.`)
             <button
               onClick={handleComplete}
               disabled={isSubmitting}
-              className="w-full bg-slate-800 hover:bg-slate-900 disabled:bg-slate-400 text-white py-4 rounded-2xl text-lg font-semibold transition-colors flex items-center justify-center space-x-2"
+              className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-sky-400 text-white py-4 rounded-2xl text-lg font-semibold transition-colors flex items-center justify-center space-x-2"
             >
-              {isSubmitting ? 'Setting up your account...' : 'Enter LIFE'}
+              {isSubmitting ? 'Setting up your account...' : 'Enter This is Me'}
               {!isSubmitting && <ArrowRight size={20} />}
             </button>
           </div>

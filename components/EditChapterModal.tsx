@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Image as ImageIcon } from 'lucide-react'
+import { X, Image as ImageIcon, Move, Upload } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { createClient } from '@supabase/supabase-js'
 import toast from 'react-hot-toast'
 import { TimeZoneWithRelations } from '@/lib/types'
+import ImageCropper from '@/components/ImageCropper'
 
 interface EditChapterModalProps {
   chapter: TimeZoneWithRelations | null
@@ -28,13 +29,8 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   const [selectedHeaderImage, setSelectedHeaderImage] = useState<File | null>(null)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
-  
-  // Image positioning state
-  const [imageZoom, setImageZoom] = useState(1)
-  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [hasUserInteracted, setHasUserInteracted] = useState(false)
+  const [showImageCropper, setShowImageCropper] = useState(false)
+  const [tempImageUrl, setTempImageUrl] = useState<string | null>(null)
 
   // Autosave and unsaved changes state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -100,16 +96,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       formData.append('location', editingChapter.location)
       
       if (selectedHeaderImage) {
-        if (hasUserInteracted) {
-          const croppedImage = await createCroppedImage()
-          if (croppedImage) {
-            formData.append('headerImage', croppedImage)
-          } else {
-            formData.append('headerImage', selectedHeaderImage)
-          }
-        } else {
-          formData.append('headerImage', selectedHeaderImage)
-        }
+        formData.append('headerImage', selectedHeaderImage)
       } else if (editingChapter.headerImageUrl === null) {
         formData.append('removeHeaderImage', 'true')
       }
@@ -181,11 +168,6 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       setHasUnsavedChanges(false)
       setLastSaved(null)
       setShowUnsavedWarning(false)
-      
-      // Reset image positioning
-      setImageZoom(1)
-      setImagePosition({ x: 0, y: 0 })
-      setHasUserInteracted(false)
     }
   }, [chapter, isOpen])
 
@@ -235,180 +217,36 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      setSelectedHeaderImage(file)
-      
-      // Create preview URL
-      if (previewImageUrl) {
-        URL.revokeObjectURL(previewImageUrl)
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast.error('Image must be smaller than 10MB')
+        return
       }
-      const newPreviewUrl = URL.createObjectURL(file)
-      setPreviewImageUrl(newPreviewUrl)
       
-      // Calculate initial zoom to show FULL image (fit to container)
-      const img = new Image()
-      img.onload = () => {
-        const previewWidth = 320 // w-80
-        const previewHeight = 240 // h-60
-        const imgAspect = img.naturalWidth / img.naturalHeight
-        const previewAspect = previewWidth / previewHeight
-        
-        // Start at 100% zoom to show image at natural size
-        let initialZoom = 1.0
-        
-        setImageZoom(initialZoom)
-        setImagePosition({ x: 0, y: 0 }) // Start centered
-        setHasUserInteracted(false) // Reset interaction tracking
+      // Show cropper immediately
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setTempImageUrl(e.target?.result as string)
+        setShowImageCropper(true)
       }
-      img.src = newPreviewUrl
+      reader.readAsDataURL(file)
     }
   }
 
-  // Image positioning handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y })
+  // Handle crop complete
+  const handleCropComplete = (croppedFile: File | null) => {
+    if (croppedFile) {
+      setSelectedHeaderImage(croppedFile)
+      // Create preview of cropped image
+      if (previewImageUrl) {
+        URL.revokeObjectURL(previewImageUrl)
+      }
+      const newPreviewUrl = URL.createObjectURL(croppedFile)
+      setPreviewImageUrl(newPreviewUrl)
+    }
+    setShowImageCropper(false)
+    setTempImageUrl(null)
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return
-    
-    const newX = e.clientX - dragStart.x
-    const newY = e.clientY - dragStart.y
-    
-    // Boundary checking with CSS scale transform
-    // Allow more movement when zoomed in, less when zoomed out
-    const maxOffset = imageZoom > 1 ? 200 * (imageZoom - 1) : 50
-    const minX = -maxOffset
-    const maxX = maxOffset
-    const minY = -maxOffset
-    const maxY = maxOffset
-    
-    setImagePosition({
-      x: Math.max(minX, Math.min(maxX, newX)),
-      y: Math.max(minY, Math.min(maxY, newY))
-    })
-    setHasUserInteracted(true) // User is dragging the image
-  }
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  const handleZoomChange = (newZoom: number) => {
-    // More reasonable zoom range
-    const minZoom = 0.2  // Minimum zoom to keep image visible
-    const maxZoom = 3    // Maximum zoom for detail viewing
-    const clampedZoom = Math.max(minZoom, Math.min(maxZoom, newZoom))
-    
-    // Calculate how much the image size is changing
-    const zoomRatio = clampedZoom / imageZoom
-    
-    setImageZoom(clampedZoom)
-    setHasUserInteracted(true) // User is adjusting zoom
-    
-    // Keep image centered when zooming
-    const previewWidth = 320 // w-80
-    const previewHeight = 240 // h-60
-    
-    // Keep position within reasonable bounds when zooming
-    // With CSS scale, we need to calculate bounds differently
-    setImagePosition(prev => {
-      // For zoom > 1, allow more movement; for zoom < 1, restrict movement
-      const maxOffset = clampedZoom > 1 ? 200 * (clampedZoom - 1) : 50
-      
-      return {
-        x: Math.max(-maxOffset, Math.min(maxOffset, prev.x)),
-        y: Math.max(-maxOffset, Math.min(maxOffset, prev.y))
-      }
-    })
-  }
-
-  // Create cropped image based on current position and zoom
-  const createCroppedImage = (): Promise<File | null> => {
-    return new Promise((resolve) => {
-      if (!previewImageUrl) {
-        console.log('🖼️ CROP: No preview image URL')
-        resolve(null)
-        return
-      }
-
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        console.error('❌ CROP: Could not get canvas context')
-        resolve(null)
-        return
-      }
-
-      console.log('🖼️ CROP: Starting image crop process', { imageZoom, imagePosition })
-
-      const img = new Image()
-      img.onload = () => {
-        console.log('🖼️ CROP: Image loaded successfully', { 
-          naturalWidth: img.naturalWidth, 
-          naturalHeight: img.naturalHeight 
-        })
-        // Set canvas to match actual chapter header proportions
-        canvas.width = 280 // Typical chapter card width
-        canvas.height = 192 // h-48 (192px) - matches timeline chapter height
-
-        // Calculate scaling factors from preview to final output
-        const previewWidth = 320  // w-80
-        const previewHeight = 240 // h-60
-        const scaleX = canvas.width / previewWidth
-        const scaleY = canvas.height / previewHeight
-
-        // Fill canvas with background
-        ctx.fillStyle = '#f1f5f9' // slate-100 background
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-        // With CSS scale, we need to calculate differently
-        // The image is scaled around its center, then translated by imagePosition
-        
-        // Calculate the scaled image dimensions
-        const scaledImageWidth = img.naturalWidth * imageZoom
-        const scaledImageHeight = img.naturalHeight * imageZoom
-        
-        // Calculate the position in the preview (centered + offset)
-        const previewCenterX = previewWidth / 2
-        const previewCenterY = previewHeight / 2
-        const imageLeft = previewCenterX - (scaledImageWidth / 2) + imagePosition.x
-        const imageTop = previewCenterY - (scaledImageHeight / 2) + imagePosition.y
-        
-        // Scale to final canvas size
-        const finalImageLeft = imageLeft * scaleX
-        const finalImageTop = imageTop * scaleY
-        const finalImageWidth = scaledImageWidth * scaleX
-        const finalImageHeight = scaledImageHeight * scaleY
-
-        // Draw the positioned and scaled image
-        ctx.drawImage(
-          img,
-          finalImageLeft,
-          finalImageTop,
-          finalImageWidth,
-          finalImageHeight
-        )
-
-        // Convert canvas to blob and then to File
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const file = new File([blob], 'cropped-header.jpg', { type: 'image/jpeg' })
-            resolve(file)
-          } else {
-            resolve(null)
-          }
-        }, 'image/jpeg', 0.9)
-      }
-      
-      img.onerror = (error) => {
-        console.error('❌ CROP: Image failed to load', error)
-        resolve(null)
-      }
-      
-      img.src = previewImageUrl
-    })
-  }
 
   // Remove header image
   const removeHeaderImage = () => {
@@ -440,35 +278,11 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       
       if (selectedHeaderImage) {
         console.log('📤 UPLOAD: Processing header image', { 
-          hasUserInteracted,
           fileSize: selectedHeaderImage.size,
           fileName: selectedHeaderImage.name
         })
         
-        // Only create cropped version if user has actually interacted with positioning/zoom
-        if (hasUserInteracted) {
-          console.log('📤 UPLOAD: User has interacted, creating cropped image')
-          try {
-            const croppedImage = await createCroppedImage()
-            if (croppedImage) {
-              console.log('📤 UPLOAD: Cropped image created successfully', {
-                originalSize: selectedHeaderImage.size,
-                croppedSize: croppedImage.size
-              })
-              formData.append('headerImage', croppedImage)
-            } else {
-              console.log('📤 UPLOAD: Cropping failed, using original image')
-              formData.append('headerImage', selectedHeaderImage)
-            }
-          } catch (cropError) {
-            console.error('❌ UPLOAD: Cropping error, using original image', cropError)
-            formData.append('headerImage', selectedHeaderImage)
-          }
-        } else {
-          // User hasn't interacted - use original image
-          console.log('📤 UPLOAD: No user interaction, using original image')
-          formData.append('headerImage', selectedHeaderImage)
-        }
+        formData.append('headerImage', selectedHeaderImage)
       } else if (editingChapter.headerImageUrl === null) {
         console.log('📤 UPLOAD: Removing header image')
         formData.append('removeHeaderImage', 'true')
@@ -568,40 +382,29 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
 
         {/* Modal Content */}
         <div className="p-6 space-y-6">
+          {/* Debug Info - Remove this after fixing */}
+          <div className="bg-gray-100 p-2 rounded text-xs">
+            <strong>DEBUG EditChapterModal:</strong><br/>
+            editingChapter.headerImageUrl = {editingChapter?.headerImageUrl || 'null'}<br/>
+            previewImageUrl = {previewImageUrl || 'null'}<br/>
+            Should show image section: {(previewImageUrl || editingChapter?.headerImageUrl) ? 'YES' : 'NO'}
+          </div>
+
           {/* Header Image Section */}
           <div>
             <label className="block text-sm font-semibold text-slate-900 mb-2">Header Image</label>
             
-            {/* Enhanced Image Preview with Positioning */}
+            {/* Image Preview */}
             {(previewImageUrl || editingChapter.headerImageUrl) && (
               <div className="mb-4 space-y-4">
-                {/* Preview Container - Shows how image will look in chapter header */}
+                {/* Preview Container */}
                 <div className="relative">
-                  <div className="relative w-80 h-60 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden mx-auto">
-                                          <img
-                        src={previewImageUrl || editingChapter.headerImageUrl || ''}
-                        alt="Header preview"
-                        className="absolute cursor-move select-none"
-                        style={{
-                          left: '50%',
-                          top: '50%',
-                          transform: `translate(calc(-50% + ${imagePosition.x}px), calc(-50% + ${imagePosition.y}px)) scale(${imageZoom})`,
-                          maxWidth: 'none',
-                          maxHeight: 'none'
-                        }}
-                        onMouseDown={handleMouseDown}
-                        draggable={false}
-                      />
-                      {/* Invisible overlay to capture mouse events properly */}
-                      <div
-                        className="absolute inset-0 cursor-move"
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                        onMouseLeave={handleMouseUp}
-                        style={{ zIndex: 1 }}
-                      />
-                    {/* Overlay to show this is a preview */}
+                  <div className="relative w-80 mx-auto rounded-lg overflow-hidden border-2 border-slate-200">
+                    <img
+                      src={previewImageUrl || editingChapter.headerImageUrl || ''}
+                      alt="Chapter header"
+                      className="w-full h-52 object-cover"
+                    />
                     <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                       Preview
                     </div>
@@ -610,61 +413,29 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
                   {/* Remove Image Button */}
                   <button
                     onClick={removeHeaderImage}
-                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 transition-colors z-10"
+                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors"
                   >
                     <X size={16} />
                   </button>
                 </div>
 
-                {/* Image Controls */}
-                <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-700">Image Position & Zoom</span>
-                    <button
-                      onClick={() => {
-                        // Reset to 100% zoom and center
-                        setImageZoom(1.0)
-                        setImagePosition({ x: 0, y: 0 })
-                        setHasUserInteracted(true)
-                      }}
-                      className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                  
-                  {/* Zoom Controls */}
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xs text-slate-600 w-12">Zoom:</span>
-                                          <button
-                        onClick={() => handleZoomChange(imageZoom - 0.1)} // Consistent zoom steps
-                        className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="range"
-                        min="0.2"
-                        max="3"
-                        step="0.05"
-                        value={imageZoom}
-                        onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
-                        className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-                      />
-                      <button
-                        onClick={() => handleZoomChange(imageZoom + 0.1)} // Consistent zoom steps  
-                        className="w-8 h-8 bg-white border border-slate-200 rounded hover:bg-slate-50 flex items-center justify-center text-slate-600"
-                      >
-                        +
-                      </button>
-                    <span className="text-xs text-slate-600 w-12">{Math.round(imageZoom * 100)}%</span>
-                  </div>
-                  
-                                      {/* Instructions */}
-                    <p className="text-xs text-slate-500 italic">
-                      💡 Image starts fitted to container. Zoom in to focus on specific areas, drag to reposition. The preview shows exactly how it will appear in your chapter header!
-                    </p>
+                {/* Actions */}
+                <div className="flex items-center justify-center space-x-3">
+                  <button
+                    onClick={() => {
+                      setTempImageUrl(previewImageUrl || editingChapter.headerImageUrl)
+                      setShowImageCropper(true)
+                    }}
+                    className="inline-flex items-center space-x-2 bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <Move size={16} />
+                    <span>Adjust Position</span>
+                  </button>
                 </div>
+                
+                <p className="text-xs text-slate-500 text-center">
+                  {selectedHeaderImage ? 'Image has been cropped and positioned' : 'Current chapter image'}
+                </p>
               </div>
             )}
             
@@ -682,14 +453,20 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
               </div>
             )}
             
-            {/* File Input */}
-            <input
-              id="chapter-image-input"
-              type="file"
-              accept="image/*"
-              onChange={handleImageSelect}
-              className={`${(!previewImageUrl && !editingChapter.headerImageUrl) ? 'hidden' : 'block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100'}`}
-            />
+            {/* File Input - Always available for changing image */}
+            <div className="mt-4">
+              <label className="inline-flex items-center space-x-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg cursor-pointer transition-colors">
+                <Upload size={16} />
+                <span>{previewImageUrl || editingChapter.headerImageUrl ? 'Change Image' : 'Choose Image'}</span>
+                <input
+                  id="chapter-image-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
 
           {/* Title */}
@@ -804,6 +581,22 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
             </div>
           </div>
         </div>
+      )}
+      
+      {/* Image Cropper Modal */}
+      {showImageCropper && tempImageUrl && (
+        <ImageCropper
+          imageUrl={tempImageUrl}
+          onCropComplete={handleCropComplete}
+          onCancel={() => {
+            setShowImageCropper(false)
+            setTempImageUrl(null)
+          }}
+          title="Position your chapter image"
+          aspectRatio={280 / 192}
+          outputWidth={280}
+          outputHeight={192}
+        />
       )}
     </div>
   )

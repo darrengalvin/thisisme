@@ -148,14 +148,14 @@ export default function DebugPanel({
               </div>
             </div>
 
-            {/* 3D Mode Status */}
+            {/* Default View Mode Status */}
             <div className="bg-blue-500/10 rounded p-2">
               <div className="flex items-center space-x-1 mb-1">
                 {is3DMode ? <Eye size={12} /> : <EyeOff size={12} />}
-                <span className="font-semibold">3D Mode</span>
+                <span className="font-semibold">Default View</span>
               </div>
               <div className={is3DMode ? 'text-green-300' : 'text-yellow-300'}>
-                {is3DMode ? '✅ ENABLED (Globe View)' : '❌ DISABLED (List View)'}
+                {is3DMode ? '✅ GLOBE (Interactive globes)' : '❌ LIST (Simple lists)'}
               </div>
             </div>
 
@@ -235,7 +235,7 @@ export default function DebugPanel({
                   <>
                     <div>• Desktop: List view with hover previews</div>
                     <div>• Mobile: Tap blobs for details</div>
-                    <div>• No 3D globes expected in list mode</div>
+                    <div>• No globes expected in list mode</div>
                   </>
                 )}
               </div>
@@ -261,7 +261,7 @@ export default function DebugPanel({
                   <div className="text-red-300">🚨 Globe visible in white space!</div>
                 )}
                 {!is3DMode && (
-                  <div className="text-blue-300">ℹ️ 3D mode disabled - toggle to see globes</div>
+                  <div className="text-blue-300">ℹ️ Default view set to List - toggle to Globe to see globes</div>
                 )}
                 {is3DMode && !globeVisible && isInWhiteSpace && hoverTarget === 'none' && (
                   <div className="text-green-300">✅ White space correctly detected</div>
@@ -295,7 +295,7 @@ export default function DebugPanel({
                         memoryTitles: memories.map(m => m.title).slice(0, 5),
                         chapterTitles: chapters.map(c => c.title).slice(0, 5)
                       },
-                      expectedBehavior: is3DMode ? 'Hover chapter blob → Globe should appear' : 'List view active, no globes',
+                      expectedBehavior: is3DMode ? 'Hover chapter blob → Globe should appear' : 'List view mode active, no globes',
                       currentIssue: `Globe visible: ${globeVisible}, Hover target: ${hoverTarget}`
                     }
                     

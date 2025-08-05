@@ -233,7 +233,7 @@ export default function UserProfile({ onLogout }: UserProfileProps) {
 
           {/* App Info */}
           <div className="bg-slate-50 rounded-lg p-4">
-            <h4 className="font-medium text-slate-900 mb-3">About LIFE</h4>
+            <h4 className="font-medium text-slate-900 mb-3">About This is Me</h4>
             <div className="text-sm text-slate-600 space-y-2">
               <p>Version 1.0.0 - Timeline MVP</p>
               <p>Capture, organise, and share your life memories with friends and family.</p>

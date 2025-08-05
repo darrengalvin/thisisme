@@ -4,10 +4,12 @@ import { useState, useEffect, useRef } from 'react'
 import { Plus, Settings, Calendar, MapPin, Edit, Camera, Trash2, Users, Upload, X, Save, Info } from 'lucide-react'
 import { TimeZoneWithRelations, MemoryWithRelations } from '@/lib/types'
 import { useAuth } from './AuthProvider'
+import DeleteConfirmationModal from './DeleteConfirmationModal'
 import toast from 'react-hot-toast'
 
 interface GroupManagerProps {
   onCreateGroup?: () => void
+  onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
 }
 
 interface EditChapterData {
@@ -44,7 +46,7 @@ const formatDateRange = (startDate?: string | null, endDate?: string | null) => 
   return 'No dates set'
 }
 
-export default function GroupManager({ onCreateGroup }: GroupManagerProps) {
+export default function GroupManager({ onCreateGroup, onStartCreating }: GroupManagerProps) {
   const { user } = useAuth()
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
   const [memories, setMemories] = useState<MemoryWithRelations[]>([])
@@ -53,6 +55,9 @@ export default function GroupManager({ onCreateGroup }: GroupManagerProps) {
   const [isUpdating, setIsUpdating] = useState(false)
   const [selectedHeaderImage, setSelectedHeaderImage] = useState<File | null>(null)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [chapterToDelete, setChapterToDelete] = useState<{ id: string; title: string } | null>(null)
+  const [isDeletingChapter, setIsDeletingChapter] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -276,32 +281,47 @@ export default function GroupManager({ onCreateGroup }: GroupManagerProps) {
     }
   }
 
-  const handleDeleteChapter = async (chapterId: string, chapterTitle: string) => {
-    if (confirm(`Are you sure you want to delete "${chapterTitle}"? This action cannot be undone.`)) {
-      try {
-        const token = await getAuthToken()
-        if (!token) return
+  const handleDeleteChapter = (chapterId: string, chapterTitle: string) => {
+    setChapterToDelete({ id: chapterId, title: chapterTitle })
+    setShowDeleteModal(true)
+  }
 
-        const response = await fetch(`/api/timezones/${chapterId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+  const confirmDeleteChapter = async () => {
+    if (!chapterToDelete) return
+    
+    setIsDeletingChapter(true)
+    try {
+      const token = await getAuthToken()
+      if (!token) return
 
-        if (response.ok) {
-          toast.success('Chapter deleted successfully!')
-          fetchChaptersAndMemories() // Refresh the list
-        } else {
-          const errorData = await response.json()
-          toast.error(errorData.error || 'Failed to delete chapter')
+      const response = await fetch(`/api/timezones/${chapterToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      } catch (error) {
-        console.error('Delete error:', error)
-        toast.error('Failed to delete chapter')
+      })
+
+      if (response.ok) {
+        toast.success('Chapter deleted successfully!')
+        fetchChaptersAndMemories() // Refresh the list
+        setShowDeleteModal(false)
+        setChapterToDelete(null)
+      } else {
+        const errorData = await response.json()
+        toast.error(errorData.error || 'Failed to delete chapter')
       }
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error('Failed to delete chapter')
+    } finally {
+      setIsDeletingChapter(false)
     }
+  }
+
+  const cancelDeleteChapter = () => {
+    setShowDeleteModal(false)
+    setChapterToDelete(null)
   }
 
   if (isLoading) {
@@ -479,8 +499,26 @@ export default function GroupManager({ onCreateGroup }: GroupManagerProps) {
                     </div>
                   </div>
 
+                  {/* Add Memory Button - Prominent placement */}
+                  {onStartCreating && (
+                    <div className="mb-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onStartCreating(chapter.id, chapter.title)
+                        }}
+                        className="w-full bg-sky-600 hover:bg-sky-700 text-white py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2"
+                        title={`Add new memory to ${chapter.title}`}
+                      >
+                        <Plus size={16} />
+                        <span>Add Memory</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Quick Actions */}
                   <div className="flex items-center space-x-2">
+                    
                     {/* Info Icon with Details */}
                     <div className="relative group/quickinfo">
                       <button
@@ -719,6 +757,18 @@ export default function GroupManager({ onCreateGroup }: GroupManagerProps) {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        title="Delete Chapter"
+        message="Are you sure you want to delete"
+        itemName={chapterToDelete?.title || ''}
+        itemType="chapter"
+        onConfirm={confirmDeleteChapter}
+        onCancel={cancelDeleteChapter}
+        isLoading={isDeletingChapter}
+      />
     </div>
   )
 } 

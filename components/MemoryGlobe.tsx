@@ -172,9 +172,11 @@ interface MemoryGlobeProps {
   is3DMode?: boolean
   onToggleView?: () => void
   onMemoryClick?: (memory: MemoryWithRelations) => void
+  onAddMemory?: (chapterId?: string, chapterTitle?: string) => void
+  chapter?: { startDate?: string; endDate?: string; [key: string]: any }
 }
 
-export default function MemoryGlobe({ memories, chapterTitle, visible, chapterColor, is3DMode = true, onToggleView, onMemoryClick }: MemoryGlobeProps) {
+export default function MemoryGlobe({ memories, chapterTitle, visible, chapterColor, is3DMode = true, onToggleView, onMemoryClick, onAddMemory, chapter }: MemoryGlobeProps) {
   const [memoryPositions, setMemoryPositions] = useState<Array<{
     x: number
     y: number
@@ -186,6 +188,18 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
   const [rotationY, setRotationY] = useState(0)
   const [isRotating, setIsRotating] = useState(false)
   const [anyMemoryHovered, setAnyMemoryHovered] = useState(false)
+  const [localViewMode, setLocalViewMode] = useState<'globe' | 'list'>(is3DMode ? 'globe' : 'list') // Local toggle for this specific globe
+
+  // Reset to default view when chapter changes
+  useEffect(() => {
+    const defaultMode = is3DMode ? 'globe' : 'list'
+    console.log('🔄 SETTING LOCAL DEFAULT MODE:', {
+      chapterTitle,
+      globalIs3DMode: is3DMode,
+      settingLocalViewTo: defaultMode
+    })
+    setLocalViewMode(defaultMode)
+  }, [chapterTitle, is3DMode])
   const globeRef = useRef<HTMLDivElement>(null)
   const lastMousePos = useRef({ x: 0, y: 0 })
   const animationRef = useRef<number>()
@@ -282,54 +296,35 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
   // Use chapter color or default blue
   const color = chapterColor || { hue: 213, saturation: 75, lightness: 60 }
   
-  // If not in 3D mode, show simple list view
-  if (!is3DMode) {
-    return (
-      <div className="w-72 bg-white rounded-xl shadow-lg border border-slate-200 p-4 pointer-events-auto">
-        <h4 className="font-bold text-slate-900 text-base mb-3">{chapterTitle}</h4>
-        <div className="space-y-2 max-h-48 overflow-y-auto">
-          {memories.slice(0, 8).map((memory, index) => {
-            const thumbnail = memory.media?.[0]?.storage_url || memory.media?.[0]?.thumbnail_url
-            return (
-              <div key={memory.id} className="flex items-center space-x-3 p-2 hover:bg-slate-50 rounded-lg transition-colors">
-                {thumbnail ? (
-                  <img src={thumbnail} alt={memory.title || 'Memory'} className="w-10 h-10 object-cover rounded-lg" />
-                ) : (
-                  <div className="w-10 h-10 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg flex items-center justify-center">
-                    <span className="text-slate-500 text-xs font-bold">{memory.title?.charAt(0) || 'M'}</span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-900 text-sm truncate">{memory.title || 'Memory'}</p>
-                  {memory.createdAt && (
-                    <p className="text-xs text-slate-500">{new Date(memory.createdAt).toLocaleDateString()}</p>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-          {memories.length > 8 && (
-            <div className="text-center py-2">
-              <span className="text-sm text-slate-500">+{memories.length - 8} more memories</span>
-            </div>
-          )}
-        </div>
-      </div>
-    )
+  // Local view mode overrides global default - always respect local choice
+
+  // Format year range for display
+  const getYearRange = () => {
+    if (!chapter?.startDate) return null
+    
+    const startYear = new Date(chapter.startDate).getFullYear()
+    const endYear = chapter.endDate ? new Date(chapter.endDate).getFullYear() : new Date().getFullYear()
+    
+    if (startYear === endYear) {
+      return `${startYear}`
+    }
+    return `${startYear} - ${endYear}`
   }
 
   return (
     <div className="w-72 h-72 relative pointer-events-auto">
-      {/* Improved hover zone with better detection */}
-      <div 
-        className="absolute -inset-4 rounded-full cursor-grab active:cursor-grabbing"
-        onMouseEnter={() => setGlobeHovered(true)}
-        onMouseLeave={() => {
-          setGlobeHovered(false)
-          handleMouseLeave()
-        }}
-        onMouseMove={handleMouseMove}
-      >
+      {localViewMode === 'globe' ? (
+        <>
+          {/* Improved hover zone with better detection */}
+          <div 
+            className="absolute -inset-4 rounded-full cursor-grab active:cursor-grabbing"
+            onMouseEnter={() => setGlobeHovered(true)}
+            onMouseLeave={() => {
+              setGlobeHovered(false)
+              handleMouseLeave()
+            }}
+            onMouseMove={handleMouseMove}
+          >
         {/* 3D Sphere with proper sphere lighting and surface */}
         <div 
           ref={globeRef}
@@ -377,14 +372,117 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
             />
           )
         })}
-      </div>
+          </div>
+        </>
+      ) : (
+        /* List View */
+        <div className="w-full h-full bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+          <div className="p-4 h-full flex flex-col">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-56">
+              {memories.map((memory, index) => {
+                const thumbnail = memory.media?.[0]?.storage_url || memory.media?.[0]?.thumbnail_url
+                return (
+                  <div 
+                    key={memory.id} 
+                    className="flex items-center space-x-3 p-3 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer border border-slate-100 hover:border-slate-200"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      console.log('📋 LIST VIEW MEMORY CLICK:', memory.title, 'onMemoryClick available:', !!onMemoryClick)
+                      onMemoryClick?.(memory)
+                    }}
+                  >
+                    {thumbnail ? (
+                      <img 
+                        src={thumbnail} 
+                        alt={memory.title || 'Memory'} 
+                        className="w-12 h-12 object-cover rounded-lg shadow-sm flex-shrink-0" 
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                        <span className="text-slate-600 text-sm font-bold">{memory.title?.charAt(0) || 'M'}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-900 text-sm truncate">{memory.title || 'Untitled Memory'}</p>
+                      {memory.createdAt && (
+                        <p className="text-xs text-slate-500 mt-1">{new Date(memory.createdAt).toLocaleDateString()}</p>
+                      )}
+                      {memory.textContent && (
+                        <p className="text-xs text-slate-600 mt-1 truncate">{memory.textContent}</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              {memories.length === 0 && (
+                <div className="text-center py-8 text-slate-500">
+                  <div className="text-2xl mb-2">📝</div>
+                  <p className="text-sm">No memories in this chapter yet</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
-      {/* Chapter title below globe - positioned to avoid overlap */}
-      <div className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center z-10 bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg">
-        <h4 className="font-bold text-slate-900 text-sm">{chapterTitle}</h4>
-        <p className="text-xs text-slate-600">
+      {/* Chapter title below globe with view toggle - positioned to avoid overlap */}
+      <div className="absolute -bottom-28 left-1/2 transform -translate-x-1/2 text-center z-10 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg border border-white/50">
+        <h4 className="font-bold text-slate-900 text-sm mb-1">{chapterTitle}</h4>
+        {getYearRange() && (
+          <p className="text-xs text-blue-600 font-medium mb-1">
+            {getYearRange()}
+          </p>
+        )}
+        <p className="text-xs text-slate-600 mb-2">
           {memories.length} {memories.length === 1 ? 'memory' : 'memories'}
         </p>
+        
+        {/* Add Memory Button */}
+        {onAddMemory && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onAddMemory(chapter?.id, chapterTitle)
+            }}
+            className="mb-2 bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center space-x-1.5 mx-auto"
+            title={`Add new memory to ${chapterTitle}`}
+          >
+            <span className="text-sm">+</span>
+            <span>Add Memory</span>
+          </button>
+        )}
+        
+        {/* Local View Toggle */}
+        <div className="flex items-center justify-center space-x-1">
+          <button
+            onClick={() => {
+              console.log('🔄 LOCAL VIEW TOGGLE: Switching to globe view for', chapterTitle)
+              setLocalViewMode('globe')
+            }}
+            className={`px-2 py-1 text-xs rounded transition-all duration-200 ${
+              localViewMode === 'globe' 
+                ? 'bg-blue-500 text-white shadow-sm' 
+                : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
+            }`}
+            title="Switch to Globe View"
+          >
+            🌍
+          </button>
+          <button
+            onClick={() => {
+              console.log('🔄 LOCAL VIEW TOGGLE: Switching to list view for', chapterTitle)
+              setLocalViewMode('list')
+            }}
+            className={`px-2 py-1 text-xs rounded transition-all duration-200 ${
+              localViewMode === 'list' 
+                ? 'bg-blue-500 text-white shadow-sm' 
+                : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
+            }`}
+            title="Switch to List View"
+          >
+            📋
+          </button>
+        </div>
       </div>
       
       {/* Enhanced CSS Animations */}

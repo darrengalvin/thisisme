@@ -228,7 +228,7 @@ export default function VoiceRecorder({ onTranscription, onClose, isPremium }: V
                   
                   <button
                     onClick={handleStop}
-                    className="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-full transition-colors flex items-center space-x-2"
+                    className="px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-full transition-colors flex items-center space-x-2"
                   >
                     <MicOff size={20} />
                     <span>Stop & Transcribe</span>

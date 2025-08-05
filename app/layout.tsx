@@ -7,8 +7,8 @@ import { AuthProvider } from '@/components/AuthProvider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'LIFE - Your Timeline',
-  description: 'A beautifully designed app to capture, organise, and share your life memories with friends and family.',
+  title: 'This is Me - Record your life story',
+  description: 'Record your life story with help from family and friends. Capture, organize, and share your memories in beautiful life chapters.',
 }
 
 export const viewport = {
@@ -32,9 +32,9 @@ export default function RootLayout({
             toastOptions={{
               duration: 4000,
               style: {
-                background: '#ffffff',
+                background: '#e0f2fe',
                 color: '#1f2937',
-                border: '1px solid #e5e7eb',
+                border: '1px solid #0ea5e9',
               },
             }}
           />

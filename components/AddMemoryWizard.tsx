@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check, Mic, Crown, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check, Mic, Crown, Sparkles, Crop } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import VoiceRecorder from '@/components/VoiceRecorder'
+import ImageCropper from '@/components/ImageCropper'
+import NotificationModal from './NotificationModal'
 
 interface AddMemoryWizardProps {
   chapterId: string | null
@@ -36,6 +38,9 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [isPremiumUser, setIsPremiumUser] = useState(false)
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const [premiumLoading, setPremiumLoading] = useState(true)
+  const [showImageCropper, setShowImageCropper] = useState(false)
+  const [tempImageForCrop, setTempImageForCrop] = useState<{ file: File, index: number } | null>(null)
+  const [showPremiumNotification, setShowPremiumNotification] = useState(false)
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -198,7 +203,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
 
   const handleVoiceRecord = () => {
     if (!isPremiumUser) {
-      alert('🎤 Voice transcription is a premium feature! Upgrade to Pro to unlock AI-powered voice-to-text for your memories.')
+      setShowPremiumNotification(true)
       return
     }
     
@@ -490,7 +495,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                 />
                 <label
                   htmlFor="file-upload"
-                  className="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors cursor-pointer"
+                  className="inline-flex items-center px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors cursor-pointer"
                 >
                   Choose Files
                 </label>
@@ -518,12 +523,30 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                           </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => removeFile(index)}
-                        className="p-1 hover:bg-slate-200 rounded-lg transition-colors"
-                      >
-                        <X size={16} className="text-slate-500" />
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        {file.type.startsWith('image/') && (
+                          <button
+                            onClick={() => {
+                              setTempImageForCrop({ file, index })
+                              const reader = new FileReader()
+                              reader.onload = (e) => {
+                                setShowImageCropper(true)
+                              }
+                              reader.readAsDataURL(file)
+                            }}
+                            className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                            title="Crop image"
+                          >
+                            <Crop size={16} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => removeFile(index)}
+                          className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
+                        >
+                          <X size={16} className="text-slate-500" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -551,7 +574,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
             <button
               onClick={handleNext}
               disabled={!canProceed()}
-              className="flex items-center space-x-2 px-6 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center space-x-2 px-6 py-2 bg-sky-600 text-white rounded-xl hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <span>Continue</span>
               <ArrowRight size={16} />
@@ -560,7 +583,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
             <button
               onClick={handleSubmit}
               disabled={!canProceed() || isSubmitting}
-              className="flex items-center space-x-2 px-6 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center space-x-2 px-6 py-2 bg-sky-600 text-white rounded-xl hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -581,6 +604,49 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
           isPremium={isPremiumUser}
         />
       )}
+      
+      {/* Image Cropper Modal */}
+      {showImageCropper && tempImageForCrop && (
+        <ImageCropper
+          imageUrl={URL.createObjectURL(tempImageForCrop.file)}
+          onCropComplete={(croppedFile) => {
+            if (croppedFile) {
+              // Replace the original file with the cropped version
+              setMemoryData(prev => ({
+                ...prev,
+                files: prev.files.map((f, i) => 
+                  i === tempImageForCrop.index ? croppedFile : f
+                )
+              }))
+            }
+            setShowImageCropper(false)
+            setTempImageForCrop(null)
+          }}
+          onCancel={() => {
+            setShowImageCropper(false)
+            setTempImageForCrop(null)
+          }}
+          title="Crop your memory photo"
+          aspectRatio={16 / 9} // Common photo aspect ratio
+          outputWidth={1920}
+          outputHeight={1080}
+        />
+      )}
+
+      {/* Premium Feature Notification */}
+      <NotificationModal
+        isOpen={showPremiumNotification}
+        type="premium"
+        title="Premium Feature"
+        message="🎤 Voice transcription is a premium feature! Upgrade to Pro to unlock AI-powered voice-to-text for your memories."
+        actionText="Upgrade to Pro"
+        onAction={() => {
+          // TODO: Navigate to upgrade page
+          console.log('Navigate to upgrade page')
+        }}
+        onClose={() => setShowPremiumNotification(false)}
+        autoClose={false}
+      />
     </div>
   )
 } 

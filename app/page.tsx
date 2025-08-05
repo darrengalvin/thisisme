@@ -63,14 +63,14 @@ export default function HomePage() {
 
   if (loading || checkingExistingUser) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-sky-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <span className="text-white text-2xl font-bold">L</span>
+          <div className="w-16 h-16 bg-sky-600 rounded-3xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <span className="text-white text-2xl font-bold">T</span>
           </div>
-          <h3 className="text-xl font-bold text-slate-900 mb-2">Loading LIFE</h3>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">Loading This is Me</h3>
           <p className="text-slate-600">
-            {checkingExistingUser ? 'Checking your account...' : 'Preparing your timeline...'}
+            {checkingExistingUser ? 'Checking your account...' : 'Preparing your story...'}
           </p>
         </div>
       </div>
@@ -82,8 +82,8 @@ export default function HomePage() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <span className="text-white text-2xl font-bold">L</span>
+          <div className="w-16 h-16 bg-sky-600 rounded-3xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <span className="text-white text-2xl font-bold">T</span>
           </div>
           <h3 className="text-xl font-bold text-slate-900 mb-2">🎉 Account Created!</h3>
           <p className="text-slate-600">Launching your timeline...</p>
@@ -108,10 +108,10 @@ export default function HomePage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-white text-xl font-bold">L</span>
+            <div className="w-16 h-16 bg-sky-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <span className="text-white text-xl font-bold">T</span>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">Welcome to LIFE</h1>
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">Welcome to This is Me</h1>
             <p className="text-slate-600">Choose how you'd like to continue</p>
           </div>
           
@@ -120,7 +120,7 @@ export default function HomePage() {
               onClick={() => {
                 window.location.href = '/auth/login'
               }}
-              className="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-semibold transition-colors"
+              className="w-full bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-xl font-semibold transition-colors"
             >
               Sign In to Existing Account
             </button>
