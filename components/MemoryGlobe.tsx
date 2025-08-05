@@ -29,9 +29,10 @@ interface FloatingMemoryProps {
   globeHovered: boolean
   rotationX: number
   rotationY: number
+  onToggleView?: () => void
 }
 
-function FloatingMemory({ memory, position, index, globeHovered, rotationX, rotationY }: FloatingMemoryProps) {
+function FloatingMemory({ memory, position, index, globeHovered, rotationX, rotationY, onToggleView }: FloatingMemoryProps) {
   const [individualHover, setIndividualHover] = useState(false)
   
   // Get memory thumbnail
@@ -46,10 +47,10 @@ function FloatingMemory({ memory, position, index, globeHovered, rotationX, rota
   const opacity = 0.4 + (depth * 0.6) // Opacity from 0.4 to 1.0
   const blur = Math.max(0, (1 - depth) * 0.8) // Subtle blur for depth
   
-  // Individual hover extracts memory from the globe - larger but not too big to block others
-  const finalScale = individualHover ? 2.2 : globeHovered ? scale * 1.4 : scale * 0.8
-  const finalOpacity = individualHover ? 1 : globeHovered ? opacity : Math.max(0.3, opacity * 0.7)
-  const finalBlur = individualHover ? 0 : blur // No blur when extracted from globe
+  // Subtle hover effects for memories
+  const finalScale = individualHover ? 1.6 : globeHovered ? scale * 1.2 : scale
+  const finalOpacity = individualHover ? 1 : globeHovered ? Math.min(1, opacity + 0.1) : opacity * 0.9
+  const finalBlur = individualHover ? 0 : Math.max(0, blur - 0.5)
 
   // Hide memories that are too far behind the sphere
   if (rotatedPosition.z < -120) {
@@ -58,45 +59,85 @@ function FloatingMemory({ memory, position, index, globeHovered, rotationX, rota
 
   return (
     <div
-      className="absolute transition-all duration-200 cursor-pointer group"
+      className="absolute"
       style={{
         left: `calc(50% + ${rotatedPosition.x}px)`,
         top: `calc(50% + ${rotatedPosition.y}px)`,
-        transform: `translate(-50%, -50%) scale(${finalScale})`,
-        opacity: finalOpacity,
-        filter: `blur(${finalBlur}px) brightness(${individualHover ? 1.2 : 0.8 + depth * 0.4})`,
+        transform: `translate(-50%, -50%)`,
         zIndex: Math.floor(depth * 100) + (individualHover ? 1000 : 0),
-        width: '48px',
-        height: '48px',
-        animationDelay: `${index * 0.3}s`
       }}
-      onMouseEnter={() => setIndividualHover(true)}
-      onMouseLeave={() => setIndividualHover(false)}
     >
+      {/* Extremely small hover detection - only the very center */}
+      <div
+        className="absolute cursor-pointer rounded-full"
+        style={{
+          width: '20px',
+          height: '20px', 
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1
+        }}
+        onMouseEnter={() => setIndividualHover(true)}
+        onMouseLeave={() => setIndividualHover(false)}
+      />
+      
+      {/* Visual element that scales */}
+      <div
+        className="transition-all duration-200"
+        style={{
+          transform: `scale(${finalScale})`,
+          opacity: finalOpacity,
+          filter: `blur(${finalBlur}px) brightness(${individualHover ? 1.1 : 0.9})`,
+          width: '52px',
+          height: '52px',
+        }}
+      >
       {thumbnail ? (
         <img
           src={thumbnail}
           alt={memory.title || 'Memory'}
-          className="w-full h-full object-cover rounded-lg border-2 border-white shadow-2xl"
-          style={{
-            filter: individualHover ? 'brightness(1.1) contrast(1.1)' : 'none'
-          }}
+          className="w-full h-full object-cover rounded-lg shadow-md border border-white/50"
         />
       ) : (
-        <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg border-2 border-white shadow-2xl flex items-center justify-center">
-          <span className="text-white text-sm font-bold">
+        <div className="w-full h-full bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg shadow-md border border-white/50 flex items-center justify-center">
+          <span className="text-slate-600 text-sm font-medium">
             {memory.title?.charAt(0) || 'M'}
           </span>
         </div>
       )}
+      </div>
       
       {/* Memory tooltip on individual hover */}
       {individualHover && (
-        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-black/95 text-white text-sm px-3 py-2 rounded-lg whitespace-nowrap pointer-events-none z-50 min-w-max">
-          <div className="font-semibold">{memory.title || 'Memory'}</div>
-          {memory.createdAt && (
-            <div className="text-xs opacity-75">
-              {new Date(memory.createdAt).toLocaleDateString()}
+        <div className="absolute -top-24 left-1/2 transform -translate-x-1/2 bg-black/95 text-white text-sm rounded-lg whitespace-nowrap z-50 min-w-max pointer-events-auto">
+          <div className="px-3 py-2">
+            <div className="font-semibold">{memory.title || 'Memory'}</div>
+            {memory.createdAt && (
+              <div className="text-xs opacity-75">
+                {new Date(memory.createdAt).toLocaleDateString()}
+              </div>
+            )}
+          </div>
+          {onToggleView && (
+            <div className="border-t border-white/20 px-3 py-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleView()
+                }}
+                className="flex items-center gap-2 text-xs text-blue-300 hover:text-blue-200 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                Switch to list view
+              </button>
             </div>
           )}
         </div>
@@ -111,9 +152,10 @@ interface MemoryGlobeProps {
   visible: boolean
   chapterColor?: { hue: number; saturation: number; lightness: number }
   is3DMode?: boolean
+  onToggleView?: () => void
 }
 
-export default function MemoryGlobe({ memories, chapterTitle, visible, chapterColor, is3DMode = true }: MemoryGlobeProps) {
+export default function MemoryGlobe({ memories, chapterTitle, visible, chapterColor, is3DMode = true, onToggleView }: MemoryGlobeProps) {
   const [memoryPositions, setMemoryPositions] = useState<Array<{
     x: number
     y: number
@@ -247,19 +289,15 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
 
   return (
     <div className="w-72 h-72 relative pointer-events-auto">
-      {/* Extended hover zone with rotation interaction */}
+      {/* Improved hover zone with better detection */}
       <div 
-        className="absolute inset-0 rounded-full cursor-grab active:cursor-grabbing"
+        className="absolute -inset-4 rounded-full cursor-grab active:cursor-grabbing"
         onMouseEnter={() => setGlobeHovered(true)}
         onMouseLeave={() => {
           setGlobeHovered(false)
           handleMouseLeave()
         }}
         onMouseMove={handleMouseMove}
-        style={{ 
-          padding: '40px', // Extends hover zone beyond visual boundary
-          margin: '-40px' // Negative margin to maintain positioning
-        }}
       >
         {/* 3D Sphere with proper sphere lighting and surface */}
         <div 
@@ -267,120 +305,24 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
           className="absolute inset-12 rounded-full transition-all duration-500"
           style={{
             background: `
-              radial-gradient(ellipse 120% 60% at ${30 + Math.cos(rotationY) * 20}% ${35 + Math.sin(rotationX) * 15}%, 
-                hsla(${color.hue}, ${color.saturation}%, ${Math.min(90, color.lightness + 30)}%, 0.95) 0%, 
-                hsla(${color.hue}, ${color.saturation}%, ${color.lightness + 15}%, 0.9) 25%, 
-                hsla(${color.hue}, ${color.saturation}%, ${color.lightness}%, 0.8) 50%, 
-                hsla(${color.hue}, ${color.saturation}%, ${color.lightness - 10}%, 0.85) 75%, 
-                hsla(${color.hue}, ${color.saturation}%, ${color.lightness - 20}%, 0.95) 100%)
+              radial-gradient(circle at ${40 + Math.cos(rotationY) * 10}% ${35 + Math.sin(rotationX) * 10}%, 
+                hsla(${color.hue}, ${color.saturation}%, ${color.lightness + 10}%, 0.4) 0%, 
+                hsla(${color.hue}, ${color.saturation}%, ${color.lightness}%, 0.3) 40%, 
+                hsla(${color.hue}, ${color.saturation}%, ${color.lightness - 10}%, 0.25) 100%)
             `,
-            border: `2px solid hsla(${color.hue}, ${color.saturation}%, ${color.lightness - 20}%, 0.6)`,
+            backdropFilter: 'blur(10px)',
             boxShadow: `
-              inset ${-30 + Math.cos(rotationY) * 50}px ${-20 + Math.sin(rotationX) * 40}px 60px rgba(255,255,255,0.7),
-              inset ${30 - Math.cos(rotationY) * 50}px ${20 - Math.sin(rotationX) * 40}px 80px rgba(0,0,0,0.6),
-              0 0 40px rgba(0,0,0,0.3),
-              0 15px 30px rgba(0,0,0,0.4)
+              0 8px 32px rgba(0,0,0,0.12),
+              inset 0 2px 8px rgba(255,255,255,0.2),
+              0 0 ${globeHovered ? '40px' : '0px'} hsla(${color.hue}, ${color.saturation}%, ${color.lightness}%, 0.15)
             `,
-            transform: `scale(${globeHovered ? 1.05 : 1}) 
-                       perspective(1000px) 
-                       rotateX(${rotationX * 15}deg) 
-                       rotateY(${rotationY * 15}deg)`,
-            transformStyle: 'preserve-3d'
+            transform: `
+              rotateX(${rotationX * 10}deg) 
+              rotateY(${rotationY * 10}deg)
+            `,
+            opacity: globeHovered ? 0.95 : 0.85
           }}
         >
-          {/* Simple rotating surface pattern */}
-          <div 
-            className="absolute inset-2 rounded-full overflow-hidden"
-            style={{
-              background: `
-                conic-gradient(from ${rotationY * 180}deg at 50% 50%, 
-                  transparent 0deg, 
-                  hsla(${color.hue}, ${color.saturation}%, ${color.lightness - 10}%, 0.15) 90deg, 
-                  transparent 180deg, 
-                  hsla(${color.hue}, ${color.saturation}%, ${color.lightness - 10}%, 0.15) 270deg, 
-                  transparent 360deg)
-              `,
-              transform: `rotateY(${rotationY * 60}deg) rotateX(${rotationX * 40}deg)`,
-              opacity: 0.6
-            }}
-          ></div>
-          
-          {/* Main highlight that moves across the sphere surface */}
-          <div 
-            className="absolute rounded-full"
-            style={{
-              width: `${80 + Math.cos(rotationY) * 20}px`,
-              height: `${60 + Math.sin(rotationX) * 15}px`,
-              left: `${40 + Math.cos(rotationY) * 25}%`,
-              top: `${30 + Math.sin(rotationX) * 20}%`,
-              background: `radial-gradient(ellipse 70% 50% at 50% 40%, 
-                rgba(255,255,255,0.8) 0%, 
-                rgba(255,255,255,0.4) 30%, 
-                rgba(255,255,255,0.1) 60%, 
-                transparent 100%)`,
-              filter: 'blur(8px)',
-              transform: `
-                scale(${globeHovered ? 1.2 : 1}) 
-                rotateY(${rotationY * 20}deg) 
-                rotateX(${rotationX * 15}deg)
-                scaleX(${0.7 + Math.abs(Math.cos(rotationY)) * 0.6})
-              `,
-              transition: 'transform 0.2s ease'
-            }}
-          ></div>
-          
-          {/* Secondary highlight for more realistic lighting */}
-          <div 
-            className="absolute rounded-full"
-            style={{
-              width: '40px',
-              height: '30px',
-              left: `${35 + Math.cos(rotationY + 0.5) * 30}%`,
-              top: `${40 + Math.sin(rotationX + 0.3) * 25}%`,
-              background: `radial-gradient(ellipse, 
-                rgba(255,255,255,0.6) 0%, 
-                rgba(255,255,255,0.2) 50%, 
-                transparent 80%)`,
-              filter: 'blur(4px)',
-              transform: `rotateY(${rotationY * 45}deg) rotateX(${rotationX * 30}deg)`
-            }}
-          ></div>
-          
-          {/* Shadow regions that make the sphere look 3D */}
-          <div 
-            className="absolute inset-1 rounded-full"
-            style={{
-              background: `
-                radial-gradient(ellipse 90% 120% at ${70 - Math.cos(rotationY) * 30}% ${60 - Math.sin(rotationX) * 25}%, 
-                  transparent 0%, 
-                  transparent 20%, 
-                  rgba(0,0,0,0.15) 40%, 
-                  rgba(0,0,0,0.35) 70%, 
-                  rgba(0,0,0,0.6) 100%),
-                radial-gradient(ellipse 70% 100% at ${25 + Math.cos(rotationY) * 20}% ${35 + Math.sin(rotationX) * 15}%, 
-                  rgba(0,0,0,0.4) 0%, 
-                  rgba(0,0,0,0.2) 30%, 
-                  transparent 60%)
-              `,
-              transform: `rotateY(${-rotationY * 10}deg) rotateX(${-rotationX * 8}deg)`
-            }}
-          ></div>
-          
-          {/* Edge darkening to simulate sphere curvature */}
-          <div 
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: `
-                radial-gradient(ellipse 85% 85% at 50% 50%, 
-                  transparent 0%, 
-                  transparent 60%, 
-                  rgba(0,0,0,0.2) 80%, 
-                  rgba(0,0,0,0.5) 95%, 
-                  rgba(0,0,0,0.8) 100%)
-              `,
-              transform: `rotateY(${rotationY * 5}deg) rotateX(${rotationX * 5}deg)`
-            }}
-          ></div>
         </div>
         
         {/* Floating memories with 3D positioning and rotation */}
@@ -397,15 +339,16 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
               globeHovered={globeHovered}
               rotationX={rotationX}
               rotationY={rotationY}
+              onToggleView={onToggleView}
             />
           )
         })}
       </div>
       
-      {/* Chapter title below globe - positioned to avoid overlap with card */}
-      <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center z-10">
-        <h4 className="font-bold text-slate-900 text-base drop-shadow-sm">{chapterTitle}</h4>
-        <p className="text-sm text-slate-600 drop-shadow-sm">
+      {/* Chapter title below globe - positioned to avoid overlap */}
+      <div className="absolute -bottom-20 left-1/2 transform -translate-x-1/2 text-center z-10 bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg">
+        <h4 className="font-bold text-slate-900 text-sm">{chapterTitle}</h4>
+        <p className="text-xs text-slate-600">
           {memories.length} {memories.length === 1 ? 'memory' : 'memories'}
         </p>
       </div>
