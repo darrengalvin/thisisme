@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, ChevronRight, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Search, Filter, ChevronRight, Clock, AlertCircle, Database, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -25,6 +25,7 @@ export default function SupportPage() {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
+  const [supportSystemSetup, setSupportSystemSetup] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -39,6 +40,15 @@ export default function SupportPage() {
       }
       
       const response = await fetch(url);
+      
+      if (response.status === 404) {
+        // Support system not set up yet
+        setSupportSystemSetup(false);
+        setTickets([]);
+        setLoading(false);
+        return;
+      }
+      
       const data = await response.json();
       
       if (response.ok) {
@@ -150,6 +160,35 @@ export default function SupportPage() {
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : !supportSystemSetup ? (
+            <div className="text-center py-12">
+              <Database className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Support System Setup Required</h3>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                The support system database tables need to be created before you can manage tickets.
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left max-w-lg mx-auto mb-6">
+                <div className="flex items-start">
+                  <Settings className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-blue-900 mb-2">Quick Setup:</h4>
+                    <ol className="text-sm text-blue-800 space-y-1">
+                      <li>1. Go to your <strong>Supabase Dashboard</strong></li>
+                      <li>2. Open the <strong>SQL Editor</strong></li>
+                      <li>3. Run the migration from <code>supabase/migrations/003_support_system.sql</code></li>
+                      <li>4. Refresh this page</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+              <Link 
+                href="/admin/bulk-tickets" 
+                className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Ready to Create Tickets
+              </Link>
             </div>
           ) : filteredTickets.length === 0 ? (
             <div className="text-center py-12">

@@ -24,6 +24,14 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth');
+    const userInfo = await verifyToken(token);
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const { data: comments, error } = await supabase
       .from('ticket_comments')
       .select(`
@@ -42,7 +50,7 @@ export async function GET(
     const { data: userData } = await supabase
       .from('users')
       .select('is_admin')
-      .eq('id', token)
+      .eq('id', userInfo.userId)
       .single();
 
     const filteredComments = comments?.filter(comment => 
@@ -68,6 +76,14 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth');
+    const userInfo = await verifyToken(token);
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { comment, is_internal = false } = body;
 
@@ -78,7 +94,7 @@ export async function POST(
     const { data: userData } = await supabase
       .from('users')
       .select('id, email, is_admin')
-      .eq('id', token)
+      .eq('id', userInfo.userId)
       .single();
 
     if (is_internal && !userData?.is_admin) {
@@ -103,7 +119,7 @@ export async function POST(
       .from('ticket_comments')
       .insert({
         ticket_id: params.id,
-        user_id: token,
+        user_id: userInfo.userId,
         comment,
         is_internal
       })

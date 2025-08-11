@@ -16,10 +16,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth');
+    const userInfo = await verifyToken(token);
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id, is_admin')
-      .eq('id', token)
+      .eq('id', userInfo.userId)
       .single();
 
     if (userError || !userData) {
@@ -75,6 +83,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth');
+    const userInfo = await verifyToken(token);
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { title, description, priority = 'medium', category = 'question' } = body;
 
@@ -92,7 +108,7 @@ export async function POST(request: NextRequest) {
         description,
         priority,
         category,
-        creator_id: token,
+        creator_id: userInfo.userId,
         status: 'open',
         stage: 'backlog'
       })

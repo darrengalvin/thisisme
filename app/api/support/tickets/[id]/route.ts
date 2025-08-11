@@ -19,6 +19,14 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth');
+    const userInfo = await verifyToken(token);
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const { data: ticket, error } = await supabase
       .from('tickets')
       .select(`
@@ -53,12 +61,12 @@ export async function GET(
     const { data: userData } = await supabase
       .from('users')
       .select('id, is_admin')
-      .eq('id', token)
+      .eq('id', userInfo.userId)
       .single();
 
     if (!userData?.is_admin && 
-        ticket.creator_id !== token && 
-        ticket.assignee_id !== token) {
+        ticket.creator_id !== userInfo.userId && 
+        ticket.assignee_id !== userInfo.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -81,13 +89,21 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth');
+    const userInfo = await verifyToken(token);
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { status, priority, stage, assignee_id, title, description } = body;
 
     const { data: userData } = await supabase
       .from('users')
       .select('id, is_admin')
-      .eq('id', token)
+      .eq('id', userInfo.userId)
       .single();
 
     const { data: existingTicket } = await supabase
@@ -101,8 +117,8 @@ export async function PUT(
     }
 
     const canEdit = userData?.is_admin || 
-                   existingTicket.creator_id === token || 
-                   existingTicket.assignee_id === token;
+                   existingTicket.creator_id === userInfo.userId || 
+                   existingTicket.assignee_id === userInfo.userId;
 
     if (!canEdit) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
