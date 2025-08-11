@@ -15,9 +15,10 @@ import TimelineView from './TimelineView'
 import EditMemoryModal from './EditMemoryModal'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
 import { useAuth } from '@/components/AuthProvider'
+import TicketNotifications from '@/components/TicketNotifications'
 import { MemoryWithRelations } from '@/lib/types'
 
-type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile'
+type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support'
 
 interface UserType {
   id: string
@@ -745,6 +746,8 @@ export default function Dashboard() {
         )
       case 'profile':
         return <UserProfile onLogout={handleLogout} />
+      case 'support':
+        return <TicketNotifications />
       case 'create':
         return <CreateMemory onMemoryCreated={handleMemoryCreated} />
       case 'timezones':
@@ -897,6 +900,12 @@ export default function Dashboard() {
                     className="w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors text-slate-600"
                   >
                     Edit Profile
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('support'); setShowProfileDropdown(false) }}
+                    className="w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors text-slate-600"
+                  >
+                    Support
                   </button>
                   <button
                     onClick={handleLogout}
