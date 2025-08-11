@@ -20,15 +20,29 @@ export async function sendEmail(options: EmailOptions) {
   }
 
   try {
-    const msg = {
+    const msg: any = {
       to: options.to,
       from: process.env.SENDGRID_FROM_EMAIL || 'support@yourapp.com',
       subject: options.subject,
-      text: options.text,
-      html: options.html,
-      templateId: options.templateId,
-      dynamicTemplateData: options.dynamicTemplateData,
     };
+
+    // Use template or content
+    if (options.templateId) {
+      msg.templateId = options.templateId;
+      msg.dynamicTemplateData = options.dynamicTemplateData || {};
+    } else {
+      // Use content array for non-template emails
+      const content = [];
+      if (options.text) {
+        content.push({ type: 'text/plain', value: options.text });
+      }
+      if (options.html) {
+        content.push({ type: 'text/html', value: options.html });
+      }
+      if (content.length > 0) {
+        msg.content = content;
+      }
+    }
 
     const response = await sgMail.send(msg);
     return response[0];
