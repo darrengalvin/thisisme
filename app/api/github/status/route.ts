@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         last_validated: new Date().toISOString(),
         last_error: null
       })
-      .eq('user_id', user.id)
+      .eq('user_id', userInfo.userId)
 
     // Get repositories (with optional refresh)
     let repositories = []
