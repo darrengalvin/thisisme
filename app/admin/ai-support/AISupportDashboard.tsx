@@ -561,7 +561,7 @@ export default function AISupportDashboard() {
 
                     <div>
                       <h5 className="font-medium text-gray-900">Root Cause</h5>
-                      <p className="text-sm text-gray-600 mt-1">{analysis.analysis_data.rootCause}</p>
+                      <p className="text-sm text-gray-600 mt-1">{analysis.analysis_data?.rootCause || 'No root cause identified'}</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -571,10 +571,10 @@ export default function AISupportDashboard() {
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div 
                               className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${analysis.complexity_score * 10}%` }}
+                              style={{ width: `${(analysis.complexity_score || 5) * 10}%` }}
                             ></div>
                           </div>
-                          <span className="ml-2 text-sm text-gray-600">{analysis.complexity_score}/10</span>
+                          <span className="ml-2 text-sm text-gray-600">{analysis.complexity_score || 5}/10</span>
                         </div>
                       </div>
 
@@ -584,24 +584,24 @@ export default function AISupportDashboard() {
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div 
                               className={`h-2 rounded-full ${
-                                analysis.confidence_score >= 80 ? 'bg-green-600' :
-                                analysis.confidence_score >= 60 ? 'bg-yellow-600' :
+                                (analysis.confidence_score || 50) >= 80 ? 'bg-green-600' :
+                                (analysis.confidence_score || 50) >= 60 ? 'bg-yellow-600' :
                                 'bg-red-600'
                               }`}
-                              style={{ width: `${analysis.confidence_score}%` }}
+                              style={{ width: `${analysis.confidence_score || 50}%` }}
                             ></div>
                           </div>
-                          <span className="ml-2 text-sm text-gray-600">{analysis.confidence_score}%</span>
+                          <span className="ml-2 text-sm text-gray-600">{analysis.confidence_score || 50}%</span>
                         </div>
                       </div>
                     </div>
 
                     <div>
                       <h5 className="font-medium text-gray-900">Suggested Fix</h5>
-                      <p className="text-sm text-gray-600 mt-1">{analysis.analysis_data.suggestedFix.description}</p>
-                      {analysis.analysis_data.suggestedFix.codeChanges && (
+                      <p className="text-sm text-gray-600 mt-1">{analysis.analysis_data?.suggestedFix?.description || 'No fix description available'}</p>
+                      {analysis.analysis_data?.suggestedFix?.codeChanges && (
                         <ul className="mt-2 space-y-1">
-                          {analysis.analysis_data.suggestedFix.codeChanges.map((change, idx) => (
+                          {analysis.analysis_data?.suggestedFix?.codeChanges?.map((change, idx) => (
                             <li key={idx} className="text-sm text-gray-600 flex items-start gap-2">
                               <span className="text-blue-600">•</span>
                               <span>{change.file}: {change.explanation}</span>
@@ -611,11 +611,11 @@ export default function AISupportDashboard() {
                       )}
                     </div>
 
-                    {analysis.analysis_data.risks && analysis.analysis_data.risks.length > 0 && (
+                    {analysis.analysis_data?.risks && analysis.analysis_data.risks.length > 0 && (
                       <div>
                         <h5 className="font-medium text-gray-900">Risks</h5>
                         <ul className="mt-1 space-y-1">
-                          {analysis.analysis_data.risks.map((risk, idx) => (
+                          {analysis.analysis_data?.risks?.map((risk, idx) => (
                             <li key={idx} className="text-sm text-yellow-700 flex items-start gap-2">
                               <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
                               <span>{risk}</span>
