@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Settings, Ticket, BarChart3, Plus, Shield, Users } from 'lucide-react'
+import { Settings, Ticket, BarChart3, Plus, Shield, Users, Brain } from 'lucide-react'
 
 export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
@@ -155,6 +155,22 @@ export default function AdminDashboard() {
               </div>
               <p className="text-gray-600">
                 Create multiple tickets from predefined issues
+              </p>
+            </div>
+          </Link>
+
+          {/* AI Support System */}
+          <Link href="/admin/ai-support" className="group">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <Brain className="w-8 h-8 text-indigo-600 mr-3" />
+                  <h3 className="text-lg font-semibold text-gray-900">AI Support</h3>
+                </div>
+                <span className="text-gray-400 group-hover:text-gray-600">→</span>
+              </div>
+              <p className="text-gray-600">
+                Intelligent ticket analysis and automated fixes
               </p>
             </div>
           </Link>
