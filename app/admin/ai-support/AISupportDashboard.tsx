@@ -239,6 +239,9 @@ export default function AISupportDashboard() {
         body: JSON.stringify({ 
           ticketId: ticket.id,
           repository: selectedRepo,
+          title: ticket.title,
+          description: ticket.description,
+          category: ticket.category,
           codebaseContext: codebaseAnalysis
         })
       })
@@ -510,11 +513,16 @@ export default function AISupportDashboard() {
                   <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">Select a ticket to view AI analysis</p>
                 </div>
+              ) : analyzing ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin mx-auto mb-4 w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full"></div>
+                  <p className="text-gray-600">Analyzing with Claude AI...</p>
+                </div>
               ) : !analysis ? (
                 <div className="text-center py-8">
                   <p className="text-gray-600">
                     {githubConnection.connected 
-                      ? 'Click "Analyze with AI" to generate insights using Claude'
+                      ? 'Select a ticket and click "Analyze with AI" to generate insights using Claude'
                       : 'Connect GitHub to enable AI analysis'}
                   </p>
                 </div>

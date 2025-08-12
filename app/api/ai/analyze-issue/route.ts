@@ -11,7 +11,8 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { ticketId, repository } = await request.json()
+    const requestBody = await request.json()
+    const { ticketId, repository, title, description, category } = requestBody
 
     if (!ticketId || !repository) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -32,15 +33,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
     
-    // Get ticket details
-    const { data: ticket, error: ticketError } = await supabase
+    // Get ticket details - or create a temporary ticket record for analysis
+    let ticket = null
+    const { data: existingTicket, error: ticketError } = await supabase
       .from('support_tickets')
       .select('*')
       .eq('id', ticketId)
       .single()
 
-    if (ticketError || !ticket) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
+    if (existingTicket) {
+      ticket = existingTicket
+    } else {
+      // For demo purposes, create a temporary ticket record if it doesn't exist
+      console.log('Ticket not found in database, using mock ticket data')
+      
+      ticket = {
+        id: ticketId,
+        title: title || `Analysis Request ${ticketId}`,
+        description: description || 'AI-powered analysis request',
+        category: category || 'general',
+        priority: 'medium',
+        status: 'open',
+        user_id: userInfo.userId
+      }
+      
+      // Store the ticket for future reference
+      try {
+        await supabase.from('support_tickets').insert({
+          id: ticketId,
+          title: ticket.title,
+          description: ticket.description,
+          category: ticket.category,
+          priority: ticket.priority,
+          status: ticket.status,
+          user_id: userInfo.userId,
+          created_at: new Date().toISOString()
+        })
+      } catch (insertError) {
+        console.warn('Could not create ticket record:', insertError)
+        // Continue with analysis even if ticket creation fails
+      }
     }
 
     const { data: githubConnection } = await supabase
