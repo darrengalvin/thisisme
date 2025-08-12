@@ -86,19 +86,34 @@ export async function GET(request: NextRequest) {
     console.log('User data fetched:', { login: userData.login, id: userData.id })
 
     // Store in Supabase with better error handling
-    const supabase = createServerSupabaseClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    
+    const { cookies } = await import('next/headers')
+    const cookieStore = cookies()
+    const token = cookieStore.get('auth-token')?.value
 
-    if (authError || !user) {
-      console.error('Supabase auth error:', authError)
+    if (!token) {
+      console.error('No auth token found in callback')
       return NextResponse.redirect(`${baseUrl}/admin/ai-support?error=auth_required`)
     }
 
-    console.log('Storing GitHub connection for user:', user.id)
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth')
+    const userInfo = await verifyToken(token)
+    
+    if (!userInfo) {
+      console.error('Invalid auth token in callback')
+      return NextResponse.redirect(`${baseUrl}/admin/ai-support?error=auth_required`)
+    }
+
+    console.log('Storing GitHub connection for user:', userInfo.userId)
 
     // Store GitHub connection with enhanced data
     const { error: connectionError } = await supabase.from('github_connections').upsert({
-      user_id: user.id,
+      user_id: userInfo.userId,
       github_username: userData.login,
       github_id: userData.id,
       access_token: tokenData.access_token,
@@ -156,13 +171,13 @@ export async function GET(request: NextRequest) {
     // Store repositories with enhanced metadata
     if (allRepos.length > 0) {
       // Clear existing repositories first
-      await supabase.from('github_repositories').delete().eq('user_id', user.id)
+      await supabase.from('github_repositories').delete().eq('user_id', userInfo.userId)
 
       // Filter and store relevant repositories
       const reposToStore = allRepos
         .filter(repo => !repo.archived && !repo.disabled) // Only active repos
         .map(repo => ({
-          user_id: user.id,
+          user_id: userInfo.userId,
           repo_id: repo.id,
           name: repo.name,
           full_name: repo.full_name,

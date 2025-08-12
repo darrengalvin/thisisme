@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { GitHubClient } from '@/lib/github/client'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -8,23 +14,34 @@ export async function GET(request: NextRequest) {
   const analyzeRepo = searchParams.get('analyze')
   
   try {
-    const supabase = createServerSupabaseClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const cookieStore = cookies()
+    const token = cookieStore.get('auth-token')?.value
 
-    if (authError || !user) {
+    if (!token) {
       return NextResponse.json({ 
         connected: false, 
         error: 'Authentication required' 
       }, { status: 401 })
     }
 
-    console.log('GitHub Status - Checking connection for user:', user.id)
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth')
+    const userInfo = await verifyToken(token)
+    
+    if (!userInfo) {
+      return NextResponse.json({ 
+        connected: false, 
+        error: 'Invalid authentication' 
+      }, { status: 401 })
+    }
+
+    console.log('GitHub Status - Checking connection for user:', userInfo.userId)
 
     // Get GitHub connection
     const { data: connection, error: connectionError } = await supabase
       .from('github_connections')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userInfo.userId)
       .single()
 
     if (connectionError || !connection) {
@@ -51,7 +68,7 @@ export async function GET(request: NextRequest) {
           last_error: validation.error,
           last_validated: new Date().toISOString()
         })
-        .eq('user_id', user.id)
+        .eq('user_id', userInfo.userId)
 
       return NextResponse.json({ 
         connected: false,
@@ -114,13 +131,13 @@ export async function GET(request: NextRequest) {
         // Update database with fresh repository data
         if (allRepos.length > 0) {
           // Clear existing repositories
-          await supabase.from('github_repositories').delete().eq('user_id', user.id)
+          await supabase.from('github_repositories').delete().eq('user_id', userInfo.userId)
 
           // Filter and store active repositories
           const reposToStore = allRepos
             .filter(repo => !repo.archived && !repo.disabled)
             .map(repo => ({
-              user_id: user.id,
+              user_id: userInfo.userId,
               repo_id: repo.id,
               name: repo.name,
               full_name: repo.full_name,
@@ -163,7 +180,7 @@ export async function GET(request: NextRequest) {
       const { data: dbRepos } = await supabase
         .from('github_repositories')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userInfo.userId)
         .order('updated_at', { ascending: false })
 
       repositories = dbRepos || []

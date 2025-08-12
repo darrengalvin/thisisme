@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { GitHubClient } from '@/lib/github/client'
 import { ClaudeClient } from '@/lib/ai/claude-client'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +17,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const supabase = createServerSupabaseClient()
+    const cookieStore = cookies()
+    const token = cookieStore.get('auth-token')?.value
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth')
+    const userInfo = await verifyToken(token)
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
     
     // Get ticket details
     const { data: ticket, error: ticketError } = await supabase
@@ -24,16 +43,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
     }
 
-    // Get GitHub connection
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { data: githubConnection } = await supabase
       .from('github_connections')
       .select('access_token')
-      .eq('user_id', user.id)
+      .eq('user_id', userInfo.userId)
       .single()
 
     if (!githubConnection?.access_token) {
