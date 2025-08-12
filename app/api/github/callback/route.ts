@@ -173,9 +173,10 @@ export async function GET(request: NextRequest) {
       // Clear existing repositories first
       await supabase.from('github_repositories').delete().eq('user_id', userInfo.userId)
 
-      // Filter and store relevant repositories
+      // Filter and store ONLY the thisisme repository
       const reposToStore = allRepos
         .filter(repo => !repo.archived && !repo.disabled) // Only active repos
+        .filter(repo => repo.name === 'thisisme') // ONLY the thisisme repository
         .map(repo => ({
           user_id: userInfo.userId,
           repo_id: repo.id,

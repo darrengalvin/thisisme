@@ -133,9 +133,10 @@ export async function GET(request: NextRequest) {
           // Clear existing repositories
           await supabase.from('github_repositories').delete().eq('user_id', userInfo.userId)
 
-          // Filter and store active repositories
+          // Filter and store ONLY the thisisme repository  
           const reposToStore = allRepos
             .filter(repo => !repo.archived && !repo.disabled)
+            .filter(repo => repo.name === 'thisisme')
             .map(repo => ({
               user_id: userInfo.userId,
               repo_id: repo.id,
@@ -175,12 +176,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get repositories from database if not refreshed
+    // Get repositories from database if not refreshed (ONLY thisisme)
     if (repositories.length === 0) {
       const { data: dbRepos } = await supabase
         .from('github_repositories')
         .select('*')
         .eq('user_id', userInfo.userId)
+        .eq('name', 'thisisme') // ONLY the thisisme repository
         .order('updated_at', { ascending: false })
 
       repositories = dbRepos || []
@@ -190,7 +192,8 @@ export async function GET(request: NextRequest) {
     let codebaseAnalysis = null
     if (analyzeRepo && repositories.length > 0) {
       const targetRepo = repositories.find(repo => 
-        repo.full_name === analyzeRepo || repo.name === analyzeRepo
+        (repo.full_name === analyzeRepo || repo.name === analyzeRepo) && 
+        repo.name === 'thisisme' // ONLY allow analysis of thisisme repository
       )
       
       if (targetRepo) {
