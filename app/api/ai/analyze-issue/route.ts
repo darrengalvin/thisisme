@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { GitHubClient } from '@/lib/github/client'
 import { ClaudeClient } from '@/lib/ai/claude-client'
 
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const supabase = await createServerClient()
+    const supabase = createServerSupabaseClient()
     
     // Get ticket details
     const { data: ticket, error: ticketError } = await supabase

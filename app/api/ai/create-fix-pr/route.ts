@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { GitHubClient } from '@/lib/github/client'
 import { ClaudeClient } from '@/lib/ai/claude-client'
 
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing analysis ID' }, { status: 400 })
     }
 
-    const supabase = await createServerClient()
+    const supabase = createServerSupabaseClient()
     
     // Get analysis details
     const { data: analysis, error: analysisError } = await supabase
