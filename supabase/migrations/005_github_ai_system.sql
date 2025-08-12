@@ -6,6 +6,12 @@ CREATE TABLE IF NOT EXISTS github_connections (
   github_id INTEGER NOT NULL,
   access_token TEXT NOT NULL,
   scope TEXT,
+  token_type TEXT DEFAULT 'bearer',
+  avatar_url TEXT,
+  name TEXT,
+  email TEXT,
+  last_validated TIMESTAMP WITH TIME ZONE,
+  last_error TEXT,
   connected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id)
 );
@@ -21,6 +27,16 @@ CREATE TABLE IF NOT EXISTS github_repositories (
   private BOOLEAN DEFAULT false,
   default_branch TEXT DEFAULT 'main',
   url TEXT,
+  clone_url TEXT,
+  language TEXT,
+  size INTEGER DEFAULT 0,
+  stargazers_count INTEGER DEFAULT 0,
+  forks_count INTEGER DEFAULT 0,
+  has_issues BOOLEAN DEFAULT false,
+  has_projects BOOLEAN DEFAULT false,
+  has_wiki BOOLEAN DEFAULT false,
+  permissions JSONB DEFAULT '{}',
+  updated_at TIMESTAMP WITH TIME ZONE,
   connected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, repo_id)
 );
