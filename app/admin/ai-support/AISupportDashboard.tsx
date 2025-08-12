@@ -143,7 +143,7 @@ export default function AISupportDashboard() {
         
         if (data.repositories && data.repositories.length > 0) {
           // Select the first writable repository if possible
-          const writableRepo = data.repositories.find(r => 
+          const writableRepo = data.repositories.find((r: any) => 
             r.permissions?.admin || r.permissions?.maintain || r.permissions?.push
           )
           setSelectedRepo((writableRepo || data.repositories[0]).full_name)

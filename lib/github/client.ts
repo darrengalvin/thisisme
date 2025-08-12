@@ -313,11 +313,11 @@ export class GitHubClient {
     url: string
     score: number
     text_matches?: Array<{
-      object_url: string
-      object_type: string
-      property: string
-      fragment: string
-      matches: Array<{ text: string; indices: number[] }>
+      object_url?: string
+      object_type?: string | null
+      property?: string
+      fragment?: string
+      matches?: Array<{ text?: string; indices?: number[] }>
     }>
   }>> {
     return this.retry(async () => {
