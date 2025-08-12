@@ -174,7 +174,7 @@ async function performSafetyChecks(fixPlan: any) {
     'package.json', 'next.config.js', '.env', 'prisma/schema.prisma'
   ]
   for (const file of filesToModify) {
-    if (protectedFiles.some(protected => file.includes(protected))) {
+    if (protectedFiles.some(protectedFile => file.includes(protectedFile))) {
       issues.push(`Attempting to modify protected file: ${file}`)
     }
   }
