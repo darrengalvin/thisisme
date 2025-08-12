@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${baseUrl}/admin/ai-support?github=connected`)
   } catch (error) {
     console.error('GitHub callback error:', error)
-    console.log('Error details:', error.message)
+    console.log('Error details:', error instanceof Error ? error.message : String(error))
     return NextResponse.redirect(`${baseUrl}/admin/ai-support?error=callback_failed`)
   }
 }
