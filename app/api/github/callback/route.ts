@@ -5,11 +5,21 @@ const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID!
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET!
 
 export async function GET(request: NextRequest) {
+  // Debug environment variables
+  console.log('Environment check in callback:', {
+    NEXT_PUBLIC_URL: process.env.NEXT_PUBLIC_URL || 'MISSING',
+    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID ? 'Set' : 'MISSING'
+  })
+
   const searchParams = request.nextUrl.searchParams
   const code = searchParams.get('code')
+  
+  // Use absolute URL with fallback
+  const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://thisisme-three.vercel.app'
 
   if (!code) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/admin/ai-support?error=no_code`)
+    console.log('No code provided, redirecting to error page')
+    return NextResponse.redirect(`${baseUrl}/admin/ai-support?error=no_code`)
   }
 
   try {
@@ -31,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     if (tokenData.error) {
       console.error('GitHub OAuth error:', tokenData)
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/admin/ai-support?error=oauth_failed`)
+      return NextResponse.redirect(`${baseUrl}/admin/ai-support?error=oauth_failed`)
     }
 
     // Get user info
@@ -89,13 +99,15 @@ export async function GET(request: NextRequest) {
       } catch (dbError) {
         console.error('Database error during GitHub connection:', dbError)
         // Still redirect to success but with a warning
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/admin/ai-support?github=connected&warning=db_error`)
+        return NextResponse.redirect(`${baseUrl}/admin/ai-support?github=connected&warning=db_error`)
       }
     }
 
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/admin/ai-support?github=connected`)
+    console.log('GitHub connection successful, redirecting to success page')
+    return NextResponse.redirect(`${baseUrl}/admin/ai-support?github=connected`)
   } catch (error) {
     console.error('GitHub callback error:', error)
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/admin/ai-support?error=callback_failed`)
+    console.log('Error details:', error.message)
+    return NextResponse.redirect(`${baseUrl}/admin/ai-support?error=callback_failed`)
   }
 }
