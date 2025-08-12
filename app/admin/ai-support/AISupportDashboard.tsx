@@ -82,6 +82,17 @@ export default function AISupportDashboard() {
   useEffect(() => {
     loadDashboardData()
     checkGitHubConnection()
+    
+    // Check for GitHub OAuth success/error in URL params
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('github') === 'connected') {
+      // GitHub connection successful, refresh status
+      setTimeout(() => {
+        checkGitHubConnection()
+        // Clean up URL parameters
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }, 1000)
+    }
   }, [])
 
   const checkGitHubConnection = async () => {
