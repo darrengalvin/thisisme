@@ -97,7 +97,11 @@ export default function AISupportDashboard() {
 
   const checkGitHubConnection = async () => {
     try {
-      const response = await fetch('/api/github/status', { credentials: 'include' })
+      // Add cache-busting parameter to avoid stale cache
+      const response = await fetch(`/api/github/status?t=${Date.now()}`, { 
+        credentials: 'include',
+        cache: 'no-cache'
+      })
       if (response.ok) {
         const data = await response.json()
         setGithubConnection(data)

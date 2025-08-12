@@ -14,7 +14,13 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       console.log('No user found in GitHub status check')
-      return NextResponse.json({ connected: false })
+      return NextResponse.json({ connected: false }, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
     }
 
     // Check for GitHub connection
@@ -32,7 +38,13 @@ export async function GET(request: NextRequest) {
 
     if (!connection) {
       console.log('No GitHub connection found for user:', user.id)
-      return NextResponse.json({ connected: false })
+      return NextResponse.json({ connected: false }, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache', 
+          'Expires': '0'
+        }
+      })
     }
 
     // Get repositories
@@ -46,9 +58,21 @@ export async function GET(request: NextRequest) {
       connected: true,
       username: connection.github_username,
       repositories: repositories || []
+    }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     })
   } catch (error) {
     console.error('GitHub status error:', error)
-    return NextResponse.json({ connected: false })
+    return NextResponse.json({ connected: false }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
   }
 }
