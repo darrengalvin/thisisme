@@ -6,18 +6,32 @@ export async function GET(request: NextRequest) {
     const supabase = createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
+    console.log('GitHub status check:', {
+      hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email
+    })
+
     if (!user) {
+      console.log('No user found in GitHub status check')
       return NextResponse.json({ connected: false })
     }
 
     // Check for GitHub connection
-    const { data: connection } = await supabase
+    const { data: connection, error: connectionError } = await supabase
       .from('github_connections')
       .select('github_username, scope, connected_at')
       .eq('user_id', user.id)
       .single()
 
+    console.log('GitHub connection query result:', {
+      hasConnection: !!connection,
+      connection,
+      error: connectionError
+    })
+
     if (!connection) {
+      console.log('No GitHub connection found for user:', user.id)
       return NextResponse.json({ connected: false })
     }
 
