@@ -6,14 +6,38 @@ import { Brain, Zap, Shield, TrendingUp, AlertTriangle, CheckCircle, Github, Ext
 interface GitHubConnection {
   connected: boolean
   username?: string
+  error?: string
+  needsReauth?: boolean
   repositories?: Array<{
-    id: string
+    id: number
     name: string
     full_name: string
     owner: string
     default_branch: string
     url: string
+    language?: string
+    private: boolean
+    permissions?: {
+      admin: boolean
+      maintain: boolean
+      push: boolean
+      triage: boolean
+      pull: boolean
+    }
   }>
+  stats?: {
+    totalRepositories: number
+    privateRepos: number
+    publicRepos: number
+    writableRepos: number
+    languages: Record<string, number>
+  }
+  rateLimit?: {
+    limit: number
+    remaining: number
+    reset: number
+  }
+  lastValidated?: string
 }
 
 interface AIAnalysis {
@@ -95,22 +119,51 @@ export default function AISupportDashboard() {
     }
   }, [])
 
-  const checkGitHubConnection = async () => {
+  const checkGitHubConnection = async (refresh = false) => {
     try {
-      // Add cache-busting parameter to avoid stale cache
-      const response = await fetch(`/api/github/status?t=${Date.now()}`, { 
+      // Use refresh parameter to force fresh data
+      const url = refresh ? '/api/github/status?refresh=true' : '/api/github/status'
+      const response = await fetch(url, { 
         credentials: 'include',
-        cache: 'no-cache'
+        cache: refresh ? 'no-cache' : 'default'
       })
+      
       if (response.ok) {
         const data = await response.json()
-        setGithubConnection(data)
+        console.log('GitHub connection status:', data)
+        
+        setGithubConnection({
+          connected: data.connected,
+          username: data.user?.login,
+          repositories: data.repositories || [],
+          stats: data.stats,
+          rateLimit: data.rateLimit,
+          lastValidated: data.lastValidated
+        })
+        
         if (data.repositories && data.repositories.length > 0) {
-          setSelectedRepo(data.repositories[0].full_name)
+          // Select the first writable repository if possible
+          const writableRepo = data.repositories.find(r => 
+            r.permissions?.admin || r.permissions?.maintain || r.permissions?.push
+          )
+          setSelectedRepo((writableRepo || data.repositories[0]).full_name)
         }
+      } else {
+        const errorData = await response.json()
+        console.error('GitHub connection check failed:', errorData)
+        
+        setGithubConnection({
+          connected: false,
+          error: errorData.error,
+          needsReauth: errorData.needsReauth
+        })
       }
     } catch (error) {
       console.error('Error checking GitHub connection:', error)
+      setGithubConnection({
+        connected: false,
+        error: 'Network error checking connection'
+      })
     }
   }
 
@@ -148,26 +201,55 @@ export default function AISupportDashboard() {
       return
     }
 
+    // Check if selected repository has write permissions
+    const selectedRepoData = githubConnection.repositories?.find(r => r.full_name === selectedRepo)
+    if (selectedRepoData && !selectedRepoData.permissions?.push && !selectedRepoData.permissions?.maintain && !selectedRepoData.permissions?.admin) {
+      alert('Warning: You do not have write permissions for this repository. Analysis will proceed but fix PRs may fail.')
+    }
+
     setAnalyzing(true)
     setSelectedTicket(ticket)
     setAnalysis(null)
     
     try {
+      console.log(`Starting analysis for ticket ${ticket.id} in repository ${selectedRepo}`)
+      
+      // First, analyze the repository codebase if we haven't already
+      let codebaseAnalysis = null
+      try {
+        console.log('Analyzing repository codebase...')
+        const codebaseResponse = await fetch(`/api/github/status?analyze=${encodeURIComponent(selectedRepo)}`, {
+          credentials: 'include'
+        })
+        
+        if (codebaseResponse.ok) {
+          const codebaseData = await codebaseResponse.json()
+          codebaseAnalysis = codebaseData.codebaseAnalysis
+          console.log('Codebase analysis completed:', codebaseAnalysis)
+        }
+      } catch (error) {
+        console.warn('Codebase analysis failed, proceeding without it:', error)
+      }
+
+      // Now analyze the ticket with codebase context
       const response = await fetch('/api/ai/analyze-issue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ 
           ticketId: ticket.id,
-          repository: selectedRepo
+          repository: selectedRepo,
+          codebaseContext: codebaseAnalysis
         })
       })
 
       if (response.ok) {
         const data = await response.json()
         setAnalysis(data.analysis)
+        console.log('Ticket analysis completed successfully')
       } else {
         const error = await response.json()
+        console.error('Analysis failed:', error)
         alert(`Analysis failed: ${error.error}`)
       }
     } catch (error) {
@@ -249,15 +331,33 @@ export default function AISupportDashboard() {
               <h1 className="text-3xl font-bold text-gray-900">AI Support System</h1>
             </div>
             {!githubConnection.connected ? (
-              <button
-                onClick={connectGitHub}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
-              >
-                <Github className="w-5 h-5" />
-                Connect GitHub
-              </button>
+              <div className="flex items-center gap-4">
+                {githubConnection.error && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-md text-sm">
+                    <AlertTriangle className="w-4 h-4" />
+                    {githubConnection.needsReauth ? 'GitHub token expired' : githubConnection.error}
+                  </div>
+                )}
+                <button
+                  onClick={connectGitHub}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+                >
+                  <Github className="w-5 h-5" />
+                  {githubConnection.needsReauth ? 'Reconnect GitHub' : 'Connect GitHub'}
+                </button>
+              </div>
             ) : (
               <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-md text-sm">
+                  <CheckCircle className="w-4 h-4" />
+                  Connected as {githubConnection.username}
+                </div>
+                <button
+                  onClick={() => checkGitHubConnection(true)}
+                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200"
+                >
+                  Refresh Repos
+                </button>
                 <select
                   value={selectedRepo}
                   onChange={(e) => setSelectedRepo(e.target.value)}
@@ -265,18 +365,46 @@ export default function AISupportDashboard() {
                 >
                   {githubConnection.repositories?.map(repo => (
                     <option key={repo.id} value={repo.full_name}>
-                      {repo.full_name}
+                      {repo.full_name} {repo.language ? `(${repo.language})` : ''} {repo.private ? '🔒' : ''}
                     </option>
                   ))}
                 </select>
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Connected as {githubConnection.username}</span>
-                </div>
               </div>
             )}
           </div>
           <p className="text-gray-600">Intelligent ticket analysis and automated fix generation using Claude AI</p>
+          
+          {/* GitHub Stats */}
+          {githubConnection.connected && githubConnection.stats && (
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="text-sm text-blue-600 font-medium">Total Repos</div>
+                <div className="text-xl font-bold text-blue-900">{githubConnection.stats.totalRepositories}</div>
+              </div>
+              <div className="bg-green-50 p-3 rounded-lg">
+                <div className="text-sm text-green-600 font-medium">Writable</div>
+                <div className="text-xl font-bold text-green-900">{githubConnection.stats.writableRepos}</div>
+              </div>
+              <div className="bg-purple-50 p-3 rounded-lg">
+                <div className="text-sm text-purple-600 font-medium">Private</div>
+                <div className="text-xl font-bold text-purple-900">{githubConnection.stats.privateRepos}</div>
+              </div>
+              <div className="bg-orange-50 p-3 rounded-lg">
+                <div className="text-sm text-orange-600 font-medium">Languages</div>
+                <div className="text-xl font-bold text-orange-900">{Object.keys(githubConnection.stats.languages).length}</div>
+              </div>
+            </div>
+          )}
+          
+          {/* Rate Limit Info */}
+          {githubConnection.connected && githubConnection.rateLimit && (
+            <div className="mt-2 text-sm text-gray-500">
+              GitHub API: {githubConnection.rateLimit.remaining}/{githubConnection.rateLimit.limit} requests remaining
+              {githubConnection.lastValidated && (
+                <span className="ml-4">Last validated: {new Date(githubConnection.lastValidated).toLocaleTimeString()}</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* GitHub Connection Required */}
