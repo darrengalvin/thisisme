@@ -33,37 +33,57 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   const [showImageCropper, setShowImageCropper] = useState(false)
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null)
 
-  // Sort memories when chapter is loaded or updated
-  const sortMemories = (memories: MemoryWithRelations[] | undefined) => {
-    if (!memories) return []
+  // Enhanced memory sorting with error handling and validation
+  const sortMemories = (memories: MemoryWithRelations[] | undefined): MemoryWithRelations[] => {
+    if (!memories || !Array.isArray(memories)) return []
+    
     return [...memories].sort((a, b) => {
-      const dateA = new Date(a.memoryDate || a.createdAt).getTime()
-      const dateB = new Date(b.memoryDate || b.createdAt).getTime()
-      return dateA - dateB
+      try {
+        const dateA = new Date(a.memoryDate || a.createdAt || 0).getTime()
+        const dateB = new Date(b.memoryDate || b.createdAt || 0).getTime()
+        
+        if (isNaN(dateA) || isNaN(dateB)) {
+          console.warn('Invalid date detected in memory sorting')
+          return 0
+        }
+        
+        return dateA - dateB
+      } catch (error) {
+        console.error('Error sorting memories:', error)
+        return 0
+      }
     })
   }
 
-  // Set up editing state when chapter changes
+  // Set up editing state when chapter changes with enhanced error handling
   useEffect(() => {
     if (chapter && isOpen) {
-      const initialChapter = {
-        id: chapter.id,
-        title: chapter.title,
-        description: chapter.description || '',
-        startDate: formatDateForInput(chapter.startDate),
-        endDate: formatDateForInput(chapter.endDate),
-        location: chapter.location || '',
-        headerImageUrl: chapter.headerImageUrl || null,
-        memories: sortMemories(chapter.memories)
+      try {
+        const sortedMemories = sortMemories(chapter.memories)
+        
+        const initialChapter = {
+          id: chapter.id,
+          title: chapter.title,
+          description: chapter.description || '',
+          startDate: formatDateForInput(chapter.startDate),
+          endDate: formatDateForInput(chapter.endDate),
+          location: chapter.location || '',
+          headerImageUrl: chapter.headerImageUrl || null,
+          memories: sortedMemories
+        }
+        
+        setEditingChapter(initialChapter)
+        setOriginalChapter({ ...initialChapter })
+        setSelectedHeaderImage(null)
+        setPreviewImageUrl(null)
+        setHasUnsavedChanges(false)
+        setLastSaved(null)
+        setShowUnsavedWarning(false)
+      } catch (error) {
+        console.error('Error initializing chapter editing:', error)
+        toast.error('Error loading chapter data')
+        onClose()
       }
-      
-      setEditingChapter(initialChapter)
-      setOriginalChapter({ ...initialChapter })
-      setSelectedHeaderImage(null)
-      setPreviewImageUrl(null)
-      setHasUnsavedChanges(false)
-      setLastSaved(null)
-      setShowUnsavedWarning(false)
     }
   }, [chapter, isOpen])
 
