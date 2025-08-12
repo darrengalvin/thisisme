@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
 
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID!
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET!
@@ -76,24 +76,38 @@ export async function GET(request: NextRequest) {
 
   if (action === 'disconnect') {
     try {
-      const supabase = createServerSupabaseClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
       
-      if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      const { cookies } = await import('next/headers')
+      const cookieStore = cookies()
+      const token = cookieStore.get('auth-token')?.value
+
+      if (!token) {
+        return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      }
+
+      // Verify JWT token and extract user ID
+      const { verifyToken } = await import('@/lib/auth')
+      const userInfo = await verifyToken(token)
+      
+      if (!userInfo) {
+        return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 })
       }
 
       // Remove GitHub connection
       await supabase
         .from('github_connections')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', userInfo.userId)
 
       // Remove associated repositories
       await supabase
         .from('github_repositories')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', userInfo.userId)
 
       return NextResponse.json({ success: true, message: 'GitHub disconnected' })
     } catch (error) {

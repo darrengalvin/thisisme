@@ -111,7 +111,23 @@ export async function GET(request: NextRequest) {
 
     console.log('Storing GitHub connection for user:', userInfo.userId)
 
-    // Store GitHub connection with enhanced data
+    // First check if there's an existing connection and validate the new token
+    const testResponse = await fetch('https://api.github.com/user', {
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'AI-Support-System/1.0'
+      }
+    })
+
+    if (!testResponse.ok) {
+      console.error('New GitHub token validation failed:', testResponse.status)
+      return NextResponse.redirect(`${baseUrl}/admin/ai-support?error=invalid_token`)
+    }
+
+    console.log('New GitHub token validated successfully')
+
+    // Store GitHub connection with enhanced data (specify onConflict for proper upsert)
     const { error: connectionError } = await supabase.from('github_connections').upsert({
       user_id: userInfo.userId,
       github_username: userData.login,
@@ -123,6 +139,8 @@ export async function GET(request: NextRequest) {
       name: userData.name,
       email: userData.email,
       connected_at: new Date().toISOString()
+    }, {
+      onConflict: 'user_id'
     })
 
     if (connectionError) {
