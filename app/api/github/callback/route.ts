@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
 
   if (!code) {
-    return NextResponse.redirect('/admin/ai-support?error=no_code')
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/admin/ai-support?error=no_code`)
   }
 
   try {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     if (tokenData.error) {
       console.error('GitHub OAuth error:', tokenData)
-      return NextResponse.redirect('/admin/ai-support?error=oauth_failed')
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/admin/ai-support?error=oauth_failed`)
     }
 
     // Get user info
@@ -49,45 +49,53 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (user) {
-      // Store GitHub connection
-      await supabase.from('github_connections').upsert({
-        user_id: user.id,
-        github_username: userData.login,
-        github_id: userData.id,
-        access_token: tokenData.access_token,
-        scope: tokenData.scope,
-        connected_at: new Date().toISOString()
-      })
-
-      // Get user's repositories
-      const reposResponse = await fetch('https://api.github.com/user/repos?per_page=100', {
-        headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      })
-
-      const repos = await reposResponse.json()
-
-      // Store repositories
-      for (const repo of repos) {
-        await supabase.from('github_repositories').upsert({
+      try {
+        // Store GitHub connection
+        await supabase.from('github_connections').upsert({
           user_id: user.id,
-          repo_id: repo.id,
-          name: repo.name,
-          full_name: repo.full_name,
-          owner: repo.owner.login,
-          private: repo.private,
-          default_branch: repo.default_branch,
-          url: repo.html_url,
+          github_username: userData.login,
+          github_id: userData.id,
+          access_token: tokenData.access_token,
+          scope: tokenData.scope,
           connected_at: new Date().toISOString()
         })
+
+        // Get user's repositories
+        const reposResponse = await fetch('https://api.github.com/user/repos?per_page=100', {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        })
+
+        const repos = await reposResponse.json()
+
+        // Store repositories (only if we have valid repo data)
+        if (Array.isArray(repos)) {
+          for (const repo of repos) {
+            await supabase.from('github_repositories').upsert({
+              user_id: user.id,
+              repo_id: repo.id,
+              name: repo.name,
+              full_name: repo.full_name,
+              owner: repo.owner.login,
+              private: repo.private,
+              default_branch: repo.default_branch || 'main',
+              url: repo.html_url,
+              connected_at: new Date().toISOString()
+            })
+          }
+        }
+      } catch (dbError) {
+        console.error('Database error during GitHub connection:', dbError)
+        // Still redirect to success but with a warning
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/admin/ai-support?github=connected&warning=db_error`)
       }
     }
 
-    return NextResponse.redirect('/admin/ai-support?github=connected')
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/admin/ai-support?github=connected`)
   } catch (error) {
     console.error('GitHub callback error:', error)
-    return NextResponse.redirect('/admin/ai-support?error=callback_failed')
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_URL}/admin/ai-support?error=callback_failed`)
   }
 }
