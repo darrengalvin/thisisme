@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createServerClient } from '@/lib/supabase-server'
 
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID!
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET!
