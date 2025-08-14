@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
       memoryCreated: false, // Don't actually create memories in test mode
       suggestedActions: aiResponse.suggestedActions,
       followUpQuestions: extraction.followUpQuestions,
-      shouldSuggestPhotos: aiResponse.shouldSuggestPhotos || false,
-      memoryType: aiResponse.memoryType
+      shouldSuggestPhotos: (aiResponse as any).shouldSuggestPhotos || false,
+      memoryType: (aiResponse as any).memoryType
     })
 
   } catch (error) {
