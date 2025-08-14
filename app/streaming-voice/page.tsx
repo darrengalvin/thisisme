@@ -2,6 +2,9 @@
 
 import StreamingVoiceChat from '@/components/StreamingVoiceChat'
 import VoiceDiagnosticPanel from '@/components/VoiceDiagnosticPanel'
+import RealTimeVoiceTest from '@/components/RealTimeVoiceTest'
+import WebRTCStreamingVoice from '@/components/WebRTCStreamingVoice'
+import ComprehensiveAudioTest from '@/components/ComprehensiveAudioTest'
 
 export default function StreamingVoicePage() {
   return (
@@ -79,10 +82,33 @@ export default function StreamingVoicePage() {
         </div>
         
         <div className="mb-8">
+          <ComprehensiveAudioTest />
+        </div>
+        
+        <div className="mb-8">
           <VoiceDiagnosticPanel />
         </div>
         
-        <StreamingVoiceChat />
+        <div className="mb-8">
+          <RealTimeVoiceTest />
+        </div>
+        
+        <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-blue-500 rounded-lg">
+          <h3 className="font-bold text-blue-800 text-lg mb-3">🚀 NEW: WebRTC + GPT-4o Streaming Architecture</h3>
+          <p className="text-blue-700 text-sm mb-4">
+            This implements the recommended streaming architecture: WebRTC audio + GPT-4o streaming + OpenAI TTS. 
+            Should eliminate the chunking issues we've been experiencing.
+          </p>
+          <WebRTCStreamingVoice />
+        </div>
+        
+        <div className="mb-8 p-4 bg-gray-100 border border-gray-300 rounded-lg">
+          <h3 className="font-bold text-gray-700 text-lg mb-2">📊 Original Implementation (For Comparison)</h3>
+          <p className="text-gray-600 text-sm mb-4">
+            This is our original MediaRecorder + Claude approach that has the chunking timing issues.
+          </p>
+          <StreamingVoiceChat />
+        </div>
 
         <div className="mt-6 text-center text-xs text-gray-500">
           <p>Powered by streaming AI • Real-time voice processing • Timeline-aware memory organization</p>

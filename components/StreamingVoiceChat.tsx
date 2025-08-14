@@ -229,22 +229,25 @@ export default function StreamingVoiceChat({ onMemoryCreated }: StreamingVoiceCh
       console.log('⚡ Transcription confidence:', transcribeData.confidence)
       console.log('⚡ Audio duration:', transcribeData.duration)
       
-      // Update current transcription display
+      // Update current transcription display immediately
+      console.log('📝 UPDATING REAL-TIME DISPLAY:', userText)
       setCurrentTranscription(userText)
       
-      // If transcription seems complete, process it
-      if (transcribeData.isComplete || userText.length > 20) {
+      // Process transcription more aggressively for better real-time response
+      if (transcribeData.isComplete || userText.length > 10) {
+        console.log('✅ PROCESSING COMPLETE TRANSCRIPTION')
         await processCompleteTranscription(userText)
-      } else {
-        // Wait a bit more for potential completion
+      } else if (userText.length > 3) {
+        // Show partial transcription and wait less time
         if (transcriptionTimeoutRef.current) {
           clearTimeout(transcriptionTimeoutRef.current)
         }
         transcriptionTimeoutRef.current = setTimeout(() => {
-          if (userText.length > 5) {
+          if (userText.length > 3) {
+            console.log('⏰ TIMEOUT - PROCESSING PARTIAL TRANSCRIPTION')
             processCompleteTranscription(userText)
           }
-        }, 2000)
+        }, 1500) // Reduced from 2000ms to 1500ms
       }
       
     } catch (error) {

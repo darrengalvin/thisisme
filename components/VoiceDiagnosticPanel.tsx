@@ -270,11 +270,21 @@ export default function VoiceDiagnosticPanel() {
         
         setTranscriptionHistory(prev => [...prev.slice(-9), historyEntry])
         
+        // Update real-time transcription immediately
         if (data.success) {
+          console.log('🎤 REAL-TIME UPDATE:', data.transcription)
           setRealTimeTranscription(data.transcription)
         } else {
+          console.log('🚫 FILTERED:', data.reason)
           setRealTimeTranscription(`[Filtered: ${data.reason}]`)
         }
+        
+        // Force a state update to ensure UI refreshes
+        setTimeout(() => {
+          if (data.success) {
+            setRealTimeTranscription(data.transcription)
+          }
+        }, 100)
         
       } catch (error) {
         console.error('Real-time transcription error:', error)
