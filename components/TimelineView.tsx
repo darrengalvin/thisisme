@@ -23,8 +23,6 @@ interface TimelineGroup {
   memories: MemoryWithRelations[]
 }
 
-
-
 export default function TimelineView({ memories, birthYear, user: propUser, onEdit, onDelete, onStartCreating }: TimelineViewProps) {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
@@ -337,15 +335,18 @@ export default function TimelineView({ memories, birthYear, user: propUser, onEd
                 ) : (
                   chapters
                     .sort((a, b) => {
-                      // Parse start dates with fallback to creation dates
-                      const aDate = a.startDate ? new Date(a.startDate) : (a.createdAt ? new Date(a.createdAt) : new Date('1900-01-01'))
-                      const bDate = b.startDate ? new Date(b.startDate) : (b.createdAt ? new Date(b.createdAt) : new Date('1900-01-01'))
+                      // Primary sort by start date
+                      const aDate = a.startDate ? new Date(a.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+                      const bDate = b.startDate ? new Date(b.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+                      if (aDate !== bDate) return aDate - bDate;
                       
-                      // Handle invalid dates
-                      const aTime = isNaN(aDate.getTime()) ? new Date('1900-01-01').getTime() : aDate.getTime()
-                      const bTime = isNaN(bDate.getTime()) ? new Date('1900-01-01').getTime() : bDate.getTime()
+                      // Secondary sort by end date if available
+                      const aEndDate = a.endDate ? new Date(a.endDate).getTime() : Number.MAX_SAFE_INTEGER;
+                      const bEndDate = b.endDate ? new Date(b.endDate).getTime() : Number.MAX_SAFE_INTEGER;
+                      if (aEndDate !== bEndDate) return aEndDate - bEndDate;
                       
-                      return aTime - bTime
+                      // Final sort by title alphabetically
+                      return (a.title || '').localeCompare(b.title || '')
                     })
                     .map((chapter) => {
                       const chapterMemories = getChapterMemories(chapter.id)
@@ -761,4 +762,4 @@ export default function TimelineView({ memories, birthYear, user: propUser, onEd
 
     </div>
   )
-} 
+}
