@@ -26,11 +26,11 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-export function getFileType(mimeType: string): 'image' | 'video' | 'audio' | 'unknown' {
-  if (mimeType.startsWith('image/')) return 'image'
-  if (mimeType.startsWith('video/')) return 'video'
-  if (mimeType.startsWith('audio/')) return 'audio'
-  return 'unknown'
+export function getFileType(mimeType: string): 'IMAGE' | 'VIDEO' | 'AUDIO' | 'OTHER' {
+  if (mimeType.startsWith('image/')) return 'IMAGE'
+  if (mimeType.startsWith('video/')) return 'VIDEO'
+  if (mimeType.startsWith('audio/')) return 'AUDIO'
+  return 'OTHER'
 }
 
 export function truncateText(text: string, length: number = 200): string {

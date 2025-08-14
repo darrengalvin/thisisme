@@ -10,6 +10,7 @@ import EditChapterModal from './EditChapterModal'
 interface TimelineViewProps {
   memories: MemoryWithRelations[]
   birthYear?: number
+  user?: { id: string; email: string; birthYear?: number } | null
   onEdit?: (memory: MemoryWithRelations) => void
   onDelete?: (memory: MemoryWithRelations) => void
   onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
@@ -24,8 +25,9 @@ interface TimelineGroup {
 
 
 
-export default function TimelineView({ memories, birthYear, onEdit, onDelete, onStartCreating }: TimelineViewProps) {
-  const { user } = useAuth()
+export default function TimelineView({ memories, birthYear, user: propUser, onEdit, onDelete, onStartCreating }: TimelineViewProps) {
+  const { user: authUser } = useAuth()
+  const user = propUser || authUser
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
   const [isLoadingChapters, setIsLoadingChapters] = useState(true)
   const [likedMemories, setLikedMemories] = useState<Set<string>>(new Set())
@@ -335,8 +337,15 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                 ) : (
                   chapters
                     .sort((a, b) => {
-                      if (!a.startDate || !b.startDate) return 0
-                      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+                      // Parse start dates with fallback to creation dates
+                      const aDate = a.startDate ? new Date(a.startDate) : (a.createdAt ? new Date(a.createdAt) : new Date('1900-01-01'))
+                      const bDate = b.startDate ? new Date(b.startDate) : (b.createdAt ? new Date(b.createdAt) : new Date('1900-01-01'))
+                      
+                      // Handle invalid dates
+                      const aTime = isNaN(aDate.getTime()) ? new Date('1900-01-01').getTime() : aDate.getTime()
+                      const bTime = isNaN(bDate.getTime()) ? new Date('1900-01-01').getTime() : bDate.getTime()
+                      
+                      return aTime - bTime
                     })
                     .map((chapter) => {
                       const chapterMemories = getChapterMemories(chapter.id)
@@ -609,7 +618,7 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
                                       <img 
                                         src={media.storage_url} 
                                         alt={memory.title || ''} 
-                                        className="w-full max-h-96 object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                                        className="w-full h-auto object-contain cursor-pointer hover:scale-105 transition-transform duration-300"
                                         onClick={() => handleMemoryClick(memory.id)}
                                       />
                                     )}
@@ -731,6 +740,7 @@ export default function TimelineView({ memories, birthYear, onEdit, onDelete, on
         chapter={editingChapter}
         isOpen={showEditModal}
         onClose={() => {
+          // This will only be called if the modal confirms it's safe to close
           setShowEditModal(false)
           setEditingChapter(null)
         }}

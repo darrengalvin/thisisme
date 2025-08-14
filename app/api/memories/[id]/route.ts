@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { unlink } from 'fs/promises'
 import { join } from 'path'
 import { writeFile } from 'fs/promises'
 import { v4 as uuidv4 } from 'uuid'
+import { getFileType } from '@/lib/utils'
 
-// Helper function to determine file type from MIME type
-function getFileType(mimeType: string): string {
-  if (mimeType.startsWith('image/')) return 'IMAGE'
-  if (mimeType.startsWith('video/')) return 'VIDEO'
-  if (mimeType.startsWith('audio/')) return 'AUDIO'
-  return 'OTHER'
-}
+
 
 export async function PUT(
   request: NextRequest,
@@ -38,13 +32,29 @@ export async function PUT(
 
     const memoryId = params.id
     
+    // Create Supabase client
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+    
     // Get existing memory to check ownership
-    const existingMemory = await prisma.memory.findUnique({
-      where: { id: memoryId },
-      include: { media: true }
-    })
+    const { data: existingMemory, error: fetchError } = await supabase
+      .from('memories')
+      .select(`
+        *,
+        media(*)
+      `)
+      .eq('id', memoryId)
+      .single()
 
-    if (!existingMemory) {
+    if (fetchError || !existingMemory) {
       return NextResponse.json(
         { success: false, error: 'Memory not found' },
         { status: 404 }
@@ -52,7 +62,7 @@ export async function PUT(
     }
 
     // Check if user owns the memory
-    if (existingMemory.userId !== user.userId) {
+    if (existingMemory.user_id !== user.userId) {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
         { status: 403 }
@@ -66,28 +76,16 @@ export async function PUT(
     const mediaToDelete = formData.getAll('deleteMedia') as string[]
     const newMediaFiles = formData.getAll('media') as File[]
 
-    // Create Supabase client for potential file deletion
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-
     // Delete specified media files
     for (const mediaId of mediaToDelete) {
       const mediaToRemove = existingMemory.media.find(m => m.id === mediaId)
       if (mediaToRemove) {
         // Delete physical files
         try {
-          if (mediaToRemove.storageUrl) {
-            if (mediaToRemove.storageUrl.startsWith('http')) {
+          if (mediaToRemove.storage_url) {
+            if (mediaToRemove.storage_url.startsWith('http')) {
               // Supabase Storage file - extract path and delete from Supabase
-              const urlParts = mediaToRemove.storageUrl.split('/object/public/files/')
+              const urlParts = mediaToRemove.storage_url.split('/object/public/files/')
               if (urlParts.length > 1) {
                 const storagePath = urlParts[1]
                 const { error: deleteError } = await supabase.storage
@@ -97,27 +95,27 @@ export async function PUT(
                 if (deleteError) {
                   console.error('⚠️ EDIT API: Failed to delete Supabase file:', deleteError)
                 } else {
-                  console.log('🗑️ EDIT API: Deleted Supabase file:', mediaToRemove.fileName)
+                  console.log('🗑️ EDIT API: Deleted Supabase file:', mediaToRemove.file_name)
                 }
               }
             } else {
               // Local file - delete from filesystem
-              const filePath = join(process.cwd(), 'public', mediaToRemove.storageUrl)
+              const filePath = join(process.cwd(), 'public', mediaToRemove.storage_url)
               await unlink(filePath)
-              console.log('🗑️ EDIT API: Deleted local file:', mediaToRemove.fileName)
+              console.log('🗑️ EDIT API: Deleted local file:', mediaToRemove.file_name)
             }
           }
-          if (mediaToRemove.thumbnailUrl && mediaToRemove.thumbnailUrl !== mediaToRemove.storageUrl) {
-            if (mediaToRemove.thumbnailUrl.startsWith('http')) {
+          if (mediaToRemove.thumbnail_url && mediaToRemove.thumbnail_url !== mediaToRemove.storage_url) {
+            if (mediaToRemove.thumbnail_url.startsWith('http')) {
               // Supabase Storage thumbnail
-              const urlParts = mediaToRemove.thumbnailUrl.split('/object/public/files/')
+              const urlParts = mediaToRemove.thumbnail_url.split('/object/public/files/')
               if (urlParts.length > 1) {
                 const storagePath = urlParts[1]
                 await supabase.storage.from('files').remove([storagePath])
               }
             } else {
               // Local thumbnail
-              const thumbnailPath = join(process.cwd(), 'public', mediaToRemove.thumbnailUrl)
+              const thumbnailPath = join(process.cwd(), 'public', mediaToRemove.thumbnail_url)
               await unlink(thumbnailPath)
             }
           }
@@ -125,10 +123,11 @@ export async function PUT(
           console.log('File deletion error (file may not exist):', error)
         }
         
-        // Delete from database
-        await prisma.media.delete({
-          where: { id: mediaId }
-        })
+        // Delete from database using Supabase
+        await supabase
+          .from('media')
+          .delete()
+          .eq('id', mediaId)
       }
     }
 
@@ -172,18 +171,25 @@ export async function PUT(
           const mediaType = getFileType(file.type)
           console.log('🎯 EDIT API: Media type:', mediaType, 'from MIME:', file.type)
           
-          // Create media record
-          const mediaRecord = await prisma.media.create({
-            data: {
-              memoryId: memoryId,
+          // Create media record using Supabase
+          const { data: mediaRecord, error: mediaError } = await supabase
+            .from('media')
+            .insert({
+              memory_id: memoryId,
               type: mediaType,
-              storageUrl: publicUrl,
-              thumbnailUrl: mediaType === 'IMAGE' ? publicUrl : null,
-              fileSize: file.size,
-              mimeType: file.type,
-              fileName: file.name
-            }
-          })
+              storage_url: publicUrl,
+              thumbnail_url: mediaType === 'IMAGE' ? publicUrl : null,
+              file_size: file.size,
+              mime_type: file.type,
+              file_name: file.name
+            })
+            .select()
+            .single()
+
+          if (mediaError) {
+            console.error('❌ EDIT API: Media record creation failed:', mediaError)
+            continue
+          }
           
           newMediaRecords.push(mediaRecord)
         } catch (error) {
@@ -193,23 +199,64 @@ export async function PUT(
       }
     }
 
-    // Update memory
-    const updatedMemory = await prisma.memory.update({
-      where: { id: memoryId },
-      data: {
+    // Update memory using Supabase
+    const { error: updateError } = await supabase
+      .from('memories')
+      .update({
         title: title || null,
-        textContent: textContent || null,
-        updatedAt: new Date()
-      },
-      include: {
-        media: true,
-        timeZone: true
-      }
-    })
+        text_content: textContent || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', memoryId)
+
+    if (updateError) {
+      console.error('❌ EDIT API: Failed to update memory:', updateError)
+      return NextResponse.json(
+        { success: false, error: 'Failed to update memory' },
+        { status: 500 }
+      )
+    }
+
+    // Get complete updated memory with relations
+    const { data: updatedMemory, error: fetchUpdatedError } = await supabase
+      .from('memories')
+      .select(`
+        *,
+        user:users!memories_user_id_fkey(id, email),
+        timezone:timezones!memories_timezone_id_fkey(id, title, type),
+        media(*)
+      `)
+      .eq('id', memoryId)
+      .single()
+
+    if (fetchUpdatedError) {
+      console.error('❌ EDIT API: Failed to fetch updated memory:', fetchUpdatedError)
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch updated memory' },
+        { status: 500 }
+      )
+    }
+
+    // Transform data to match expected format
+    const transformedMemory = {
+      ...updatedMemory,
+      id: updatedMemory.id,
+      title: updatedMemory.title,
+      textContent: updatedMemory.text_content,
+      userId: updatedMemory.user_id,
+      timeZoneId: updatedMemory.timezone_id,
+      datePrecision: updatedMemory.date_precision,
+      approximateDate: updatedMemory.approximate_date,
+      createdAt: updatedMemory.created_at,
+      updatedAt: updatedMemory.updated_at,
+      user: updatedMemory.user,
+      timeZone: updatedMemory.timezone,
+      media: updatedMemory.media || []
+    }
 
     return NextResponse.json({
       success: true,
-      memory: updatedMemory
+      memory: transformedMemory
     })
 
   } catch (error) {

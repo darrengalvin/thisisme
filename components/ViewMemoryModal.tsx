@@ -67,11 +67,11 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
         {/* Header with image */}
         <div className="relative">
           {primaryImage ? (
-            <div className="relative h-64 overflow-hidden">
+            <div className="relative overflow-hidden">
               <img
                 src={primaryImage}
                 alt={memory.title || 'Memory'}
-                className="w-full h-full object-cover"
+                className="w-full h-auto object-contain max-h-80"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
               
@@ -170,11 +170,11 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {memory.media.slice(1).map((media, index) => (
-                  <div key={index} className="aspect-square rounded-lg overflow-hidden shadow-sm">
+                  <div key={index} className="rounded-lg overflow-hidden shadow-sm bg-slate-50">
                     <img
                       src={media.storage_url || media.thumbnail_url || ''}
                       alt={`Memory ${index + 2}`}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                      className="w-full h-auto object-contain hover:scale-105 transition-transform duration-200 max-h-48"
                     />
                   </div>
                 ))}

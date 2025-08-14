@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { Plus, User, LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
+import { Plus, User, LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, UserCheck, AlertTriangle, Search, Brain } from 'lucide-react'
 import MemoryViews from './MemoryViews'
 import GroupManager from './GroupManager'
 import CreateMemory from './CreateMemory'
@@ -16,6 +16,7 @@ import EditMemoryModal from './EditMemoryModal'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
 import { useAuth } from '@/components/AuthProvider'
 import TicketNotifications from '@/components/TicketNotifications'
+import AIChatInterface from './AIChatInterface'
 import { MemoryWithRelations } from '@/lib/types'
 
 type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support'
@@ -24,10 +25,13 @@ interface UserType {
   id: string
   email: string
   birthYear?: number
+  createdAt?: string
+  updatedAt?: string
+  isAdmin?: boolean
 }
 
 export default function Dashboard() {
-  const { user: supabaseUser } = useAuth()
+  const { user: supabaseUser, session } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('home')
   const [memories, setMemories] = useState<MemoryWithRelations[]>([])
   const [user, setUser] = useState<UserType | null>(null)
@@ -61,13 +65,32 @@ export default function Dashboard() {
   const [showForceDeleteOption, setShowForceDeleteOption] = useState(false)
   const [debugMode, setDebugMode] = useState(false)
   
+  // Admin impersonation state
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isImpersonating, setIsImpersonating] = useState(false)
+  const [impersonationData, setImpersonationData] = useState<{
+    targetUser?: { id: string; email: string }
+    adminUser?: { id: string; email: string }
+  }>({})
+  const [showUserSwitcher, setShowUserSwitcher] = useState(false)
+  const [availableUsers, setAvailableUsers] = useState<any[]>([])
+  const [userSearchTerm, setUserSearchTerm] = useState('')
+  const [showAIChat, setShowAIChat] = useState(false)
+  
   const router = useRouter()
 
   useEffect(() => {
     if (supabaseUser) {
       fetchUserAndMemories()
+      checkAdminStatus()
+      checkImpersonationStatus()
     }
   }, [supabaseUser])
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🎯 Admin state changed:', { isAdmin, userEmail: user?.email });
+  }, [isAdmin, user?.email])
 
   // Refetch data when returning to timeline views after profile changes
   useEffect(() => {
@@ -207,11 +230,23 @@ export default function Dashboard() {
       if (response.ok) {
         const data = await response.json()
         console.log('👤 USER PROFILE DATA:', data)
-        console.log('👤 USER BIRTH YEAR:', data.data?.birthYear)
-        setUser(data.data)
+        console.log('👤 USER BIRTH YEAR:', data.user?.birth_year)
+        
+        // Convert snake_case to camelCase for consistency
+        const userData = data.user ? {
+          id: data.user.id,
+          email: data.user.email,
+          birthYear: data.user.birth_year,
+          createdAt: data.user.created_at,
+          updatedAt: data.user.updated_at,
+          isAdmin: data.user.is_admin
+        } : null
+        
+        console.log('👤 CONVERTED USER DATA:', userData)
+        setUser(userData)
         
         // Set isNewUser flag based on account creation time (more generous window)
-        const isRecent = data.data?.createdAt && new Date(data.data.createdAt) > new Date(Date.now() - 24 * 60 * 60 * 1000) // 24 hours
+        const isRecent = userData?.createdAt && new Date(userData.createdAt) > new Date(Date.now() - 24 * 60 * 60 * 1000) // 24 hours
         if (isRecent) {
           console.log('🆕 New user detected - will show detailed welcome experience')
           setIsNewUser(true)
@@ -226,7 +261,227 @@ export default function Dashboard() {
     }
   }
 
+  const checkAdminStatus = async () => {
+    try {
+      console.log('🔍 Checking admin status...');
+      
+      if (!supabaseUser) {
+        console.log('❌ No Supabase user for admin check');
+        return;
+      }
 
+      // Get custom JWT token for API
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: supabaseUser.id,
+          email: supabaseUser.email 
+        })
+      });
+
+      if (!tokenResponse.ok) {
+        console.log('❌ Failed to get auth token for admin check');
+        return;
+      }
+
+      const { token } = await tokenResponse.json();
+      
+      const response = await fetch('/api/user/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      console.log('📡 Profile response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('👤 Profile data:', data);
+        const adminStatus = data.user?.is_admin || false;
+        console.log('🔑 Admin status:', adminStatus);
+        setIsAdmin(adminStatus);
+        
+        // Fallback check for your email specifically
+        if (!adminStatus && data.user?.email === 'dgalvin@yourcaio.co.uk') {
+          console.log('🛠️ Fallback: Setting admin to true for dgalvin@yourcaio.co.uk');
+          setIsAdmin(true);
+        }
+      } else {
+        console.error('❌ Profile check failed:', response.status);
+        // Emergency fallback - set admin for your email
+        if (user?.email === 'dgalvin@yourcaio.co.uk') {
+          console.log('🚨 Emergency fallback: Setting admin for dgalvin@yourcaio.co.uk');
+          setIsAdmin(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      // Emergency fallback
+      if (user?.email === 'dgalvin@yourcaio.co.uk') {
+        console.log('🚨 Catch fallback: Setting admin for dgalvin@yourcaio.co.uk');
+        setIsAdmin(true);
+      }
+    }
+  };
+
+  const checkImpersonationStatus = async () => {
+    try {
+      const response = await fetch('/api/admin/impersonate');
+      if (response.ok) {
+        const data = await response.json();
+        setIsImpersonating(data.isImpersonating);
+        setImpersonationData({
+          targetUser: data.targetUser,
+          adminUser: data.adminUser
+        });
+      }
+    } catch (error) {
+      console.error('Error checking impersonation status:', error);
+    }
+  };
+
+  const loadAvailableUsers = async () => {
+    if (!isAdmin || !supabaseUser) return;
+    
+    try {
+      // Get auth token for admin API call
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: supabaseUser.id,
+          email: supabaseUser.email 
+        })
+      });
+
+      if (!tokenResponse.ok) {
+        console.log('❌ Failed to get auth token for user loading');
+        return;
+      }
+
+      const { token } = await tokenResponse.json();
+      
+      const response = await fetch('/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+      toast.error('Failed to load users');
+    }
+  };
+
+  const handleImpersonateUser = async (targetUserId: string) => {
+    try {
+      if (!supabaseUser) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      // Get auth token for admin API call
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: supabaseUser.id,
+          email: supabaseUser.email 
+        })
+      });
+
+      if (!tokenResponse.ok) {
+        toast.error('Failed to authenticate');
+        return;
+      }
+
+      const { token } = await tokenResponse.json();
+      
+      const response = await fetch('/api/admin/impersonate', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ targetUserId })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast.success(data.message);
+        setIsImpersonating(true);
+        setImpersonationData({
+          targetUser: data.targetUser,
+          adminUser: data.adminUser
+        });
+        setShowUserSwitcher(false);
+        
+        // Refresh the page to load as the new user
+        window.location.reload();
+      } else {
+        toast.error(data.error || 'Failed to switch user');
+      }
+    } catch (error) {
+      console.error('Error impersonating user:', error);
+      toast.error('Failed to switch user');
+    }
+  };
+
+  const handleStopImpersonation = async () => {
+    try {
+      if (!supabaseUser) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      // Get auth token for admin API call
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: supabaseUser.id,
+          email: supabaseUser.email 
+        })
+      });
+
+      if (!tokenResponse.ok) {
+        toast.error('Failed to authenticate');
+        return;
+      }
+
+      const { token } = await tokenResponse.json();
+      
+      const response = await fetch('/api/admin/impersonate', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: 'stop' })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast.success('Returned to admin view');
+        setIsImpersonating(false);
+        setImpersonationData({});
+        
+        // Refresh the page to return to admin view
+        window.location.reload();
+      } else {
+        toast.error(data.error || 'Failed to stop impersonation');
+      }
+    } catch (error) {
+      console.error('Error stopping impersonation:', error);
+      toast.error('Failed to stop impersonation');
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -522,6 +777,7 @@ export default function Dashboard() {
             <TimelineView 
               memories={filteredMemoriesForTimeline} 
               birthYear={timelineBirthYear}
+              user={user}
               onEdit={handleEditMemory}
               onDelete={handleDeleteMemory}
               onStartCreating={handleCreateMemory}
@@ -645,6 +901,7 @@ export default function Dashboard() {
             <ChronologicalTimelineView 
               memories={filteredMemoriesForChrono} 
               birthYear={chronoBirthYear}
+              user={user}
               onStartCreating={handleCreateMemory}
               onCreateChapter={() => setActiveTab('create-timezone')}
               onZoomChange={(zoomLevel, currentYear, formatLabel, handlers) => {
@@ -751,7 +1008,7 @@ export default function Dashboard() {
       case 'create':
         return <CreateMemory onMemoryCreated={handleMemoryCreated} />
       case 'timezones':
-        return <GroupManager onCreateGroup={() => setActiveTab('create-timezone')} onStartCreating={handleCreateMemory} />
+        return <GroupManager user={user} onCreateGroup={() => setActiveTab('create-timezone')} onStartCreating={handleCreateMemory} />
       case 'create-timezone':
         return <CreateTimeZone onSuccess={() => { setActiveTab('timezones'); fetchMemories(); }} onCancel={() => setActiveTab('timezones')} />
       default:
@@ -876,6 +1133,110 @@ export default function Dashboard() {
               <span className="hidden lg:inline">Add Chapter</span>
             </button>
 
+            {/* Debug Admin Toggle - Remove in production */}
+            {!isAdmin && user?.email === 'dgalvin@yourcaio.co.uk' && (
+              <button
+                onClick={() => {
+                  console.log('🔧 Debug: Forcing admin mode');
+                  setIsAdmin(true);
+                }}
+                className="w-10 h-10 bg-yellow-100 hover:bg-yellow-200 rounded-xl flex items-center justify-center transition-all duration-200 text-yellow-600"
+                title="Debug: Enable Admin Mode"
+              >
+                🔧
+              </button>
+            )}
+
+            {/* Admin User Switcher */}
+            {isAdmin && (
+              <div className="relative">
+                {isImpersonating && (
+                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
+                    <AlertTriangle size={10} className="text-white" />
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    if (isImpersonating) {
+                      handleStopImpersonation();
+                    } else {
+                      setShowUserSwitcher(!showUserSwitcher);
+                      if (!showUserSwitcher) {
+                        loadAvailableUsers();
+                      }
+                    }
+                  }}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                    isImpersonating 
+                      ? 'bg-orange-100 hover:bg-orange-200 text-orange-600' 
+                      : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
+                  }`}
+                  title={isImpersonating ? 'Stop impersonation' : 'Switch user view (Admin)'}
+                >
+                  <UserCheck size={20} />
+                </button>
+                
+                {showUserSwitcher && !isImpersonating && (
+                  <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 py-2 min-w-[300px] z-50">
+                    <div className="px-4 py-2 border-b border-slate-100">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <UserCheck size={16} className="text-blue-600" />
+                        <p className="text-sm font-medium text-slate-900">View as User (Admin)</p>
+                      </div>
+                      <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search users..."
+                          value={userSearchTerm}
+                          onChange={(e) => setUserSearchTerm(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {availableUsers
+                        .filter(user => 
+                          user.email.toLowerCase().includes(userSearchTerm.toLowerCase())
+                        )
+                        .slice(0, 10)
+                        .map((user) => (
+                          <button
+                            key={user.id}
+                            onClick={() => handleImpersonateUser(user.id)}
+                            className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">{user.email}</p>
+                                <div className="flex items-center space-x-2 text-xs text-slate-500">
+                                  {user.is_admin && (
+                                    <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Admin</span>
+                                  )}
+                                  <span>
+                                    {user.last_sign_in_at 
+                                      ? `Last: ${new Date(user.last_sign_in_at).toLocaleDateString()}` 
+                                      : 'Never signed in'}
+                                  </span>
+                                </div>
+                              </div>
+                              <ChevronRight size={16} className="text-slate-400" />
+                            </div>
+                          </button>
+                        ))}
+                      {availableUsers.filter(user => 
+                        user.email.toLowerCase().includes(userSearchTerm.toLowerCase())
+                      ).length === 0 && (
+                        <div className="px-4 py-3 text-sm text-slate-500 text-center">
+                          No users found
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Profile Dropdown */}
             <div className="relative">
               <button
@@ -888,12 +1249,39 @@ export default function Dashboard() {
               {showProfileDropdown && (
                 <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 py-2 min-w-[180px] z-50">
                   <div className="px-4 py-2 border-b border-slate-100">
-                    <p className="text-sm font-medium text-slate-900">
-                      {user?.email || 'Loading...'}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {user?.birthYear ? `Born ${user.birthYear}` : 'Birth year not set'}
-                    </p>
+                    {isImpersonating ? (
+                      <>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                          <p className="text-xs font-medium text-orange-600 uppercase tracking-wide">Viewing as</p>
+                        </div>
+                        <p className="text-sm font-medium text-slate-900">
+                          {impersonationData.targetUser?.email || user?.email || 'Loading...'}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {user?.birthYear ? `Born ${user.birthYear}` : 'Birth year not set'}
+                        </p>
+                        <div className="mt-2 pt-2 border-t border-slate-100">
+                          <p className="text-xs text-slate-500">
+                            Admin: {impersonationData.adminUser?.email}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium text-slate-900">
+                          {user?.email || 'Loading...'}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {user?.birthYear ? `Born ${user.birthYear}` : 'Birth year not set'}
+                        </p>
+                        {isAdmin && (
+                          <div className="mt-1">
+                            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">Admin</span>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                   <button
                     onClick={() => { setActiveTab('profile'); setShowProfileDropdown(false) }}
@@ -907,11 +1295,22 @@ export default function Dashboard() {
                   >
                     Support
                   </button>
+                  {isImpersonating && (
+                    <button
+                      onClick={() => { handleStopImpersonation(); setShowProfileDropdown(false) }}
+                      className="w-full text-left px-4 py-2 hover:bg-orange-50 transition-colors text-orange-600 border-t border-slate-100"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <UserCheck size={16} />
+                        <span>Return to Admin View</span>
+                      </div>
+                    </button>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 hover:bg-red-50 transition-colors text-red-600"
                   >
-                    Sign Out
+                    {isImpersonating ? 'Return to Admin' : 'Sign Out'}
                   </button>
                 </div>
               )}
@@ -971,6 +1370,54 @@ export default function Dashboard() {
           showForceDelete={showForceDeleteOption}
           onForceDelete={forceDeleteMemory}
         />
+
+      {/* AI Chat Floating Button */}
+      {!showAIChat && (
+        <button 
+          onClick={() => setShowAIChat(true)}
+          className="fixed bottom-6 right-6 p-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all transform hover:scale-105 z-50"
+          title="AI Memory Assistant"
+        >
+          <Brain className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* AI Chat Interface */}
+      {showAIChat && (
+        <>
+          <div className="fixed bottom-6 right-6 z-50">
+            <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-96 h-[500px] flex flex-col">
+              <div className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-lg">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-5 h-5" />
+                  <span className="font-medium">AI Memory Assistant</span>
+                </div>
+                <button
+                  onClick={() => setShowAIChat(false)}
+                  className="text-white/80 hover:text-white text-xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <AIChatInterface 
+                  onMemoryCreated={(memory) => {
+                    // Refresh memories list
+                    fetchUserAndMemories()
+                    toast.success('New memory created through AI chat!')
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+          
+          {/* Backdrop for mobile */}
+          <div 
+            className="fixed inset-0 bg-black/20 z-40 md:hidden"
+            onClick={() => setShowAIChat(false)}
+          />
+        </>
+      )}
     </div>
   )
 } 

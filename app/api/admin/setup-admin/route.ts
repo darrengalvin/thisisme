@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// This endpoint sets up dgalvin@yourcaio.co.uk as an admin user
+// This endpoint sets up any email as an admin user
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json()
+    const { email } = body
+    
+    // If no email provided, default to dgalvin@yourcaio.co.uk for backwards compatibility
+    const targetEmail = email || 'dgalvin@yourcaio.co.uk'
+    
     // Use service role key for admin operations
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,11 +27,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const user = users.find(u => u.email === 'dgalvin@yourcaio.co.uk')
+    const user = users.find(u => u.email === targetEmail)
     
     if (!user) {
       return NextResponse.json(
-        { error: 'User dgalvin@yourcaio.co.uk not found in auth.users' },
+        { error: `User ${targetEmail} not found in auth.users` },
         { status: 404 }
       )
     }
@@ -51,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Admin privileges granted to dgalvin@yourcaio.co.uk',
+      message: `Admin privileges granted to ${targetEmail}`,
       user: updatedUser,
       adminUrls: [
         'https://thisisme-three.vercel.app/admin/support',

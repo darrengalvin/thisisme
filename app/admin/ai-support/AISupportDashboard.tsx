@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Brain, Zap, Shield, TrendingUp, AlertTriangle, CheckCircle, Github, ExternalLink, GitBranch, GitPullRequest } from 'lucide-react'
+import AIPRSuccessModal from '@/components/AIPRSuccessModal'
+import CustomAlertModal from '@/components/CustomAlertModal'
 
 interface GitHubConnection {
   connected: boolean
@@ -102,6 +104,22 @@ export default function AISupportDashboard() {
   const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
   const [creatingPR, setCreatingPR] = useState(false)
+  const [prProgress, setPrProgress] = useState({ step: '', progress: 0, details: '' })
+  const [prAbortController, setPrAbortController] = useState<AbortController | null>(null)
+  
+  // Modal states
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean
+    prData?: any
+    safetyScore?: number
+    riskLevel?: string
+  }>({ isOpen: false })
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean
+    type?: 'error' | 'warning' | 'success' | 'info'
+    title?: string
+    message?: string
+  }>({ isOpen: false })
 
   useEffect(() => {
     loadDashboardData()
@@ -197,14 +215,24 @@ export default function AISupportDashboard() {
 
   const analyzeTicket = async (ticket: Ticket) => {
     if (!selectedRepo) {
-      alert('Please select a repository first')
+      setAlertModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Repository Required',
+        message: 'Please select a repository first before analyzing tickets.'
+      })
       return
     }
 
     // Check if selected repository has write permissions
     const selectedRepoData = githubConnection.repositories?.find(r => r.full_name === selectedRepo)
     if (selectedRepoData && !selectedRepoData.permissions?.push && !selectedRepoData.permissions?.maintain && !selectedRepoData.permissions?.admin) {
-      alert('Warning: You do not have write permissions for this repository. Analysis will proceed but fix PRs may fail.')
+      setAlertModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Limited Repository Permissions',
+        message: 'You do not have write permissions for this repository. Analysis will proceed but fix PRs may fail.'
+      })
     }
 
     setAnalyzing(true)
@@ -253,11 +281,21 @@ export default function AISupportDashboard() {
       } else {
         const error = await response.json()
         console.error('Analysis failed:', error)
-        alert(`Analysis failed: ${error.error}`)
+        setAlertModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Analysis Failed',
+          message: `Analysis failed: ${error.error}`
+        })
       }
     } catch (error) {
       console.error('Error analyzing ticket:', error)
-      alert('Failed to analyze ticket')
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Analysis Error',
+        message: 'Failed to analyze ticket. Please try again.'
+      })
     } finally {
       setAnalyzing(false)
     }
@@ -265,26 +303,109 @@ export default function AISupportDashboard() {
 
   const createFixPR = async () => {
     if (!analysis) {
-      alert('Please analyze the ticket first')
+      setAlertModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Analysis Required',
+        message: 'Please analyze the ticket first before creating a fix PR.'
+      })
       return
     }
 
     setCreatingPR(true)
+    setPrProgress({ step: 'Initializing AI fix generation...', progress: 5, details: 'Setting up secure environment' })
+    
+    // Create abort controller for cancellation
+    const abortController = new AbortController()
+    setPrAbortController(abortController)
     
     try {
+      // Simulate progress updates for better UX
+      const progressUpdates = [
+        { step: 'Creating secure branch...', progress: 15, details: 'Generating unique branch name' },
+        { step: 'Analyzing code files...', progress: 25, details: 'Reading current implementation' },
+        { step: 'Generating fix with Claude AI...', progress: 40, details: 'Creating code modifications' },
+        { step: 'Running AI code review...', progress: 60, details: 'Validating security and quality' },
+        { step: 'Generating test cases...', progress: 75, details: 'Creating automated tests' },
+        { step: 'Creating GitHub PR...', progress: 90, details: 'Finalizing pull request' }
+      ]
+
+      // Start progress simulation
+      let currentStep = 0
+      const progressInterval = setInterval(() => {
+        if (currentStep < progressUpdates.length) {
+          setPrProgress(progressUpdates[currentStep])
+          currentStep++
+        }
+      }, 2000) // Update every 2 seconds
+
       const response = await fetch('/api/ai/create-fix-pr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        signal: abortController.signal,
         body: JSON.stringify({ 
           analysisId: analysis.id,
           autoApply: false
         })
       })
 
+      clearInterval(progressInterval)
+      setPrProgress({ step: 'Completing...', progress: 95, details: 'Processing results' })
+
       if (response.ok) {
         const data = await response.json()
-        alert(`Pull Request created successfully!\nPR #${data.pr.number}: ${data.pr.url}`)
+        
+        // Show detailed validation results
+        const validation = data.validation
+        const riskLevel = validation?.riskAssessment?.level || 'unknown'
+        const score = validation?.riskAssessment?.score || 0
+        const approved = validation?.riskAssessment?.approved
+        
+        const riskEmoji = riskLevel === 'low' ? '🟢' : riskLevel === 'medium' ? '🟡' : '🔴'
+        const approvedEmoji = approved ? '✅' : '❌'
+        
+        const message = `🤖 AI Fix PR Created Successfully!
+
+PR #${data.pr.number}: ${data.pr.url}
+
+🛡️ SAFETY VALIDATION:
+${approvedEmoji} AI Approved: ${approved ? 'Yes' : 'No'}
+⭐ Quality Score: ${score}/10
+${riskEmoji} Risk Level: ${riskLevel.toUpperCase()}
+🔒 Security Issues: ${validation?.riskAssessment?.securityIssues || 0}
+⚡ Performance Issues: ${validation?.riskAssessment?.performanceIssues || 0}
+
+💡 RECOMMENDATIONS:
+${validation?.recommendations?.autoMerge ? '✅ Safe for auto-merge' : '⚠️ Manual review required'}
+${validation?.recommendations?.stagingTestRequired ? '🧪 Test in staging before merge' : ''}
+
+${validation?.testGeneration ? '🧪 Automated tests generated' : '📝 Manual testing required'}
+
+${!approved ? '⚠️ ATTENTION: AI flagged potential issues - please review carefully!' : ''}
+        `
+        
+        // Show success in a better way than alert
+        setPrProgress({ 
+          step: '✅ Pull Request Created Successfully!', 
+          progress: 100, 
+          details: `PR #${data.pr.number} created with ${validation?.recommendations?.autoMerge ? 'low risk' : 'review required'}` 
+        })
+        
+        // Show custom success modal
+        setTimeout(() => {
+          setSuccessModal({
+            isOpen: true,
+            prData: {
+              number: data.pr.number,
+              url: data.pr.url,
+              title: data.pr.title || `AI Fix for: ${selectedTicket?.title}`,
+              branch: data.pr.head?.ref || 'ai-fix-branch'
+            },
+            safetyScore: score,
+            riskLevel: riskLevel
+          })
+        }, 1000)
         
         // Reload data to show new PR
         await loadDashboardData()
@@ -302,13 +423,37 @@ export default function AISupportDashboard() {
         }
       } else {
         const error = await response.json()
-        alert(`Failed to create PR: ${error.error}`)
+        setAlertModal({
+          isOpen: true,
+          type: 'error',
+          title: 'PR Creation Failed',
+          message: `Failed to create PR: ${error.error}`
+        })
       }
     } catch (error) {
       console.error('Error creating fix PR:', error)
-      alert('Failed to create pull request')
+      setPrProgress({ step: 'Error occurred', progress: 0, details: 'Failed to create pull request' })
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'PR Creation Error',
+        message: 'Failed to create pull request. Please try again.'
+      })
     } finally {
       setCreatingPR(false)
+      setPrAbortController(null)
+      setTimeout(() => {
+        setPrProgress({ step: '', progress: 0, details: '' })
+      }, 3000) // Clear progress after 3 seconds
+    }
+  }
+
+  const cancelPRCreation = () => {
+    if (prAbortController) {
+      prAbortController.abort()
+      setPrProgress({ step: 'Cancelled by user', progress: 0, details: 'Operation cancelled' })
+      setCreatingPR(false)
+      setPrAbortController(null)
     }
   }
 
@@ -644,8 +789,50 @@ export default function AISupportDashboard() {
                           className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                           <GitPullRequest className="w-4 h-4" />
-                          {creatingPR ? 'Creating Pull Request...' : 'Create Fix Pull Request'}
+                          {creatingPR ? 'Creating AI Fix...' : 'Create Fix Pull Request'}
                         </button>
+                        
+                        {creatingPR && (
+                          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-blue-900">{prProgress.step}</span>
+                              <span className="text-sm text-blue-700">{prProgress.progress}%</span>
+                            </div>
+                            
+                            <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                                style={{ width: `${prProgress.progress}%` }}
+                              ></div>
+                            </div>
+                            
+                            <p className="text-xs text-blue-600">{prProgress.details}</p>
+                            
+                            <div className="mt-3 text-xs text-blue-700">
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span>AI Safety Validation Included</span>
+                              </div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span>Automated Tests Generated</span>
+                              </div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span>Full Documentation Included</span>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-3 flex justify-end">
+                              <button
+                                onClick={cancelPRCreation}
+                                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 

@@ -77,6 +77,90 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const cookieStore = cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth');
+    const userInfo = await verifyToken(token);
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { title, description, category, priority, screenshot_url, metadata } = body;
+
+    // Get existing ticket to check permissions
+    const { data: existingTicket, error: fetchError } = await supabase
+      .from('tickets')
+      .select('creator_id')
+      .eq('id', params.id)
+      .single();
+
+    if (fetchError || !existingTicket) {
+      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+    }
+
+    // Check if user can edit this ticket (creator or admin)
+    const { data: userData } = await supabase
+      .from('users')
+      .select('id, is_admin')
+      .eq('id', userInfo.userId)
+      .single();
+
+    const canEdit = userData?.is_admin || existingTicket.creator_id === userInfo.userId;
+    
+    if (!canEdit) {
+      return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+    }
+
+    // Update ticket
+    const { data: updatedTicket, error: updateError } = await supabase
+      .from('tickets')
+      .update({
+        title,
+        description,
+        category,
+        priority,
+        screenshot_url,
+        metadata,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', params.id)
+      .select(`
+        *,
+        creator:users!tickets_creator_id_fkey(id, email),
+        assignee:users!tickets_assignee_id_fkey(id, email)
+      `)
+      .single();
+
+    if (updateError) {
+      console.error('Error updating ticket:', updateError);
+      return NextResponse.json({ error: 'Failed to update ticket' }, { status: 500 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      ticket: updatedTicket,
+      message: 'Ticket updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error in PATCH /api/support/tickets/[id]:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -163,10 +247,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth');
+    const userInfo = await verifyToken(token);
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const { data: userData } = await supabase
       .from('users')
       .select('is_admin')
-      .eq('id', token)
+      .eq('id', userInfo.userId)
       .single();
 
     if (!userData?.is_admin) {

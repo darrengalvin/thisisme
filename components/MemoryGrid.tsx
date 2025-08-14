@@ -53,7 +53,7 @@ export default function MemoryGrid({ memories, onEdit, onDelete, onStartCreating
                       <img
                         src={memory.media[0].storage_url}
                         alt=""
-                        className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-110"
+                        className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-110"
                       />
                     )}
                     {memory.media[0].type === 'VIDEO' && (

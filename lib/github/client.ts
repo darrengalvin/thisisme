@@ -357,7 +357,9 @@ export class GitHubClient {
           repo,
           ref: `heads/${branchName}`
         })
-        throw new Error(`Branch ${branchName} already exists`)
+        // If we get here, branch exists, so return existing branch name
+        console.log(`Branch ${branchName} already exists, using existing branch`)
+        return branchName
       } catch (error: any) {
         if (error.status !== 404) {
           throw error

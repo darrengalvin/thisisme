@@ -27,8 +27,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Temporary override for specific user
-    if (user.email === 'dgalvin@yourcaio.co.uk') {
+    // Temporary override for specific users
+    const premiumUsers = ['dgalvin@yourcaio.co.uk', 'rod7goodman60@gmail.com'];
+    if (premiumUsers.includes(user.email || '')) {
       return NextResponse.json({
         isPremium: true,
         tier: 'pro',

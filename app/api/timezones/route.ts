@@ -3,6 +3,7 @@ import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { generateInviteCode } from '@/lib/utils'
 import { TIMEZONE_TYPES, MEMBER_ROLES } from '@/lib/types'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,6 +21,18 @@ export async function GET(request: NextRequest) {
         { success: false, error: 'Invalid token' },
         { status: 401 }
       )
+    }
+
+    // Check for admin impersonation
+    const cookieStore = cookies()
+    const impersonatingUserId = cookieStore.get('impersonating-user-id')?.value
+    const adminUserId = cookieStore.get('admin-user-id')?.value
+    
+    // If impersonating, use the target user's ID instead
+    let targetUserId = user.userId
+    if (impersonatingUserId && adminUserId && user.userId === adminUserId) {
+      console.log('🎭 TIMEZONES: Admin viewing as user:', { admin: user.userId, target: impersonatingUserId })
+      targetUserId = impersonatingUserId
     }
 
     // Use service role client to bypass RLS
@@ -46,7 +59,7 @@ export async function GET(request: NextRequest) {
           user:users(id, email)
         )
       `)
-      .eq('creator_id', user.userId)
+      .eq('creator_id', targetUserId)
       .order('created_at', { ascending: false })
 
     if (dbError) {

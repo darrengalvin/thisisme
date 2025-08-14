@@ -24,7 +24,7 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [existingMediaToDelete, setExistingMediaToDelete] = useState<string[]>([])
   const [showImageCropper, setShowImageCropper] = useState(false)
-  const [tempImageForCrop, setTempImageForCrop] = useState<{ file: File, index: number, isExisting?: boolean, mediaId?: string } | null>(null)
+  const [tempImageForCrop, setTempImageForCrop] = useState<{ file: File, index: number, isExisting?: boolean, mediaId?: string, aspectRatio?: number } | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeletingMemory, setIsDeletingMemory] = useState(false)
 
@@ -229,7 +229,23 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
     setShowDeleteModal(false)
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Helper function to get image aspect ratio
+  const getImageAspectRatio = (file: File): Promise<number> => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const aspectRatio = img.naturalWidth / img.naturalHeight
+        resolve(aspectRatio)
+      }
+      img.onerror = () => {
+        // Fallback to square aspect ratio if image can't be loaded
+        resolve(1)
+      }
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('📁 EDIT MEMORY: File upload triggered')
     
     if (e.target.files) {
@@ -251,8 +267,12 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
           return
         }
         
+        // Get the image's natural aspect ratio
+        const aspectRatio = await getImageAspectRatio(file)
+        console.log('📁 EDIT MEMORY: Image aspect ratio:', aspectRatio)
+        
         // Show cropper immediately for new upload
-        setTempImageForCrop({ file, index: mediaFiles.length })
+        setTempImageForCrop({ file, index: mediaFiles.length, aspectRatio })
         setShowImageCropper(true)
         setMediaFiles(prev => {
           console.log('📁 EDIT MEMORY: Adding file to media files')
@@ -316,11 +336,16 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
       const blob = await response.blob()
       const file = new File([blob], 'existing-image.jpg', { type: blob.type })
       
+      // Get the image's natural aspect ratio
+      const aspectRatio = await getImageAspectRatio(file)
+      console.log('📁 EDIT MEMORY: Existing image aspect ratio:', aspectRatio)
+      
       setTempImageForCrop({ 
         file, 
         index: 0, 
         isExisting: true, 
-        mediaId 
+        mediaId,
+        aspectRatio
       })
       setShowImageCropper(true)
     } catch (error) {
@@ -333,9 +358,9 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
+        <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-slate-200">
           <h2 className="text-xl font-bold text-slate-900">Edit Memory</h2>
           <button
             onClick={handleClose}
@@ -346,32 +371,21 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Debug Info - Remove this after fixing */}
-          <div className="bg-gray-100 p-2 rounded text-xs">
-            <strong>DEBUG:</strong> memory.media = {memory.media ? `Array(${memory.media.length})` : 'null/undefined'}
-            {memory.media && memory.media.length > 0 && (
-              <div>First media: {JSON.stringify({
-                id: memory.media[0]?.id,
-                type: memory.media[0]?.type,
-                storage_url: memory.media[0]?.storage_url ? 'present' : 'missing',
-                thumbnail_url: memory.media[0]?.thumbnail_url ? 'present' : 'missing'
-              })}</div>
-            )}
-          </div>
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-          {/* Primary Memory Images - Prominent Display */}
-          {memory.media && memory.media.length > 0 && (
-            <div>
-              <label className="block text-sm font-semibold text-slate-900 mb-3">Memory Images</label>
-              
-              {/* Main image */}
-              <div className="mb-4">
+          {/* Memory Images Section */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-900 mb-3">Memory Images</label>
+            
+            {/* Primary Image Area */}
+            <div className="mb-4">
+              {/* Show existing primary image if not marked for deletion */}
+              {memory.media && memory.media.length > 0 && memory.media[0] && !existingMediaToDelete.includes(memory.media[0].id) ? (
                 <div className="relative">
                   <div className="relative w-full h-64 rounded-lg overflow-hidden border-2 border-slate-200">
                     <img
-                      src={memory.media?.[0]?.storage_url || memory.media?.[0]?.thumbnail_url || ''}
+                      src={memory.media[0].storage_url || memory.media[0].thumbnail_url || ''}
                       alt="Primary memory"
                       className="w-full h-full object-cover"
                     />
@@ -381,23 +395,16 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                   </div>
                   
                   {/* Remove Image Button */}
-                  {memory.media?.[0] && (
-                    <button
-                      onClick={() => toggleDeleteExistingMedia(memory.media![0].id)}
-                      className={`absolute top-2 right-2 rounded-full p-1.5 transition-colors ${
-                        existingMediaToDelete.includes(memory.media![0].id)
-                          ? 'bg-red-500 text-white'
-                          : 'bg-red-500 hover:bg-red-600 text-white'
-                      }`}
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-                
-                {/* Actions */}
-                <div className="flex items-center justify-center space-x-3 mt-3">
-                  {memory.media?.[0] && (
+                  <button
+                    onClick={() => toggleDeleteExistingMedia(memory.media![0].id)}
+                    className="absolute top-2 right-2 rounded-full p-1.5 bg-red-500 hover:bg-red-600 text-white transition-colors"
+                    title="Remove this image"
+                  >
+                    <X size={16} />
+                  </button>
+                  
+                  {/* Actions */}
+                  <div className="flex items-center justify-center space-x-3 mt-3">
                     <button
                       onClick={() => cropExistingImage(memory.media![0].id, memory.media![0].storage_url || '')}
                       className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg transition-colors"
@@ -406,66 +413,85 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                       <Crop size={16} />
                       <span>Adjust Position</span>
                     </button>
-                  )}
-                </div>
-                
-                {memory.media?.[0] && existingMediaToDelete.includes(memory.media[0].id) && (
-                  <p className="text-xs text-red-600 text-center mt-2">
-                    This image will be deleted when you save
-                  </p>
-                )}
-              </div>
-
-              {/* Additional images */}
-              {memory.media.length > 1 && (
-                <div>
-                  <h4 className="text-sm font-medium text-slate-700 mb-2">Additional Images</h4>
-                  <div className="grid grid-cols-3 gap-3">
-                    {memory.media.slice(1).map((media) => (
-                      <div 
-                        key={media.id}
-                        className={`relative group ${existingMediaToDelete.includes(media.id) ? 'opacity-50' : ''}`}
-                      >
-                        <div className="aspect-square rounded-lg overflow-hidden border border-slate-200">
-                          <img
-                            src={media.thumbnail_url || media.storage_url}
-                            alt="Additional memory"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        
-                        {/* Action buttons */}
-                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
-                          <button
-                            onClick={() => cropExistingImage(media.id, media.storage_url)}
-                            className="p-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg transition-colors"
-                            title="Adjust Position"
-                            type="button"
-                          >
-                            <Crop size={12} />
-                          </button>
-                          <button
-                            onClick={() => toggleDeleteExistingMedia(media.id)}
-                            className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-                            title="Delete image"
-                            type="button"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                        
-                        {existingMediaToDelete.includes(media.id) && (
-                          <div className="absolute inset-0 bg-red-500/20 rounded-lg flex items-center justify-center">
-                            <span className="text-xs text-red-600 font-medium">Will delete</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
                   </div>
+                </div>
+              ) : (
+                /* Show upload placeholder when no primary image or primary image is deleted */
+                <div className="relative w-full h-64 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center">
+                  <Upload size={48} className="text-slate-400 mb-4" />
+                  <p className="text-slate-600 font-medium mb-2">Add Primary Image</p>
+                  <p className="text-slate-500 text-sm text-center mb-4">
+                    Upload an image to be the main photo for this memory
+                  </p>
+                  <label className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg cursor-pointer transition-colors font-medium">
+                    <Upload size={16} />
+                    <span>Choose Image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      disabled={isLoading}
+                    />
+                  </label>
                 </div>
               )}
             </div>
-          )}
+
+            {/* Additional images - only show those not marked for deletion */}
+            {memory.media && memory.media.length > 1 && (
+              <div>
+                {/* Filter out deleted images */}
+                {(() => {
+                  const visibleAdditionalImages = memory.media.slice(1).filter(media => 
+                    !existingMediaToDelete.includes(media.id)
+                  )
+                  
+                  if (visibleAdditionalImages.length > 0) {
+                    return (
+                      <>
+                        <h4 className="text-sm font-medium text-slate-700 mb-2">Additional Images</h4>
+                        <div className="grid grid-cols-3 gap-3">
+                          {visibleAdditionalImages.map((media) => (
+                            <div key={media.id} className="relative group">
+                              <div className="aspect-square rounded-lg overflow-hidden border border-slate-200">
+                                <img
+                                  src={media.thumbnail_url || media.storage_url}
+                                  alt="Additional memory"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              
+                              {/* Action buttons */}
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
+                                <button
+                                  onClick={() => cropExistingImage(media.id, media.storage_url)}
+                                  className="p-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg transition-colors"
+                                  title="Adjust Position"
+                                  type="button"
+                                >
+                                  <Crop size={12} />
+                                </button>
+                                <button
+                                  onClick={() => toggleDeleteExistingMedia(media.id)}
+                                  className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                                  title="Delete image"
+                                  type="button"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )
+                  }
+                  return null
+                })()}
+              </div>
+            )}
+          </div>
 
           {/* Title */}
           <div>
@@ -497,88 +523,90 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
             />
           </div>
 
-          {/* Add More Images */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-900 mb-3">Add More Images</label>
-            
-            {/* New Media Preview */}
-            {mediaFiles.length > 0 && (
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-slate-700 mb-2">New images to add</h4>
-                <div className="grid grid-cols-3 gap-3">
-                  {mediaFiles.map((file, index) => (
-                    <div key={index} className="relative group">
-                      <div className="aspect-square rounded-lg overflow-hidden border border-slate-200">
-                        {file.type.startsWith('image/') ? (
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt="New image"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-slate-200">
-                            <span className="text-lg">
-                              {file.type.startsWith('video/') ? '🎥' : '🎵'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Action buttons */}
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
-                        {file.type.startsWith('image/') && (
+          {/* Additional Images Section - Only show if there's a primary image or new files */}
+          {((memory.media && memory.media.length > 0 && memory.media[0] && !existingMediaToDelete.includes(memory.media[0].id)) || mediaFiles.length > 0) && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-900 mb-3">Additional Images</label>
+              
+              {/* New Media Preview */}
+              {mediaFiles.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-slate-700 mb-2">New images to add</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    {mediaFiles.map((file, index) => (
+                      <div key={index} className="relative group">
+                        <div className="aspect-square rounded-lg overflow-hidden border border-slate-200">
+                          {file.type.startsWith('image/') ? (
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt="New image"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-200">
+                              <span className="text-lg">
+                                {file.type.startsWith('video/') ? '🎥' : '🎵'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Action buttons */}
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
+                          {file.type.startsWith('image/') && (
+                            <button
+                              onClick={async () => {
+                                const aspectRatio = await getImageAspectRatio(file)
+                                setTempImageForCrop({ file, index, aspectRatio })
+                                setShowImageCropper(true)
+                              }}
+                              className="p-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg transition-colors"
+                              title="Adjust Position"
+                              type="button"
+                            >
+                              <Crop size={12} />
+                            </button>
+                          )}
                           <button
-                            onClick={() => {
-                              setTempImageForCrop({ file, index })
-                              setShowImageCropper(true)
-                            }}
-                            className="p-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg transition-colors"
-                            title="Adjust Position"
+                            onClick={() => removeNewFile(index)}
+                            className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                            title="Remove image"
                             type="button"
                           >
-                            <Crop size={12} />
+                            <X size={12} />
                           </button>
-                        )}
-                        <button
-                          onClick={() => removeNewFile(index)}
-                          className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-                          title="Remove image"
-                          type="button"
-                        >
-                          <X size={12} />
-                        </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
+              )}
+              
+              {/* Upload Button */}
+              <div className="text-center">
+                <label className="inline-flex items-center space-x-2 bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg cursor-pointer transition-colors font-medium">
+                  <Upload size={16} />
+                  <span>Add More Images</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    disabled={isLoading}
+                  />
+                </label>
               </div>
-            )}
-            
-            {/* Upload Button */}
-            <div className="text-center">
-              <label className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white px-6 py-3 rounded-lg cursor-pointer transition-colors font-medium">
-                <Upload size={16} />
-                <span>Add More Images</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  disabled={isLoading}
-                />
-              </label>
+              
+              <p className="text-xs text-slate-500 mt-3 text-center">
+                Add additional images to complement your main memory photo
+              </p>
             </div>
-            
-            <p className="text-xs text-slate-500 mt-3 text-center">
-              • Images will open the cropper immediately for positioning
-              • Use "Adjust Position" to re-crop any image
-            </p>
-          </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className={`border-t border-slate-200 ${isLoading ? 'bg-yellow-50' : 'bg-slate-50'}`}>
+        <div className={`flex-shrink-0 border-t border-slate-200 ${isLoading ? 'bg-yellow-50' : 'bg-slate-50'}`}>
           {isLoading && (
             <div className="px-6 py-2 bg-yellow-100 border-b border-yellow-200">
               <p className="text-xs text-yellow-800 text-center">
@@ -648,9 +676,9 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
             setTempImageForCrop(null)
           }}
           title={tempImageForCrop.isExisting ? "Crop existing photo" : "Crop new photo"}
-          aspectRatio={16 / 9}
-          outputWidth={1920}
-          outputHeight={1080}
+          aspectRatio={tempImageForCrop.aspectRatio || 1}
+          outputWidth={tempImageForCrop.aspectRatio && tempImageForCrop.aspectRatio > 1 ? 1920 : 1080}
+          outputHeight={tempImageForCrop.aspectRatio && tempImageForCrop.aspectRatio > 1 ? Math.round(1920 / tempImageForCrop.aspectRatio) : Math.round(1080 * tempImageForCrop.aspectRatio)}
         />
       )}
 

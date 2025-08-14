@@ -3,6 +3,7 @@ import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { v4 as uuidv4 } from 'uuid'
 import { getFileType } from '@/lib/utils'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,6 +21,18 @@ export async function GET(request: NextRequest) {
         { success: false, error: 'Invalid token' },
         { status: 401 }
       )
+    }
+
+    // Check for admin impersonation
+    const cookieStore = cookies()
+    const impersonatingUserId = cookieStore.get('impersonating-user-id')?.value
+    const adminUserId = cookieStore.get('admin-user-id')?.value
+    
+    // If impersonating, use the target user's ID instead
+    let targetUserId = user.userId
+    if (impersonatingUserId && adminUserId && user.userId === adminUserId) {
+      console.log('🎭 MEMORIES: Admin viewing as user:', { admin: user.userId, target: impersonatingUserId })
+      targetUserId = impersonatingUserId
     }
 
     // Use service role client to bypass RLS
@@ -43,7 +56,7 @@ export async function GET(request: NextRequest) {
         timezone:timezones!memories_timezone_id_fkey(id, title, type),
         media(*)
       `)
-      .eq('user_id', user.userId)
+      .eq('user_id', targetUserId)
       .order('created_at', { ascending: false })
 
     if (memoriesError) {
@@ -312,7 +325,7 @@ export async function POST(request: NextRequest) {
             .from('media')
             .insert({
               memory_id: memory.id,
-              type: mediaType.toUpperCase(),
+              type: mediaType,
               storage_url: publicUrl,
               file_name: file.name,
               file_size: file.size,

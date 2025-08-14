@@ -43,25 +43,19 @@ export default function ImageCropper({
     img.onload = () => {
       setImageSize({ width: img.naturalWidth, height: img.naturalHeight })
       
-      // Calculate zoom to show full image initially
+      // Calculate zoom to show the entire image initially (no cropping)
       const containerWidth = 400 // Fixed container size
       const containerHeight = containerWidth / aspectRatio
       
-      const imgAspect = img.naturalWidth / img.naturalHeight
-      const containerAspect = aspectRatio
+      // Calculate what zoom level is needed to fit the entire image in the container
+      const scaleToFitWidth = containerWidth / img.naturalWidth
+      const scaleToFitHeight = containerHeight / img.naturalHeight
       
-      let initialZoom = 1
-      if (imgAspect > containerAspect) {
-        // Image is wider - fit to height
-        initialZoom = containerHeight / img.naturalHeight
-      } else {
-        // Image is taller - fit to width
-        initialZoom = containerWidth / img.naturalWidth
-      }
+      // Use the smaller scale to ensure the entire image fits with generous padding
+      const initialZoom = Math.min(scaleToFitWidth, scaleToFitHeight) * 0.75 // 75% to add more padding
       
-      // Ensure minimum zoom of 0.3 for better cropping
-      initialZoom = Math.max(0.3, initialZoom)
-      setZoom(initialZoom)
+      // Ensure reasonable zoom range
+      setZoom(Math.max(0.1, Math.min(1.0, initialZoom)))
       
       // Initialize crop area to be centered and reasonably sized
       const cropWidth = Math.min(300, containerWidth * 0.8)
@@ -137,7 +131,7 @@ export default function ImageCropper({
   }
 
   const handleZoomOut = () => {
-    setZoom(prev => Math.max(0.3, prev / 1.2))
+    setZoom(prev => Math.max(0.1, prev / 1.2))
     setShowInstructions(false)
   }
 
@@ -148,17 +142,12 @@ export default function ImageCropper({
     const containerWidth = container.offsetWidth
     const containerHeight = container.offsetHeight
     
-    const imgAspect = imageSize.width / imageSize.height
-    const containerAspect = aspectRatio
+    // Calculate zoom to fit entire image with generous padding
+    const scaleToFitWidth = containerWidth / imageSize.width
+    const scaleToFitHeight = containerHeight / imageSize.height
+    const resetZoom = Math.min(scaleToFitWidth, scaleToFitHeight) * 0.75
     
-    let resetZoom
-    if (imgAspect > containerAspect) {
-      resetZoom = containerWidth / imageSize.width
-    } else {
-      resetZoom = containerHeight / imageSize.height
-    }
-    
-    setZoom(Math.max(0.3, resetZoom))
+    setZoom(Math.max(0.1, Math.min(1.0, resetZoom)))
     setPosition({ x: 0, y: 0 })
     
     // Reset crop area
@@ -178,7 +167,7 @@ export default function ImageCropper({
     
     const zoomFactor = 0.1
     const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor // Invert for natural zoom direction
-    const newZoom = Math.max(0.3, Math.min(3, zoom + delta))
+    const newZoom = Math.max(0.1, Math.min(3, zoom + delta))
     
     setZoom(newZoom)
     setShowInstructions(false)
@@ -194,19 +183,12 @@ export default function ImageCropper({
       return
     }
 
-    canvas.width = outputWidth
-    canvas.height = outputHeight
-
     const img = new Image()
     img.onload = () => {
       const container = containerRef.current
       if (!container) return
 
-      // Fill background
-      ctx.fillStyle = '#f1f5f9'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-      // SIMPLE MODE: Use the entire container as the crop area (like Instagram)
+      // IMPROVED APPROACH: Preserve more of the original image with smart cropping
       const containerWidth = container.offsetWidth
       const containerHeight = container.offsetHeight
       
@@ -218,26 +200,58 @@ export default function ImageCropper({
       const imageX = (containerWidth - imageDisplayWidth) / 2 + position.x
       const imageY = (containerHeight - imageDisplayHeight) / 2 + position.y
       
-      // Calculate what portion of the image is visible in the container
-      const visibleLeft = Math.max(0, -imageX)
-      const visibleTop = Math.max(0, -imageY)
-      const visibleRight = Math.min(imageDisplayWidth, containerWidth - imageX)
-      const visibleBottom = Math.min(imageDisplayHeight, containerHeight - imageY)
+      // More conservative approach: if image fits entirely in container, use the whole image
+      // Otherwise, use what's visible with some padding
+      let sourceX, sourceY, sourceWidth, sourceHeight
       
-      const visibleWidth = visibleRight - visibleLeft
-      const visibleHeight = visibleBottom - visibleTop
-      
-      // Convert to source image coordinates
-      const sourceX = (visibleLeft / zoom)
-      const sourceY = (visibleTop / zoom)
-      const sourceWidth = (visibleWidth / zoom)
-      const sourceHeight = (visibleHeight / zoom)
+      if (imageDisplayWidth <= containerWidth && imageDisplayHeight <= containerHeight) {
+        // Image fits entirely - use the whole image
+        sourceX = 0
+        sourceY = 0
+        sourceWidth = imageSize.width
+        sourceHeight = imageSize.height
+      } else {
+        // Image is larger than container - crop to visible area with padding
+        const padding = 20 // pixels of padding
+        const visibleLeft = Math.max(0, -imageX - padding)
+        const visibleTop = Math.max(0, -imageY - padding)
+        const visibleRight = Math.min(imageDisplayWidth, containerWidth - imageX + padding)
+        const visibleBottom = Math.min(imageDisplayHeight, containerHeight - imageY + padding)
+        
+        const visibleWidth = visibleRight - visibleLeft
+        const visibleHeight = visibleBottom - visibleTop
+        
+        // Convert to source image coordinates
+        sourceX = Math.max(0, (visibleLeft / zoom))
+        sourceY = Math.max(0, (visibleTop / zoom))
+        sourceWidth = Math.min(imageSize.width - sourceX, (visibleWidth / zoom))
+        sourceHeight = Math.min(imageSize.height - sourceY, (visibleHeight / zoom))
+      }
 
-      // Draw the visible portion of the image
+      // Calculate the actual aspect ratio of the cropped area
+      const croppedAspectRatio = sourceWidth / sourceHeight
+      
+      // Set canvas size to preserve the cropped aspect ratio at high quality
+      const maxDimension = Math.max(outputWidth, outputHeight)
+      if (croppedAspectRatio > 1) {
+        // Landscape: width is the limiting factor
+        canvas.width = maxDimension
+        canvas.height = Math.round(maxDimension / croppedAspectRatio)
+      } else {
+        // Portrait/Square: height is the limiting factor
+        canvas.height = maxDimension
+        canvas.width = Math.round(maxDimension * croppedAspectRatio)
+      }
+
+      // Fill background (in case of any gaps)
+      ctx.fillStyle = '#f8fafc'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      // Draw the cropped portion maintaining its aspect ratio
       ctx.drawImage(
         img,
-        sourceX, sourceY, sourceWidth, sourceHeight, // Source rectangle
-        0, 0, canvas.width, canvas.height // Destination rectangle (stretched to fill)
+        sourceX, sourceY, sourceWidth, sourceHeight, // Source rectangle (what's visible)
+        0, 0, canvas.width, canvas.height // Destination rectangle (maintains aspect ratio)
       )
 
       // Convert to file
@@ -285,8 +299,8 @@ export default function ImageCropper({
               ref={containerRef}
               className="relative w-full mx-auto overflow-hidden bg-slate-100 rounded-lg border-2 border-slate-300"
               style={{ 
-                maxWidth: '400px',
-                aspectRatio: aspectRatio
+                width: '400px',
+                height: `${400 / aspectRatio}px`
               }}
               onMouseMove={handleSimpleMouseMove}
               onMouseUp={handleMouseUp}
@@ -338,14 +352,14 @@ export default function ImageCropper({
                 <button
                   onClick={handleZoomOut}
                   className="p-1.5 bg-white border border-slate-200 rounded hover:bg-slate-100 transition-colors"
-                  disabled={zoom <= 0.3}
+                  disabled={zoom <= 0.1}
                 >
                   <ZoomOut size={16} className="text-slate-600" />
                 </button>
                 <div className="relative w-32">
                   <input
                     type="range"
-                    min="0.3"
+                    min="0.1"
                     max="3"
                     step="0.1"
                     value={zoom}
@@ -357,7 +371,7 @@ export default function ImageCropper({
                   />
                   <div 
                     className="absolute top-0 left-0 h-2 bg-slate-600 rounded-lg pointer-events-none"
-                    style={{ width: `${((zoom - 0.3) / 2.7) * 100}%` }}
+                    style={{ width: `${((zoom - 0.1) / 2.9) * 100}%` }}
                   />
                 </div>
                 <button

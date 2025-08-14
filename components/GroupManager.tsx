@@ -8,6 +8,7 @@ import DeleteConfirmationModal from './DeleteConfirmationModal'
 import toast from 'react-hot-toast'
 
 interface GroupManagerProps {
+  user?: { id: string; email: string; birthYear?: number } | null
   onCreateGroup?: () => void
   onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
 }
@@ -46,8 +47,9 @@ const formatDateRange = (startDate?: string | null, endDate?: string | null) => 
   return 'No dates set'
 }
 
-export default function GroupManager({ onCreateGroup, onStartCreating }: GroupManagerProps) {
-  const { user } = useAuth()
+export default function GroupManager({ user: propUser, onCreateGroup, onStartCreating }: GroupManagerProps) {
+  const { user: authUser } = useAuth()
+  const user = propUser || authUser
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
   const [memories, setMemories] = useState<MemoryWithRelations[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -373,7 +375,18 @@ export default function GroupManager({ onCreateGroup, onStartCreating }: GroupMa
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {chapters.map((chapter, index) => (
+            {chapters
+              .sort((a, b) => {
+                // Robust chronological sorting - same logic as TimelineView and ChronologicalTimelineView
+                const aDate = a.startDate ? new Date(a.startDate) : (a.createdAt ? new Date(a.createdAt) : new Date('1900-01-01'))
+                const bDate = b.startDate ? new Date(b.startDate) : (b.createdAt ? new Date(b.createdAt) : new Date('1900-01-01'))
+                
+                const aTime = isNaN(aDate.getTime()) ? new Date('1900-01-01').getTime() : aDate.getTime()
+                const bTime = isNaN(bDate.getTime()) ? new Date('1900-01-01').getTime() : bDate.getTime()
+                
+                return aTime - bTime
+              })
+              .map((chapter, index) => (
               <div 
                 key={chapter.id} 
                 className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-visible border border-slate-200/50 group"

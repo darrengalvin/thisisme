@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
+import { ClaudeClient } from '@/lib/ai/claude-client'
 import { promises as fs } from 'fs'
 import { join } from 'path'
-
-// Initialize OpenAI client only if API key is available
-let openai: OpenAI | null = null
-if (process.env.OPENAI_API_KEY) {
-  openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  })
-}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,12 +13,8 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    if (!openai) {
-      return NextResponse.json(
-        { error: 'AI fix generation service not configured' },
-        { status: 503 }
-      )
-    }
+    // Initialize Claude client
+    const claude = new ClaudeClient()
 
     const cookieStore = cookies()
     const token = cookieStore.get('auth-token')?.value
@@ -123,23 +111,20 @@ Focus on the chronological sorting issue if that's the problem. Look for sorting
 Return structured JSON with the complete fix plan.
 `
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are a senior software engineer specializing in React/Next.js applications. You generate precise, tested fixes for bugs. Always consider edge cases and provide comprehensive solutions."
-        },
-        {
-          role: "user",
-          content: fixPrompt
-        }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.2
-    })
+    // Use Claude for generating fixes with context
+    const fixResponse = await claude.generateFix(
+      analysis.analysis_data,
+      fixPrompt,
+      {
+        ticketTitle: ticket.title,
+        ticketDescription: ticket.description,
+        category: ticket.category,
+        priority: ticket.priority,
+        language: 'typescript'
+      }
+    )
 
-    const fixPlan = JSON.parse(completion.choices[0].message.content || '{}')
+    const fixPlan = fixResponse || {}
 
     // Store the generated fix plan
     const { data: storedFix, error: storeError } = await supabase
@@ -148,7 +133,7 @@ Return structured JSON with the complete fix plan.
         ticket_id: ticketId,
         fix_plan: fixPlan,
         code_context_files: filesToAnalyze,
-        model_used: 'gpt-4o',
+        model_used: 'claude-3.5-sonnet',
         generated_at: new Date().toISOString(),
         generated_by: userInfo.userId,
         status: 'pending_review'

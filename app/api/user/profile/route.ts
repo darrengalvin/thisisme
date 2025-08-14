@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
   try {
@@ -22,6 +23,18 @@ export async function GET(request: Request) {
       )
     }
 
+    // Check for admin impersonation
+    const cookieStore = cookies()
+    const impersonatingUserId = cookieStore.get('impersonating-user-id')?.value
+    const adminUserId = cookieStore.get('admin-user-id')?.value
+    
+    // If impersonating, use the target user's ID instead
+    let targetUserId = user.userId
+    if (impersonatingUserId && adminUserId && user.userId === adminUserId) {
+      console.log('🎭 IMPERSONATION: Admin viewing as user:', { admin: user.userId, target: impersonatingUserId })
+      targetUserId = impersonatingUserId
+    }
+
     // Use service role client to bypass RLS for profile lookup
     console.log('🔍 PROFILE API: Using service role client for profile lookup')
     const supabaseAdmin = createClient(
@@ -36,13 +49,13 @@ export async function GET(request: Request) {
     )
 
     // Get user profile from Supabase using service role (bypasses RLS)
-    console.log('🔍 PROFILE API: Looking up user profile for:', user.userId)
-    console.log('🔍 PROFILE API: User JWT details:', { userId: user.userId, email: user.email })
+    console.log('🔍 PROFILE API: Looking up user profile for:', targetUserId)
+    console.log('🔍 PROFILE API: User JWT details:', { userId: user.userId, email: user.email, targetUserId })
     
     const { data: userProfile, error } = await supabaseAdmin
       .from('users')
-      .select('id, email, birth_year, created_at, updated_at')
-      .eq('id', user.userId)
+      .select('id, email, birth_year, created_at, updated_at, is_admin')
+      .eq('id', targetUserId)
       .maybeSingle()
 
     console.log('🔍 PROFILE API: Raw Supabase response (with service role):', { 
@@ -56,7 +69,7 @@ export async function GET(request: Request) {
     const { count, error: countError } = await supabaseAdmin
       .from('users')
       .select('*', { count: 'exact', head: true })
-      .eq('id', user.userId)
+      .eq('id', targetUserId)
     
     console.log('🔍 PROFILE API: User count check (with service role):', { count, countError })
 
@@ -72,14 +85,15 @@ export async function GET(request: Request) {
     if (!userProfile) {
       console.log('⚠️ PROFILE API: No user profile found even with service role - record truly missing')
       console.log('⚠️ PROFILE API: This indicates a problem with the onboarding process')
-      return NextResponse.json({
+              return NextResponse.json({
         success: true,
-        data: {
-          id: user.userId,
-          email: user.email,
-          birthYear: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+        user: {
+          id: targetUserId,
+          email: user.email, // Keep original email for now
+          birth_year: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_admin: false
         }
       })
     }
@@ -91,18 +105,17 @@ export async function GET(request: Request) {
       createdAt: userProfile.created_at
     })
 
-    // Convert to camelCase for consistency
-    const profileData = {
-      id: userProfile.id,
-      email: userProfile.email,
-      birthYear: userProfile.birth_year,
-      createdAt: userProfile.created_at,
-      updatedAt: userProfile.updated_at
-    }
-
+    // Return user profile data
     return NextResponse.json({
       success: true,
-      data: profileData
+      user: {
+        id: userProfile.id,
+        email: userProfile.email,
+        birth_year: userProfile.birth_year,
+        created_at: userProfile.created_at,
+        updated_at: userProfile.updated_at,
+        is_admin: userProfile.is_admin
+      }
     })
 
   } catch (error) {

@@ -28,11 +28,11 @@ export default function MemoryCard({ memory, showActions = false, onEdit, onDele
           switch (media.type) {
             case 'IMAGE':
               return (
-                <div key={media.id} className="media-container aspect-[4/3] group">
+                <div key={media.id} className="media-container group">
                   <img
                     src={media.storage_url}
                     alt="Memory"
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-105"
                     loading="lazy"
                   />
                   {media.thumbnail_url && (

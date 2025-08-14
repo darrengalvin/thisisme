@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { v4 as uuidv4 } from 'uuid'
-import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
+import { cookies } from 'next/headers'
+import { verifyToken } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,14 +14,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
 
-    // Verify authentication
-    const token = extractTokenFromHeader(request.headers.get('authorization') || undefined)
+    // Verify authentication using cookies (like other API routes)
+    const cookieStore = cookies()
+    const token = cookieStore.get('auth-token')?.value
+    
     if (!token) {
+      console.log('❌ UPLOAD API: No auth-token cookie found')
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     const user = await verifyToken(token)
     if (!user) {
+      console.log('❌ UPLOAD API: Invalid token')
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
     

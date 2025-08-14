@@ -203,7 +203,7 @@ export default function MemoryFeed({
                               <img 
                                 src={media.storage_url} 
                                 alt="" 
-                                className="w-full max-w-lg mx-auto rounded-xl"
+                                className="w-full max-w-lg h-auto mx-auto rounded-xl object-contain"
                               />
                             )}
                             {media.type === 'VIDEO' && (

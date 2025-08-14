@@ -183,14 +183,35 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
     }
   }, [editingChapter, selectedHeaderImage, originalChapter])
 
-  // Cleanup timeout on unmount
+  // Cleanup timeout on unmount and add comprehensive protection
   useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isOpen) {
+        event.preventDefault()
+        handleClose() // Use handleClose instead of onClose to check for unsaved changes
+      }
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges && isOpen) {
+        event.preventDefault()
+        event.returnValue = '' // This triggers the browser's native unsaved changes dialog
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscKey)
+      window.addEventListener('beforeunload', handleBeforeUnload)
+    }
+
     return () => {
+      document.removeEventListener('keydown', handleEscKey)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current)
       }
     }
-  }, [])
+  }, [isOpen, hasUnsavedChanges])
 
   // Get auth token
   const getAuthToken = async () => {
@@ -350,7 +371,15 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   if (!isOpen || !editingChapter) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        // Only close if clicking the backdrop, not the modal content
+        if (e.target === e.currentTarget) {
+          handleClose() // Use handleClose to check for unsaved changes
+        }
+      }}
+    >
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">

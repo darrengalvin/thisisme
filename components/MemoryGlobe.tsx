@@ -315,9 +315,9 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
     <div className="w-72 h-72 relative pointer-events-auto">
       {localViewMode === 'globe' ? (
         <>
-          {/* Improved hover zone with better detection */}
+          {/* Improved hover zone with better detection - constrained to not overlap toggle buttons */}
           <div 
-            className="absolute -inset-4 rounded-full cursor-grab active:cursor-grabbing"
+            className="absolute -top-4 -left-4 -right-4 bottom-0 rounded-full cursor-grab active:cursor-grabbing"
             onMouseEnter={() => setGlobeHovered(true)}
             onMouseLeave={() => {
               setGlobeHovered(false)
@@ -453,13 +453,14 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
         )}
         
         {/* Local View Toggle */}
-        <div className="flex items-center justify-center space-x-1">
+        <div className="flex items-center justify-center space-x-1 relative z-20">
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation()
               console.log('🔄 LOCAL VIEW TOGGLE: Switching to globe view for', chapterTitle)
               setLocalViewMode('globe')
             }}
-            className={`px-2 py-1 text-xs rounded transition-all duration-200 ${
+            className={`px-2 py-1 text-xs rounded transition-all duration-200 pointer-events-auto relative z-30 ${
               localViewMode === 'globe' 
                 ? 'bg-blue-500 text-white shadow-sm' 
                 : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
@@ -469,11 +470,12 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
             🌍
           </button>
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation()
               console.log('🔄 LOCAL VIEW TOGGLE: Switching to list view for', chapterTitle)
               setLocalViewMode('list')
             }}
-            className={`px-2 py-1 text-xs rounded transition-all duration-200 ${
+            className={`px-2 py-1 text-xs rounded transition-all duration-200 pointer-events-auto relative z-30 ${
               localViewMode === 'list' 
                 ? 'bg-blue-500 text-white shadow-sm' 
                 : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'

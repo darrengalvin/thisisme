@@ -14,6 +14,7 @@ type ZoomLevel = 'decades' | 'years' | 'months'
 interface ChronologicalTimelineViewProps {
   memories: MemoryWithRelations[]
   birthYear?: number
+  user?: { id: string; email: string; birthYear?: number } | null
   onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
   onCreateChapter?: () => void
   onZoomChange?: (zoomLevel: ZoomLevel, currentYear: number, formatLabel: () => string, handlers: {
@@ -30,12 +31,14 @@ interface ChronologicalTimelineViewProps {
 export default function ChronologicalTimelineView({ 
   memories, 
   birthYear: propBirthYear,
+  user: propUser,
   onStartCreating,
   onCreateChapter,
   onZoomChange,
   isNewUser = false
 }: ChronologicalTimelineViewProps): JSX.Element {
-  const { user } = useAuth()
+  const { user: authUser } = useAuth()
+  const user = propUser || authUser
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('decades')
   const [currentViewYear, setCurrentViewYear] = useState(new Date().getFullYear())
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
@@ -643,9 +646,15 @@ export default function ChronologicalTimelineView({
                 {chapters
                   .filter(chapter => chapter && chapter.id && chapter.title)
                   .sort((a, b) => {
-                    const aDate = new Date(a.startDate || new Date()).getTime()
-                    const bDate = new Date(b.startDate || new Date()).getTime()
-                    return aDate - bDate
+                    // Parse start dates with fallback to creation dates
+                    const aDate = a.startDate ? new Date(a.startDate) : (a.createdAt ? new Date(a.createdAt) : new Date('1900-01-01'))
+                    const bDate = b.startDate ? new Date(b.startDate) : (b.createdAt ? new Date(b.createdAt) : new Date('1900-01-01'))
+                    
+                    // Handle invalid dates
+                    const aTime = isNaN(aDate.getTime()) ? new Date('1900-01-01').getTime() : aDate.getTime()
+                    const bTime = isNaN(bDate.getTime()) ? new Date('1900-01-01').getTime() : bDate.getTime()
+                    
+                    return aTime - bTime
                   })
                   .map((chapter, chapterIndex) => {
                     const chapterMemories = memories.filter(m => m.timeZoneId === chapter.id)
@@ -908,6 +917,7 @@ export default function ChronologicalTimelineView({
         chapter={editingChapter}
         isOpen={showEditModal}
         onClose={() => {
+          // This will only be called if the modal confirms it's safe to close
           setShowEditModal(false)
           setEditingChapter(null)
         }}
