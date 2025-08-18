@@ -210,7 +210,7 @@ async function searchMemories(parameters: any, call: any) {
     }
     
     // Group memories by approximate timeframe for chapter suggestions
-    const memoryGroups = {}
+    const memoryGroups: { [key: string]: any[] } = {}
     memories.forEach(memory => {
       const timeKey = memory.approximate_date || 'Unknown time'
       if (!memoryGroups[timeKey]) {
@@ -272,7 +272,7 @@ async function getUserContext(parameters: any, call: any) {
     
     if (context_type === 'timeline_overview') {
       // Group memories by time periods for chapter suggestions
-      const timeGroups = {}
+      const timeGroups: { [key: string]: any[] } = {}
       memories?.forEach(memory => {
         const timeKey = memory.approximate_date || 'Unknown time'
         if (!timeGroups[timeKey]) {
