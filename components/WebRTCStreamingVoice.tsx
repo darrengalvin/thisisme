@@ -112,22 +112,23 @@ export default function WebRTCStreamingVoice() {
               console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🎤 Audio: ${audioChunksRef.current.length} chunks captured`)
             }
             
-            // Process chunks every ~1.5 seconds for better complete sentences
-            if (audioChunksRef.current.length >= 24) { // 24 * 4096 samples ≈ 1.5 seconds at 16kHz
-              console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🔄 Processing 24 chunks (1.5 seconds of audio)...`)
+            // Process chunks every ~1.0 seconds for stable transcription
+            if (audioChunksRef.current.length >= 16) { // 16 * 4096 samples ≈ 1.0 seconds at 16kHz
+              console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🔄 Processing 16 chunks (1.0 seconds of audio)...`)
               processAudioChunks()
             }
           } else {
             // Silence detected - increment counter
             silenceCountRef.current++
             
-            // If 1.5 seconds of silence (about 22 chunks), user has stopped speaking
-            if (silenceCountRef.current > 22) {
+            // If 1.2 seconds of silence (about 18 chunks), user has stopped speaking - balanced response
+            if (silenceCountRef.current > 18) {
               const timeSinceLastSpeech = Date.now() - lastSpeechTimeRef.current
               
               // Process any remaining audio chunks first
               if (audioChunksRef.current.length > 0) {
-                console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🤐 Silence detected (${(timeSinceLastSpeech/1000).toFixed(1)}s) - processing ${audioChunksRef.current.length} final chunks`)
+                console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🤐 SILENCE DETECTED (${(timeSinceLastSpeech/1000).toFixed(1)}s) - processing ${audioChunksRef.current.length} final chunks`)
+                console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🎧 SPEECH-TO-TEXT PIPELINE START`)
                 processAudioChunks()
               }
               
@@ -207,8 +208,9 @@ export default function WebRTCStreamingVoice() {
 
   const transcribeAudioStreaming = async (audioBlob: Blob) => {
     try {
-      console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🎯 Sending audio to Whisper API...`)
-      // Calling Whisper API
+      const whisperStartTime = Date.now()
+      console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🎧 WHISPER API CALL START`)
+      console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🎯 Sending ${(audioBlob.size/1024).toFixed(1)}KB audio to Whisper...`)
       
       const formData = new FormData()
       formData.append('audio', audioBlob, 'stream.wav')
@@ -219,6 +221,8 @@ export default function WebRTCStreamingVoice() {
       })
       
       const data = await response.json()
+      const whisperTime = Date.now() - whisperStartTime
+      console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🎧 WHISPER COMPLETE: ${whisperTime}ms`)
       console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 📡 Whisper response:`, data)
       
       if (data.success && data.transcription) {
@@ -250,6 +254,8 @@ export default function WebRTCStreamingVoice() {
       
       abortControllerRef.current = new AbortController()
       
+      const pipelineStartTime = Date.now()
+      console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🚀 PIPELINE START: User finished speaking`)
       console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🧠 Sending to GPT-4o streaming:`, text)
       
       if (isFinal && text.trim()) {
@@ -265,6 +271,11 @@ export default function WebRTCStreamingVoice() {
       }
       
       // Initialize streaming response
+      // Clear processed sentences and audio queue for new conversation
+      processedSentences.current.clear()
+      audioQueue.current = []
+      isPlayingAudio.current = false
+      
       const assistantMessage: StreamingMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -274,6 +285,9 @@ export default function WebRTCStreamingVoice() {
       }
       setMessages(prev => [...prev, assistantMessage])
       setStreamingResponse('')
+      
+      const gptStartTime = Date.now()
+      console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🧠 GPT-4o API CALL START (${gptStartTime - pipelineStartTime}ms from pipeline start)`)
       
       const response = await fetch('/api/ai/gpt4o-streaming', {
         method: 'POST',
@@ -287,6 +301,8 @@ export default function WebRTCStreamingVoice() {
         signal: abortControllerRef.current.signal
       })
       
+      console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🧠 GPT-4o RESPONSE RECEIVED (${Date.now() - gptStartTime}ms API call time)`)
+      
       if (!response.ok) throw new Error('GPT-4o streaming failed')
       
       const reader = response.body?.getReader()
@@ -294,6 +310,7 @@ export default function WebRTCStreamingVoice() {
       
       const decoder = new TextDecoder()
       let accumulatedResponse = ''
+      let lastProcessedLength = 0
       
       while (true) {
         const { done, value } = await reader.read()
@@ -318,6 +335,11 @@ export default function WebRTCStreamingVoice() {
                       : msg
                   )
                 )
+                
+                // 🚀 SENTENCE-LEVEL STREAMING: Check for complete sentences
+                console.log(`🔍 DEBUG: Checking sentences for: "${accumulatedResponse}"`)
+                await checkAndStreamCompleteSentences(accumulatedResponse, lastProcessedLength)
+                lastProcessedLength = accumulatedResponse.length
               }
             } catch (e) {
               // Skip malformed JSON
@@ -335,9 +357,10 @@ export default function WebRTCStreamingVoice() {
         )
       )
       
-      // Send to TTS streaming
-      if (accumulatedResponse.trim()) {
-        await playStreamingTTS(accumulatedResponse)
+      // Send any remaining text to TTS
+      const remainingText = accumulatedResponse.slice(lastProcessedLength).trim()
+      if (remainingText) {
+        await playStreamingTTS(remainingText)
       }
       
     } catch (error) {
@@ -349,12 +372,88 @@ export default function WebRTCStreamingVoice() {
     }
   }
 
+  // 🚀 SENTENCE-LEVEL STREAMING: Process complete sentences immediately
+  const processedSentences = useRef<Set<string>>(new Set())
+  
+  const checkAndStreamCompleteSentences = async (fullText: string, lastProcessedLength: number) => {
+    const sentenceCheckTime = Date.now()
+    console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🔍 SENTENCE CHECK START`)
+    console.log(`🔍 SENTENCE CHECK: Full text length: ${fullText.length}, Last processed: ${lastProcessedLength}`)
+    
+    // Split by sentence endings and process each complete sentence
+    const sentences = fullText.split(/([.!?]+)/).filter(s => s.trim().length > 0)
+    let currentSentence = ''
+    
+    for (let i = 0; i < sentences.length; i += 2) {
+      const text = sentences[i]?.trim()
+      const punctuation = sentences[i + 1]
+      
+      if (text && punctuation && /[.!?]/.test(punctuation)) {
+        currentSentence = text + punctuation
+        
+        // Only process if we haven't seen this sentence and it's substantial
+        if (currentSentence.length > 15 && !processedSentences.current.has(currentSentence)) {
+          console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🎯 NEW COMPLETE SENTENCE: "${currentSentence}" (${Date.now() - sentenceCheckTime}ms from sentence check)`)
+          processedSentences.current.add(currentSentence)
+          
+          // Don't await - process in parallel
+          playStreamingTTS(currentSentence).catch(console.error)
+        }
+      }
+    }
+  }
+
+  // 🎵 AUDIO QUEUE: Prevent overlapping TTS
+  const audioQueue = useRef<string[]>([])
+  const isPlayingAudio = useRef(false)
+  
   const playStreamingTTS = async (text: string) => {
+    // Add to queue
+    audioQueue.current.push(text)
+    console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🎵 QUEUED TTS: "${text}" (Queue length: ${audioQueue.current.length})`)
+    
+    // If already playing, let the queue handle it
+    if (isPlayingAudio.current) {
+      return
+    }
+    
+    // Start processing queue
+    await processAudioQueue()
+  }
+  
+
+
+  const processAudioQueue = async () => {
+    if (isPlayingAudio.current || audioQueue.current.length === 0) {
+      return
+    }
+    
+    isPlayingAudio.current = true
+    setIsAISpeaking(true)
+    
+    while (audioQueue.current.length > 0) {
+      const text = audioQueue.current.shift()!
+      await playSingleTTS(text)
+    }
+    
+    isPlayingAudio.current = false
+    setIsAISpeaking(false)
+    
+    // Auto-start listening after all audio is done
+    setTimeout(() => {
+      setIsListening(true)
+      setConversationState('listening')
+      userSpeechStartTime.current = Date.now()
+      setCurrentTranscription('')
+      console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🎤 ✨ Auto-started listening after AI speech`)
+    }, 500)
+  }
+  
+  const playSingleTTS = async (text: string) => {
     try {
       aiSpeechStartTime.current = Date.now()
-      setIsAISpeaking(true)
       
-      console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🔊 Starting TTS streaming...`)
+      console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🔊 Playing TTS: "${text}"`)
       
       const response = await fetch('/api/ai/tts-streaming', {
         method: 'POST',
@@ -371,31 +470,22 @@ export default function WebRTCStreamingVoice() {
         
         if (showDebug) console.log(`Audio blob created: ${Math.round(audioBlob.size/1024)}KB`)
         
-        audio.onended = () => {
-          setIsAISpeaking(false)
+        // Return promise that resolves when audio finishes
+        await new Promise<void>((resolve, reject) => {
+          audio.onended = () => {
+            console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] ✅ TTS sentence completed`)
+            resolve()
+          }
           
-          console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] ✅ TTS playback completed`)
+          audio.onerror = () => {
+            console.error('❌ TTS playback failed')
+            reject(new Error('TTS playback failed'))
+          }
           
-          // ALWAYS auto-start listening after AI finishes - this is the key fix
-          setTimeout(() => {
-            setIsListening(true)
-            setConversationState('listening')
-            userSpeechStartTime.current = Date.now()
-            // Clear any partial transcription from before
-            setCurrentTranscription('')
-            console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🎤 ✨ Auto-started listening after AI speech`)
-          }, 500) // Give it a moment to avoid audio overlap
-        }
-        
-        audio.onerror = () => {
-          setIsAISpeaking(false)
-          setConversationState('idle')
-          
-          console.error('❌ TTS playback failed')
-        }
-        
-        await audio.play()
-        console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🔊 Audio playback started`)
+          audio.play().then(() => {
+            console.log(`[${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🔊 Audio playback started`)
+          }).catch(reject)
+        })
       }
       
     } catch (error) {

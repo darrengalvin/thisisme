@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
+// 🚀 EDGE RUNTIME: Eliminate cold starts for faster response
+export const runtime = 'edge'
+
 export async function POST(request: NextRequest) {
   try {
     console.log('🧠 GPT-4o STREAMING: Starting streaming conversation')
@@ -55,14 +58,34 @@ Key guidelines:
 
     console.log('🧠 GPT-4o STREAMING: Calling OpenAI with streaming...')
     console.log('🧠 GPT-4o STREAMING: Final messages array:', JSON.stringify(messages, null, 2))
+    
+    const startTime = Date.now()
+
+    // 🚀 PROMPT CACHING: Cache system message for faster TTFT
+    const cachedMessages = messages.map((msg, index) => {
+      if (index === 0 && msg.role === 'system') {
+        return {
+          ...msg,
+          // Enable prompt caching for system message
+          cache_control: { type: 'ephemeral' }
+        }
+      }
+      return msg
+    })
 
     // Create streaming completion
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Use gpt-4o-mini for faster streaming
-      messages,
-      max_tokens: 500,
+      model: 'gpt-4o-mini', // Keep 4o-mini - good balance of speed/quality for 2025
+      messages: cachedMessages,
+      max_tokens: 150, // 🚀 REDUCE for voice - shorter responses = faster TTFT
       temperature: 0.7,
       stream: true,
+      // 🚀 OPTIMIZE for voice conversation
+      presence_penalty: 0.1, // Encourage variety
+      frequency_penalty: 0.1, // Reduce repetition
+      // 🚀 SPEED OPTIMIZATIONS
+      top_p: 0.9, // Slightly reduce randomness for faster generation
+      seed: 42, // Consistent seed for better caching
     })
 
     // Create streaming response
@@ -71,14 +94,25 @@ Key guidelines:
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          let firstTokenTime = null
+          let tokenCount = 0
+          
           for await (const chunk of completion) {
             const content = chunk.choices[0]?.delta?.content || ''
             
             if (content) {
+              tokenCount++
+              if (!firstTokenTime) {
+                firstTokenTime = Date.now()
+                console.log(`🚀 FIRST TOKEN: ${firstTokenTime - startTime}ms (TTFT)`)
+              }
+              
               const data = JSON.stringify({ content })
               controller.enqueue(encoder.encode(`data: ${data}\n\n`))
             }
           }
+          
+          console.log(`✅ STREAMING COMPLETE: ${tokenCount} tokens in ${Date.now() - startTime}ms`)
           
           // Send completion signal
           controller.enqueue(encoder.encode(`data: {"done": true}\n\n`))

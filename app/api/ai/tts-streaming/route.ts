@@ -3,6 +3,8 @@ import OpenAI from 'openai'
 
 export async function POST(request: NextRequest) {
   try {
+    const ttsStartTime = Date.now()
+    console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🔊 TTS API START`)
     console.log('🔊 TTS STREAMING: Starting text-to-speech streaming')
 
     const { text } = await request.json()
@@ -16,7 +18,41 @@ export async function POST(request: NextRequest) {
 
     console.log('🔊 TTS STREAMING: Synthesizing text:', text.substring(0, 100))
 
-    // Try ElevenLabs first (better quality and more natural)
+    // 🔇 DISABLED SPEED MODE: Use ElevenLabs for all responses for consistent voice quality
+    const useSpeedMode = false // Disabled to prevent voice switching
+
+    if (useSpeedMode) {
+      console.log('🚀 TTS STREAMING: Using OpenAI TTS-1 (speed mode for short sentences)...')
+      
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      })
+
+      try {
+        const mp3 = await openai.audio.speech.create({
+          model: 'tts-1', // Use regular TTS-1 for speed
+          voice: 'nova',
+          input: text,
+          speed: 1.1 // Slightly faster
+        })
+
+        const audioBuffer = Buffer.from(await mp3.arrayBuffer())
+        
+        console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🔊 TTS COMPLETE: OpenAI Speed Mode (${Date.now() - ttsStartTime}ms total)`)
+
+        return new Response(audioBuffer, {
+          headers: {
+            'Content-Type': 'audio/mpeg',
+            'Content-Length': audioBuffer.length.toString(),
+          },
+        })
+        
+      } catch (openaiError) {
+        console.log('🚀 TTS STREAMING: OpenAI speed mode failed, falling back to ElevenLabs:', openaiError)
+      }
+    }
+
+    // Try ElevenLabs for longer sentences (better quality and more natural)
     if (process.env.ELEVEN_LABS_API_KEY) {
       try {
         console.log('🔊 TTS STREAMING: Using ElevenLabs (Rachel voice)...')
@@ -42,6 +78,7 @@ export async function POST(request: NextRequest) {
 
         if (response.ok) {
           const audioBuffer = await response.arrayBuffer()
+          console.log(`⏱️ [${new Date().toLocaleTimeString()}.${new Date().getMilliseconds().toString().padStart(3, '0')}] 🔊 TTS COMPLETE: ElevenLabs (${Date.now() - ttsStartTime}ms total)`)
           console.log('🔊 TTS STREAMING: ElevenLabs generated successfully, size:', audioBuffer.byteLength)
 
           return new Response(audioBuffer, {

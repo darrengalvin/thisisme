@@ -67,10 +67,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Light filtering for streaming - less aggressive than chunked version
+    // 🚫 CONSERVATIVE HALLUCINATION FILTER: Only obvious false positives
     const streamingHallucinations = [
-      'thank you', 'thanks', 'thank you.', 'thanks.',
-      'you', 'you.', 'bye', 'bye.', 'okay', 'okay.',
+      'bye-bye', 'bye-bye.', 'thank you', 'thank you.', 'thanks.', 
       '...', 'silence', 'background'
     ]
     

@@ -102,13 +102,7 @@ export default function StreamingVoicePage() {
           <WebRTCStreamingVoice />
         </div>
         
-        <div className="mb-8 p-4 bg-gray-100 border border-gray-300 rounded-lg">
-          <h3 className="font-bold text-gray-700 text-lg mb-2">📊 Original Implementation (For Comparison)</h3>
-          <p className="text-gray-600 text-sm mb-4">
-            This is our original MediaRecorder + Claude approach that has the chunking timing issues.
-          </p>
-          <StreamingVoiceChat />
-        </div>
+
 
         <div className="mt-6 text-center text-xs text-gray-500">
           <p>Powered by streaming AI • Real-time voice processing • Timeline-aware memory organization</p>
