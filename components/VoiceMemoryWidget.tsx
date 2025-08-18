@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Mic, MicOff, Volume2, VolumeX, Sparkles, MessageCircle, X, Minimize2, Maximize2 } from 'lucide-react'
-import { useVapi } from '@vapi-ai/web'
+import useVapi from '@vapi-ai/web'
 
 interface VoiceMemoryWidgetProps {
   onMemoryAdded?: (memory: any) => void
