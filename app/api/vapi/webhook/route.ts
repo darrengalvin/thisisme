@@ -414,6 +414,10 @@ async function getUserContext(parameters: any, call: any) {
     userId = call.user.id
   } else if (call?.userId) {
     userId = call.userId
+  } else if (call?.id) {
+    // Use call ID as session identifier when no user ID is available
+    userId = `vapi_call_${call.id}`
+    console.log('🔄 Using call ID as session identifier:', userId)
   } else {
     // Fallback - but this means we need to get user ID from somewhere else
     userId = '550e8400-e29b-41d4-a716-446655440000'
@@ -422,7 +426,7 @@ async function getUserContext(parameters: any, call: any) {
   console.log('👤 GETTING USER CONTEXT for:', userId, { age, year, context_type })
   console.log('👤 CALL OBJECT:', JSON.stringify(call, null, 2))
   
-  // Check if we're using the fallback user ID
+  // Check if we're using the fallback user ID or call ID session
   if (userId === '550e8400-e29b-41d4-a716-446655440000') {
     console.warn('⚠️ WARNING: Using fallback user ID - real user ID not found in call object')
     console.warn('⚠️ Available call object keys:', Object.keys(call || {}))
@@ -435,6 +439,12 @@ async function getUserContext(parameters: any, call: any) {
       chapters: [],
       needs_birth_year: true
     })
+  }
+  
+  // If using call ID as session, check if we have user data for this session
+  if (userId.startsWith('vapi_call_')) {
+    console.log('🔄 Using call-based session, checking for existing user data')
+    // Try to get user data, but if not found, we'll create a session-based user
   }
   
   try {
