@@ -110,7 +110,8 @@ export default function VoiceChatButton() {
 
     } catch (error) {
       console.error('Error starting VAPI call:', error)
-      alert(`Failed to start voice chat: ${error.message}`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      alert(`Failed to start voice chat: ${errorMessage}`)
       setIsLoading(false)
     }
   }
