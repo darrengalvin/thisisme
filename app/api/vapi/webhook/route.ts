@@ -175,10 +175,23 @@ async function saveMemory(parameters: any, call: any) {
     tags 
   } = parameters
   
-      console.log('💾 SAVING MEMORY:', { title, timeframe, age, year, location, chapter })
-    
-    // Get user ID from call metadata or customer info
-    const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
+  console.log('💾 SAVING MEMORY:', { title, timeframe, age, year, location, chapter })
+  
+  // Extract user ID from various possible locations in the call object
+  let userId = null
+  if (call?.customer?.userId) {
+    userId = call.customer.userId
+  } else if (call?.metadata?.userId) {
+    userId = call.metadata.userId
+  } else if (call?.customerData?.userId) {
+    userId = call.customerData.userId
+  } else if (call?.user?.id) {
+    userId = call.user.id
+  } else if (call?.userId) {
+    userId = call.userId
+  } else {
+    userId = '550e8400-e29b-41d4-a716-446655440000'
+  }
     
     console.log('💾 SAVE MEMORY - User ID:', userId)
     console.log('💾 SAVE MEMORY - Parameters:', JSON.stringify(parameters, null, 2))
@@ -284,7 +297,21 @@ async function searchMemories(parameters: any, call: any) {
   
   console.log('🔍 SEARCHING MEMORIES:', { query, timeframe, age, year, chapter_name })
   
-  const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
+  // Extract user ID from various possible locations in the call object
+  let userId = null
+  if (call?.customer?.userId) {
+    userId = call.customer.userId
+  } else if (call?.metadata?.userId) {
+    userId = call.metadata.userId
+  } else if (call?.customerData?.userId) {
+    userId = call.customerData.userId
+  } else if (call?.user?.id) {
+    userId = call.user.id
+  } else if (call?.userId) {
+    userId = call.userId
+  } else {
+    userId = '550e8400-e29b-41d4-a716-446655440000'
+  }
   
   try {
     let supabaseQuery = supabaseAdmin
@@ -622,7 +649,22 @@ async function handleCallEnd(body: any) {
 // Create a new chapter (timezone) for organizing memories
 async function createChapter(parameters: any, call: any) {
   const { title, description, timeframe, start_year, end_year, location } = parameters
-  const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
+  
+  // Extract user ID from various possible locations in the call object
+  let userId = null
+  if (call?.customer?.userId) {
+    userId = call.customer.userId
+  } else if (call?.metadata?.userId) {
+    userId = call.metadata.userId
+  } else if (call?.customerData?.userId) {
+    userId = call.customerData.userId
+  } else if (call?.user?.id) {
+    userId = call.user.id
+  } else if (call?.userId) {
+    userId = call.userId
+  } else {
+    userId = '550e8400-e29b-41d4-a716-446655440000'
+  }
   
   console.log('📚 CREATING CHAPTER:', { title, description, timeframe, start_year, end_year, location })
   console.log('📚 CREATE CHAPTER - User ID:', userId)
@@ -712,7 +754,22 @@ async function createChapter(parameters: any, call: any) {
 // Save user's birth year to their profile
 async function saveBirthYear(parameters: any, call: any) {
   const { birth_year } = parameters
-  const userId = call?.customer?.userId || call?.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
+  
+  // Extract user ID from various possible locations in the call object
+  let userId = null
+  if (call?.customer?.userId) {
+    userId = call.customer.userId
+  } else if (call?.metadata?.userId) {
+    userId = call.metadata.userId
+  } else if (call?.customerData?.userId) {
+    userId = call.customerData.userId
+  } else if (call?.user?.id) {
+    userId = call.user.id
+  } else if (call?.userId) {
+    userId = call.userId
+  } else {
+    userId = '550e8400-e29b-41d4-a716-446655440000'
+  }
   
   console.log('🎂 SAVING BIRTH YEAR:', { birth_year, userId })
   
