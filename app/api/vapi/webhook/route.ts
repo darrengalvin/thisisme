@@ -737,7 +737,7 @@ async function createChapter(parameters: any, call: any, authenticatedUserId: st
   
   try {
     // We need proper user identification from VAPI - no fallbacks
-    if (userId === '550e8400-e29b-41d4-a716-446655440000' || userId.startsWith('vapi_call_') || userId === 'NOT_FOUND') {
+    if (!userId || userId === '550e8400-e29b-41d4-a716-446655440000' || userId.startsWith('vapi_call_') || userId === 'NOT_FOUND') {
       console.log('📚 ERROR: No valid user identification from VAPI')
       console.log('📚 Available call data:', Object.keys(call || {}))
       console.log('📚 Call object:', JSON.stringify(call, null, 2))
