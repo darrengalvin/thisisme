@@ -14,6 +14,8 @@ interface TimelineViewProps {
   onEdit?: (memory: MemoryWithRelations) => void
   onDelete?: (memory: MemoryWithRelations) => void
   onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
+  highlightedMemories?: Set<string>
+  voiceAddedMemories?: Set<string>
 }
 
 interface TimelineGroup {
@@ -23,7 +25,16 @@ interface TimelineGroup {
   memories: MemoryWithRelations[]
 }
 
-export default function TimelineView({ memories, birthYear, user: propUser, onEdit, onDelete, onStartCreating }: TimelineViewProps) {
+export default function TimelineView({ 
+  memories, 
+  birthYear, 
+  user: propUser, 
+  onEdit, 
+  onDelete, 
+  onStartCreating,
+  highlightedMemories = new Set(),
+  voiceAddedMemories = new Set()
+}: TimelineViewProps) {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
@@ -563,8 +574,34 @@ export default function TimelineView({ memories, birthYear, user: propUser, onEd
 
                     {/* Memories */}
                     <div className="space-y-6">
-                      {group.memories.map((memory) => (
-                        <article key={memory.id} className="bg-white rounded-2xl shadow-lg border border-slate-200/50 overflow-hidden hover:shadow-xl transition-all duration-300">
+                      {group.memories.map((memory) => {
+                        const isHighlighted = highlightedMemories.has(memory.id)
+                        const isVoiceAdded = voiceAddedMemories.has(memory.id)
+                        
+                        return (
+                        <article 
+                          key={memory.id} 
+                          data-memory-id={memory.id}
+                          className={`bg-white rounded-2xl shadow-lg border overflow-hidden hover:shadow-xl transition-all duration-300 relative ${
+                            isHighlighted 
+                              ? 'border-green-400 shadow-green-100 ring-2 ring-green-200 animate-pulse' 
+                              : 'border-slate-200/50'
+                          }`}
+                        >
+                          {/* Voice Memory Badge */}
+                          {isVoiceAdded && (
+                            <div className="absolute top-3 right-3 z-10">
+                              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 shadow-lg">
+                                <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                                Voice Added
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Highlight Glow Effect */}
+                          {isHighlighted && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-green-400/10 to-emerald-400/10 pointer-events-none rounded-2xl"></div>
+                          )}
                           {/* Memory Header */}
                           <div className="p-4 border-b border-slate-100">
                             <div className="flex items-center justify-between">
@@ -717,7 +754,8 @@ export default function TimelineView({ memories, birthYear, user: propUser, onEd
                             </div>
                           </div>
                         </article>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 ))}

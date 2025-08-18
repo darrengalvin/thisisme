@@ -17,6 +17,7 @@ import DeleteConfirmationModal from './DeleteConfirmationModal'
 import { useAuth } from '@/components/AuthProvider'
 import TicketNotifications from '@/components/TicketNotifications'
 import AIChatInterface from './AIChatInterface'
+import VoiceMemoryWidget from './VoiceMemoryWidget'
 import { MemoryWithRelations } from '@/lib/types'
 
 type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support'
@@ -76,6 +77,8 @@ export default function Dashboard() {
   const [availableUsers, setAvailableUsers] = useState<any[]>([])
   const [userSearchTerm, setUserSearchTerm] = useState('')
   const [showAIChat, setShowAIChat] = useState(false)
+  const [highlightedMemories, setHighlightedMemories] = useState<Set<string>>(new Set())
+  const [voiceAddedMemories, setVoiceAddedMemories] = useState<Set<string>>(new Set())
   
   const router = useRouter()
 
@@ -717,6 +720,50 @@ export default function Dashboard() {
     )
   }
 
+  const handleVoiceMemoryAdded = (memory: any) => {
+    console.log('🎤 DASHBOARD: Voice memory added:', memory)
+    
+    // Add to voice-added memories for special styling
+    if (memory.id) {
+      setVoiceAddedMemories(prev => new Set([...prev, memory.id]))
+      setHighlightedMemories(prev => new Set([...prev, memory.id]))
+      
+      // Remove highlight after 10 seconds
+      setTimeout(() => {
+        setHighlightedMemories(prev => {
+          const updated = new Set(prev)
+          updated.delete(memory.id)
+          return updated
+        })
+      }, 10000)
+    }
+    
+    // Refresh memories to show the new one
+    fetchUserAndMemories()
+  }
+
+  const handleVoiceMemoryHighlight = (memoryId: string) => {
+    console.log('🎯 DASHBOARD: Highlighting voice memory:', memoryId)
+    
+    setHighlightedMemories(prev => new Set([...prev, memoryId]))
+    setVoiceAddedMemories(prev => new Set([...prev, memoryId]))
+    
+    // Remove highlight after 8 seconds
+    setTimeout(() => {
+      setHighlightedMemories(prev => {
+        const updated = new Set(prev)
+        updated.delete(memoryId)
+        return updated
+      })
+    }, 8000)
+    
+    // Scroll to memory if possible
+    const memoryElement = document.querySelector(`[data-memory-id="${memoryId}"]`)
+    if (memoryElement) {
+      memoryElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
+
   const getViewName = () => {
     switch (activeTab) {
       case 'home': return 'Feed View'
@@ -781,6 +828,8 @@ export default function Dashboard() {
               onEdit={handleEditMemory}
               onDelete={handleDeleteMemory}
               onStartCreating={handleCreateMemory}
+              highlightedMemories={highlightedMemories}
+              voiceAddedMemories={voiceAddedMemories}
             />
             
             {/* Debug Panel for Force Delete */}
@@ -913,6 +962,8 @@ export default function Dashboard() {
                 })
               }}
               isNewUser={isNewUser}
+              highlightedMemories={highlightedMemories}
+              voiceAddedMemories={voiceAddedMemories}
             />
             
             {/* Debug Panel for Force Delete */}
@@ -1371,14 +1422,20 @@ export default function Dashboard() {
           onForceDelete={forceDeleteMemory}
         />
 
-      {/* AI Chat Floating Button */}
+      {/* Voice Memory Widget */}
+      <VoiceMemoryWidget 
+        onMemoryAdded={handleVoiceMemoryAdded}
+        onMemoryHighlight={handleVoiceMemoryHighlight}
+      />
+
+      {/* AI Chat Floating Button - Secondary option */}
       {!showAIChat && (
         <button 
           onClick={() => setShowAIChat(true)}
-          className="fixed bottom-6 right-6 p-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all transform hover:scale-105 z-50"
-          title="AI Memory Assistant"
+          className="fixed bottom-6 left-6 p-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all transform hover:scale-105 z-40"
+          title="AI Memory Assistant (Text)"
         >
-          <Brain className="w-6 h-6" />
+          <Brain className="w-5 h-5" />
         </button>
       )}
 

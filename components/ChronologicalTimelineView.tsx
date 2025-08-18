@@ -26,6 +26,8 @@ interface ChronologicalTimelineViewProps {
     canZoomOut: boolean
   }) => void
   isNewUser?: boolean
+  highlightedMemories?: Set<string>
+  voiceAddedMemories?: Set<string>
 }
 
 export default function ChronologicalTimelineView({ 
@@ -35,7 +37,9 @@ export default function ChronologicalTimelineView({
   onStartCreating,
   onCreateChapter,
   onZoomChange,
-  isNewUser = false
+  isNewUser = false,
+  highlightedMemories = new Set(),
+  voiceAddedMemories = new Set()
 }: ChronologicalTimelineViewProps): JSX.Element {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
