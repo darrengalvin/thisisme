@@ -30,8 +30,16 @@ export default function VoiceMemoryWidget({
   useEffect(() => {
     const initVapi = async () => {
       try {
+        const apiKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY
+        console.log('🎤 VAPI: Initializing with API key:', apiKey ? 'Present' : 'Missing')
+        
+        if (!apiKey) {
+          console.error('🎤 VAPI: No API key found. Please set NEXT_PUBLIC_VAPI_PUBLIC_KEY')
+          return
+        }
+        
         const Vapi = (await import('@vapi-ai/web')).default
-        const client = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || '')
+        const client = new Vapi(apiKey)
         setVapiClient(client)
         
         // Set up event listeners
@@ -113,14 +121,24 @@ export default function VoiceMemoryWidget({
   const handleToggleCall = async () => {
     if (!vapiClient) {
       console.error('🎤 VAPI client not initialized')
+      alert('Voice assistant not ready. Please check your API key configuration.')
+      return
+    }
+    
+    const apiKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY
+    if (!apiKey) {
+      console.error('🎤 VAPI: No API key configured')
+      alert('Voice assistant not configured. Please set NEXT_PUBLIC_VAPI_PUBLIC_KEY environment variable.')
       return
     }
     
     try {
       if (isConnected) {
+        console.log('🎤 VAPI: Stopping call...')
         await vapiClient.stop()
         setConnectionStatus('disconnected')
       } else {
+        console.log('🎤 VAPI: Starting call with assistant ID: 8ceaceba-6047-4965-92c5-225d0ebc1c4f')
         setConnectionStatus('connecting')
         await vapiClient.start({
           assistantId: '8ceaceba-6047-4965-92c5-225d0ebc1c4f' // Your VAPI assistant ID
@@ -129,6 +147,19 @@ export default function VoiceMemoryWidget({
     } catch (error) {
       console.error('🎤 Error toggling call:', error)
       setConnectionStatus('disconnected')
+      
+      // More specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          alert('Authentication failed. Please check your VAPI API key.')
+        } else if (error.message.includes('assistant')) {
+          alert('Assistant not found. Please check your assistant ID.')
+        } else {
+          alert(`Voice connection failed: ${error.message}`)
+        }
+      } else {
+        alert('Voice connection failed. Please try again.')
+      }
     }
   }
 
