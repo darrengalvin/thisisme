@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       if (body.message && body.message.type) {
         console.log('🔍 Found message.type:', body.message.type)
         // Handle the message-based format
-        return handleMessageBasedWebhook(body)
+        return handleMessageBasedWebhook(body, authenticatedUserId)
       }
       
       // For now, return success to avoid errors
@@ -339,20 +339,19 @@ async function searchMemories(parameters: any, call: any, authenticatedUserId: s
   
   console.log('🔍 SEARCHING MEMORIES:', { query, timeframe, age, year, chapter_name })
   
-  // Extract user ID from various possible locations in the call object
-  let userId = null
-  if (call?.customer?.userId) {
-    userId = call.customer.userId
-  } else if (call?.metadata?.userId) {
-    userId = call.metadata.userId
-  } else if (call?.customerData?.userId) {
-    userId = call.customerData.userId
-  } else if (call?.user?.id) {
-    userId = call.user.id
-  } else if (call?.userId) {
-    userId = call.userId
-  } else {
-    userId = '550e8400-e29b-41d4-a716-446655440000'
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  
+  console.log('🔍 SEARCH MEMORIES - User ID:', userId)
+  
+  // Validate user ID
+  if (!userId || userId === 'NOT_FOUND') {
+    console.log('🔍 ERROR: No valid user identification from VAPI')
+    return NextResponse.json({
+      error: "User identification required",
+      result: "I need to know who you are to search your memories. Please configure user identification in VAPI.",
+      success: false
+    }, { status: 400 })
   }
   
   try {
@@ -442,60 +441,20 @@ async function searchMemories(parameters: any, call: any, authenticatedUserId: s
 async function getUserContext(parameters: any, call: any, authenticatedUserId: string | null = null) {
   const { age, year, context_type } = parameters
   
-  // Extract user ID from various possible locations in the call object
-  let userId = null
-  
-  // Try different paths for user ID extraction
-  if (call?.customer?.userId) {
-    userId = call.customer.userId
-  } else if (call?.metadata?.userId) {
-    userId = call.metadata.userId
-  } else if (call?.customerData?.userId) {
-    userId = call.customerData.userId
-  } else if (call?.user?.id) {
-    userId = call.user.id
-  } else if (call?.userId) {
-    userId = call.userId
-  } else if (call?.id) {
-    // Use call ID as session identifier when no user ID is available
-    userId = `vapi_call_${call.id}`
-    console.log('🔄 Using call ID as session identifier:', userId)
-  } else {
-    // Fallback - but this means we need to get user ID from somewhere else
-    userId = '550e8400-e29b-41d4-a716-446655440000'
-  }
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
   
   console.log('👤 GETTING USER CONTEXT for:', userId, { age, year, context_type })
   console.log('👤 CALL OBJECT:', JSON.stringify(call, null, 2))
   
-  // Check if we're using the fallback user ID or call ID session
-  if (userId === '550e8400-e29b-41d4-a716-446655440000') {
-    console.warn('⚠️ WARNING: Using fallback user ID - real user ID not found in call object')
-    console.warn('⚠️ Available call object keys:', Object.keys(call || {}))
-    
-    // Get user's name for personalization
-    const { data: userData } = await supabaseAdmin
-      .from('users')
-      .select('email, birth_year')
-      .eq('id', userId)
-      .single()
-    
-    const userName = userData?.email?.split('@')[0] || 'there'
-    
-    // For now, let's return a helpful message asking for birth year
+  // Validate user ID
+  if (!userId || userId === 'NOT_FOUND') {
+    console.log('👤 ERROR: No valid user identification from VAPI')
     return NextResponse.json({
-      result: `Hi ${userName}! I don't have your birth year in my system yet. When were you born? That'll help me place your memories on the right timeline.`,
-      user_birth_year: userData?.birth_year || null,
-      memory_count: 0,
-      chapters: [],
-      needs_birth_year: true
-    })
-  }
-  
-  // If using call ID as session, check if we have user data for this session
-  if (userId.startsWith('vapi_call_')) {
-    console.log('🔄 Using call-based session, checking for existing user data')
-    // Try to get user data, but if not found, we'll create a session-based user
+      error: "User identification required",
+      result: "I need to know who you are to access your timeline. Please configure user identification in VAPI.",
+      success: false
+    }, { status: 400 })
   }
   
   try {
@@ -508,14 +467,22 @@ async function getUserContext(parameters: any, call: any, authenticatedUserId: s
     
     if (userError) {
       console.error('👤 USER PROFILE ERROR:', userError)
-    } else {
-      console.log('👤 USER PROFILE FOUND:', {
-        userId: userId,
-        birthYear: userProfile?.birth_year,
-        email: userProfile?.email,
-        hasProfile: !!userProfile
-      })
+      return NextResponse.json({
+        error: "User not found",
+        result: `I can't find your user profile. Please check your VAPI configuration.`,
+        success: false
+      }, { status: 404 })
     }
+    
+    console.log('👤 USER PROFILE FOUND:', {
+      userId: userId,
+      birthYear: userProfile?.birth_year,
+      email: userProfile?.email,
+      hasProfile: !!userProfile
+    })
+    
+    // Get user's name for personalization
+    const userName = userProfile?.email?.split('@')[0] || 'there'
     
     // Get user's chapters (timezones)
     const { data: chapters, error: chaptersError } = await supabaseAdmin
@@ -629,14 +596,14 @@ async function getUserContext(parameters: any, call: any, authenticatedUserId: s
     
     if (memoryCount === 0) {
       return NextResponse.json({
-        result: `This looks like your first memory! I'm excited to help you start building your timeline.${contextInfo} What would you like to share?`,
+        result: `Hi ${userName}! This looks like your first memory! I'm excited to help you start building your timeline.${contextInfo} What would you like to share?`,
         is_first_memory: true,
         ...responseData
       })
     }
     
     return NextResponse.json({
-      result: `You have ${memoryCount} memories in your timeline.${contextInfo} What new memory would you like to add?`,
+      result: `Hi ${userName}! You have ${memoryCount} memories in your timeline.${contextInfo} What new memory would you like to add?`,
       ...responseData
     })
     
@@ -658,9 +625,21 @@ async function getUserContext(parameters: any, call: any, authenticatedUserId: s
 // Handle media upload requests
 async function uploadMedia(parameters: any, call: any, authenticatedUserId: string | null = null) {
   const { media_type, memory_id, description } = parameters
-  const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
   
-  console.log('📸 UPLOAD MEDIA REQUEST:', { media_type, memory_id, description })
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  
+  console.log('📸 UPLOAD MEDIA REQUEST:', { media_type, memory_id, description, userId })
+  
+  // Validate user ID
+  if (!userId || userId === 'NOT_FOUND') {
+    console.log('📸 ERROR: No valid user identification from VAPI')
+    return NextResponse.json({
+      error: "User identification required",
+      result: "I need to know who you are to handle media uploads. Please configure user identification in VAPI.",
+      success: false
+    }, { status: 400 })
+  }
   
   try {
     // For now, we'll provide instructions for the user to upload
@@ -843,23 +822,20 @@ async function createChapter(parameters: any, call: any, authenticatedUserId: st
 async function saveBirthYear(parameters: any, call: any, authenticatedUserId: string | null = null) {
   const { birth_year } = parameters
   
-  // Extract user ID from various possible locations in the call object
-  let userId = null
-  if (call?.customer?.userId) {
-    userId = call.customer.userId
-  } else if (call?.metadata?.userId) {
-    userId = call.metadata.userId
-  } else if (call?.customerData?.userId) {
-    userId = call.customerData.userId
-  } else if (call?.user?.id) {
-    userId = call.user.id
-  } else if (call?.userId) {
-    userId = call.userId
-  } else {
-    userId = '550e8400-e29b-41d4-a716-446655440000'
-  }
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
   
   console.log('🎂 SAVING BIRTH YEAR:', { birth_year, userId })
+  
+  // Validate user ID
+  if (!userId || userId === 'NOT_FOUND') {
+    console.log('🎂 ERROR: No valid user identification from VAPI')
+    return NextResponse.json({
+      error: "User identification required",
+      result: "I need to know who you are to save your birth year. Please configure user identification in VAPI.",
+      success: false
+    }, { status: 400 })
+  }
   
   if (!birth_year) {
     return NextResponse.json({
@@ -920,7 +896,7 @@ async function handleTranscript(body: any) {
 }
 
 // Handle new VAPI tool-calls format
-async function handleToolCalls(body: any) {
+async function handleToolCalls(body: any, authenticatedUserId: string | null = null) {
   console.log('🔧 HANDLING TOOL-CALLS')
   const { message, call } = body
   const toolCalls = message?.toolCalls || []
@@ -964,11 +940,11 @@ async function handleToolCalls(body: any) {
   
   console.log('🔧 Restructured body:', JSON.stringify(restructuredBody, null, 2))
   
-  return handleFunctionCall(restructuredBody)
+  return handleFunctionCall(restructuredBody, authenticatedUserId)
 }
 
 // Handle message-based webhook format (new VAPI format)
-async function handleMessageBasedWebhook(body: any) {
+async function handleMessageBasedWebhook(body: any, authenticatedUserId: string | null = null) {
   console.log('🔄 HANDLING MESSAGE-BASED WEBHOOK')
   const { message, call } = body
   const messageType = message?.type
@@ -979,7 +955,7 @@ async function handleMessageBasedWebhook(body: any) {
   switch (messageType) {
     case 'tool-calls':
       // Handle the new VAPI tool-calls format
-      return handleToolCalls(body)
+      return handleToolCalls(body, authenticatedUserId)
     
     case 'function-call':
       // Legacy format - restructure to match expected format
@@ -988,7 +964,7 @@ async function handleMessageBasedWebhook(body: any) {
         functionCall: message.functionCall || message,
         call: call
       }
-      return handleFunctionCall(restructuredBody)
+      return handleFunctionCall(restructuredBody, authenticatedUserId)
     
     case 'transcript':
       return handleTranscript({ transcript: message, call })
