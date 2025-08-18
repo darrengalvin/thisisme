@@ -473,10 +473,19 @@ async function getUserContext(parameters: any, call: any, authenticatedUserId: s
     console.warn('⚠️ WARNING: Using fallback user ID - real user ID not found in call object')
     console.warn('⚠️ Available call object keys:', Object.keys(call || {}))
     
+    // Get user's name for personalization
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('email, birth_year')
+      .eq('id', userId)
+      .single()
+    
+    const userName = userData?.email?.split('@')[0] || 'there'
+    
     // For now, let's return a helpful message asking for birth year
     return NextResponse.json({
-      result: "I don't have your birth year in my system yet. When were you born? That'll help me place your memories on the right timeline.",
-      user_birth_year: null,
+      result: `Hi ${userName}! I don't have your birth year in my system yet. When were you born? That'll help me place your memories on the right timeline.`,
+      user_birth_year: userData?.birth_year || null,
       memory_count: 0,
       chapters: [],
       needs_birth_year: true
@@ -757,7 +766,7 @@ async function createChapter(parameters: any, call: any, authenticatedUserId: st
     // Verify the provided user ID exists in our database
     const { data: targetUser, error: userError } = await supabaseAdmin
       .from('users')
-      .select('id, email, name, birth_year')
+      .select('id, email, birth_year')
       .eq('id', userId)
       .single()
     
@@ -771,6 +780,10 @@ async function createChapter(parameters: any, call: any, authenticatedUserId: st
     }
     
     console.log('📚 Using verified user:', { id: targetUser.id, email: targetUser.email })
+    
+    // Personalize the experience
+    const userName = targetUser.email?.split('@')[0] || 'there'
+    console.log('📚 Personalizing for user:', userName)
     
     // Create chapter using Supabase
     const { data: chapter, error } = await supabaseAdmin
