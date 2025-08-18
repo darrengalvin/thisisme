@@ -15,3 +15,5 @@ CREATE INDEX IF NOT EXISTS idx_ticket_attachments_screenshot ON public.ticket_at
 
 
 
+
+
