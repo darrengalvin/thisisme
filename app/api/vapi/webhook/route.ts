@@ -553,23 +553,50 @@ async function handleCallEnd(body: any) {
 
 // Create a new chapter (timezone) for organizing memories
 async function createChapter(parameters: any, call: any) {
-  const { title, description, timeframe, start_year, end_year } = parameters
+  const { title, description, timeframe, start_year, end_year, location } = parameters
   const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
   
-  console.log('📚 CREATING CHAPTER:', { title, description, timeframe, start_year, end_year })
+  console.log('📚 CREATING CHAPTER:', { title, description, timeframe, start_year, end_year, location })
   console.log('📚 CREATE CHAPTER - User ID:', userId)
   console.log('📚 CREATE CHAPTER - Parameters:', JSON.stringify(parameters, null, 2))
+  
+  // Validate required information
+  if (!title || title.trim().length === 0) {
+    console.error('📚 CREATE CHAPTER - Missing title')
+    return NextResponse.json(
+      {
+        error: "Chapter title is required",
+        result: "I need a title for the chapter. What would you like to call it?",
+        success: false
+      },
+      { status: 400 }
+    )
+  }
+  
+  // Check if we have enough information to create a meaningful chapter
+  if (!start_year && !timeframe && !description) {
+    console.error('📚 CREATE CHAPTER - Insufficient information')
+    return NextResponse.json(
+      {
+        error: "Insufficient chapter information",
+        result: "I need more details to create this chapter. When did this period of your life happen? What years or age range should I use?",
+        success: false
+      },
+      { status: 400 }
+    )
+  }
   
   try {
     // Create chapter using Supabase
     const { data: chapter, error } = await supabaseAdmin
       .from('timezones')
       .insert({
-        title: title || 'New Chapter',
-        description: description || null,
+        title: title.trim(),
+        description: description || `Chapter covering ${timeframe || `${start_year}${end_year ? ` to ${end_year}` : ''}`}`,
         type: 'PRIVATE',
         start_date: start_year ? new Date(`${start_year}-01-01`).toISOString() : null,
         end_date: end_year ? new Date(`${end_year}-12-31`).toISOString() : null,
+        location: location || null,
         creator_id: userId
       })
       .select()

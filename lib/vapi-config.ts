@@ -33,8 +33,13 @@ Available functions:
 - get-user-context: ALWAYS call first to get birth year and existing chapters
 - save-memory: Save with title, content, timeframe, age, year, location, people, chapter
 - search-memories: Find existing memories for organization
-- create-chapter: Create new chapters when memories don't fit existing ones
-- upload-media: Trigger photo upload when they mention photos`
+- create-chapter: ONLY use when user explicitly asks to create a new chapter AND you have proper dates/years
+- upload-media: Trigger photo upload when they mention photos
+
+IMPORTANT: Do NOT create chapters automatically. Only create chapters when:
+1. User explicitly asks for a new chapter
+2. You have specific years or time periods
+3. User provides a clear title and timeframe`
     },
     
     voice: {
@@ -133,7 +138,7 @@ Available functions:
       
       {
         name: "create-chapter",
-        description: "Create a new chapter/timeline section for organizing memories",
+        description: "Create a new chapter/timeline section for organizing memories. ONLY call this when the user explicitly asks to create a new chapter AND provides sufficient details about the time period.",
         parameters: {
           type: "object",
           properties: {
@@ -143,22 +148,26 @@ Available functions:
             },
             description: {
               type: "string",
-              description: "Optional description of what this chapter covers"
+              description: "Description of what this chapter covers and why it's significant"
             },
             timeframe: {
               type: "string",
-              description: "Time period this chapter covers (e.g., '2010-2014', 'Age 18-22')"
+              description: "Time period this chapter covers (e.g., '2010-2014', 'Age 18-22', 'Early 20s')"
             },
             start_year: {
               type: "integer",
-              description: "Starting year for this chapter"
+              description: "Starting year for this chapter (required for proper timeline organization)"
             },
             end_year: {
               type: "integer", 
-              description: "Ending year for this chapter"
+              description: "Ending year for this chapter (optional, can be ongoing)"
+            },
+            location: {
+              type: "string",
+              description: "Primary location for this chapter if relevant (e.g., 'London', 'University of Manchester')"
             }
           },
-          required: ["title"]
+          required: ["title", "start_year"]
         }
       }
     ],
