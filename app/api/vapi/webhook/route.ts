@@ -351,7 +351,7 @@ async function uploadMedia(parameters: any, call: any) {
     // For now, we'll provide instructions for the user to upload
     // In a full implementation, you'd integrate with your file upload system
     
-    const uploadInstructions = {
+    const uploadInstructions: { [key: string]: string } = {
       photos: "Great! You can upload photos by visiting your memory timeline and clicking the photo icon on this memory.",
       videos: "Perfect! You can add videos by going to your timeline and selecting this memory to add media.",
       documents: "You can attach documents by visiting this memory in your timeline and using the attachment feature."
