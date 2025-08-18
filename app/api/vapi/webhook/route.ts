@@ -169,34 +169,10 @@ async function searchMemories(parameters: any, call: any) {
   
   console.log('🔍 SEARCHING MEMORIES:', { query, timeframe, age, year, chapter_name })
   
-  const userId = call.customer?.userId || call.metadata?.userId || 'test-user'
+  const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
   
   try {
-    // Build search conditions
-    const searchConditions: any = {
-      userId: userId
-    }
-
-    // Search by content/title
-    if (query) {
-      searchConditions.OR = [
-        { title: { contains: query, mode: 'insensitive' } },
-        { textContent: { contains: query, mode: 'insensitive' } }
-      ]
-    }
-    
-    // Search by timeframe/age/year
-    if (timeframe || age || year) {
-      const searchTerm = timeframe || (age ? `Age ${age}` : year?.toString())
-      if (searchTerm) {
-        searchConditions.approximateDate = {
-          contains: searchTerm,
-          mode: 'insensitive'
-        }
-      }
-    }
-
-    let query = supabaseAdmin
+    let supabaseQuery = supabaseAdmin
       .from('memories')
       .select('id, title, text_content, approximate_date, created_at')
       .eq('user_id', userId)
@@ -204,22 +180,19 @@ async function searchMemories(parameters: any, call: any) {
       .limit(10)
 
     // Apply search filters
-    if (searchConditions.OR) {
+    if (query) {
       // Search in title or content
-      const searchTerm = query || timeframe || (age ? `Age ${age}` : year?.toString())
-      if (searchTerm) {
-        query = query.or(`title.ilike.%${searchTerm}%,text_content.ilike.%${searchTerm}%`)
-      }
+      supabaseQuery = supabaseQuery.or(`title.ilike.%${query}%,text_content.ilike.%${query}%`)
     }
     
-    if (searchConditions.approximateDate) {
+    if (timeframe || age || year) {
       const searchTerm = timeframe || (age ? `Age ${age}` : year?.toString())
       if (searchTerm) {
-        query = query.ilike('approximate_date', `%${searchTerm}%`)
+        supabaseQuery = supabaseQuery.ilike('approximate_date', `%${searchTerm}%`)
       }
     }
 
-    const { data: memories, error } = await query
+    const { data: memories, error } = await supabaseQuery
     if (error) throw error
     
     if (!memories || memories.length === 0) {
@@ -280,7 +253,7 @@ async function searchMemories(parameters: any, call: any) {
 // Get user context for timeline organization
 async function getUserContext(parameters: any, call: any) {
   const { age, year, context_type } = parameters
-  const userId = call.customer?.userId || call.metadata?.userId || 'test-user'
+  const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
   
   console.log('👤 GETTING USER CONTEXT for:', userId, { age, year, context_type })
   
@@ -370,7 +343,7 @@ async function getUserContext(parameters: any, call: any) {
 // Handle media upload requests
 async function uploadMedia(parameters: any, call: any) {
   const { media_type, memory_id, description } = parameters
-  const userId = call.customer?.userId || call.metadata?.userId || 'test-user'
+  const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
   
   console.log('📸 UPLOAD MEDIA REQUEST:', { media_type, memory_id, description })
   
