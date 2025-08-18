@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
-// Helper function to extract user ID from VAPI call object
-function extractUserIdFromCall(call: any): string | null {
-  // Try different paths for user ID extraction
+// Helper function to extract user ID - prioritize authenticated user
+function extractUserIdFromCall(call: any, authenticatedUserId: string | null): string | null {
+  // If we have an authenticated user ID from the URL, use that first
+  if (authenticatedUserId) {
+    return authenticatedUserId
+  }
+  
+  // Fallback to trying VAPI call object (less reliable)
   if (call?.customer?.userId) {
     return call.customer.userId
   } else if (call?.metadata?.userId) {
@@ -24,6 +29,37 @@ function extractUserIdFromCall(call: any): string | null {
 export async function POST(request: NextRequest) {
   try {
     console.log('🎤 VAPI WEBHOOK: Received webhook call')
+    
+    // Extract user authentication from URL parameters
+    const url = new URL(request.url)
+    const authToken = url.searchParams.get('token')
+    const userIdParam = url.searchParams.get('userId')
+    
+    console.log('🔐 AUTH CHECK: Token present:', !!authToken)
+    console.log('🔐 AUTH CHECK: User ID param:', userIdParam)
+    
+    // Verify user authentication
+    let authenticatedUserId: string | null = null
+    
+    if (authToken) {
+      try {
+        const { verifyToken } = await import('@/lib/auth')
+        const userInfo = await verifyToken(authToken)
+        
+        if (userInfo) {
+          authenticatedUserId = userInfo.userId
+          console.log('🔐 AUTH SUCCESS: Verified user:', authenticatedUserId)
+        } else {
+          console.log('🔐 AUTH FAILED: Invalid token')
+        }
+      } catch (error) {
+        console.log('🔐 AUTH ERROR:', error)
+      }
+    } else if (userIdParam) {
+      // Direct user ID parameter (less secure, but simpler)
+      authenticatedUserId = userIdParam
+      console.log('🔐 AUTH PARAM: Using user ID parameter:', authenticatedUserId)
+    }
     
     const body = await request.json()
     
@@ -69,7 +105,7 @@ export async function POST(request: NextRequest) {
     
     switch (type) {
       case 'function-call':
-        return handleFunctionCall(body)
+        return handleFunctionCall(body, authenticatedUserId)
       
       case 'call-start':
         return handleCallStart(body)
@@ -95,7 +131,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle function calls from VAPI (when AI wants to save memories, etc.)
-async function handleFunctionCall(body: any) {
+async function handleFunctionCall(body: any, authenticatedUserId: string | null = null) {
   const { functionCall, call } = body
   const { name, parameters } = functionCall
   
@@ -115,32 +151,32 @@ async function handleFunctionCall(body: any) {
     switch (name) {
       case 'save-memory':
         console.log('💾 STARTING save-memory function')
-        result = await saveMemory(parameters, call)
+        result = await saveMemory(parameters, call, authenticatedUserId)
         break
       
       case 'search-memories':
         console.log('🔍 STARTING search-memories function')
-        result = await searchMemories(parameters, call)
+        result = await searchMemories(parameters, call, authenticatedUserId)
         break
       
       case 'get-user-context':
         console.log('👤 STARTING get-user-context function')
-        result = await getUserContext(parameters, call)
+        result = await getUserContext(parameters, call, authenticatedUserId)
         break
       
       case 'upload-media':
         console.log('📸 STARTING upload-media function')
-        result = await uploadMedia(parameters, call)
+        result = await uploadMedia(parameters, call, authenticatedUserId)
         break
       
       case 'create-chapter':
         console.log('📚 STARTING create-chapter function')
-        result = await createChapter(parameters, call)
+        result = await createChapter(parameters, call, authenticatedUserId)
         break
       
       case 'save-birth-year':
         console.log('🎂 STARTING save-birth-year function')
-        result = await saveBirthYear(parameters, call)
+        result = await saveBirthYear(parameters, call, authenticatedUserId)
         break
       
       default:
@@ -676,24 +712,11 @@ async function handleCallEnd(body: any) {
 }
 
 // Create a new chapter (timezone) for organizing memories
-async function createChapter(parameters: any, call: any) {
+async function createChapter(parameters: any, call: any, authenticatedUserId: string | null = null) {
   const { title, description, timeframe, start_year, end_year, location } = parameters
   
-  // Extract user ID from various possible locations in the call object
-  let userId = null
-  if (call?.customer?.userId) {
-    userId = call.customer.userId
-  } else if (call?.metadata?.userId) {
-    userId = call.metadata.userId
-  } else if (call?.customerData?.userId) {
-    userId = call.customerData.userId
-  } else if (call?.user?.id) {
-    userId = call.user.id
-  } else if (call?.userId) {
-    userId = call.userId
-  } else {
-    userId = '550e8400-e29b-41d4-a716-446655440000'
-  }
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
   
   console.log('📚 CREATING CHAPTER:', { title, description, timeframe, start_year, end_year, location })
   console.log('📚 CREATE CHAPTER - User ID:', userId)
