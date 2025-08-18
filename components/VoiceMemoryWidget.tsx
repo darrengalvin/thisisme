@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Mic, MicOff, Volume2, VolumeX, Sparkles, MessageCircle, X, Minimize2, Maximize2 } from 'lucide-react'
-import useVapi from '@vapi-ai/web'
 
 interface VoiceMemoryWidgetProps {
   onMemoryAdded?: (memory: any) => void
@@ -23,173 +22,61 @@ export default function VoiceMemoryWidget({
   const [recentMemories, setRecentMemories] = useState<string[]>([])
   const [showRecentMemories, setShowRecentMemories] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected')
+  const [vapiClient, setVapiClient] = useState<any>(null)
+  const [transcript, setTranscript] = useState('')
+  const [volumeLevel, setVolumeLevel] = useState(0)
   
-  // VAPI Configuration
-  const { start, stop, toggleCall, isSessionActive, volumeLevel, transcript } = useVapi({
-    apiKey: process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || '',
-    assistant: {
-      model: {
-        provider: 'openai',
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        maxTokens: 150,
-        systemMessage: `You are Maya, a warm and friendly memory companion for the "This Is Me" platform. Help users capture and organize their life memories naturally.
-
-PERSONALITY:
-- Warm, encouraging, and genuinely interested
-- Natural conversational style (not clinical or therapist-like)
-- Short, focused responses that keep the conversation flowing
-- Use the user's name when you learn it
-
-MEMORY CAPTURE FOCUS:
-- Extract key details: WHEN (age/year), WHERE (location), WHO (people involved), WHAT (what happened)
-- Ask natural follow-up questions about sensory details when appropriate
-- Guide memories to the right timeline placement
-- Suggest photo uploads when relevant
-
-CONVERSATION FLOW:
-1. Listen to their story
-2. Ask 1-2 natural follow-up questions for key details
-3. Confirm timeline placement (age/year/chapter)
-4. Save the memory with rich details
-5. Suggest photo uploads if appropriate
-6. Ask what else they'd like to share
-
-Always use the available functions to save memories and search for context.`,
-      },
-      voice: {
-        provider: 'elevenlabs',
-        voiceId: '19STyYD15bswVz51nqLf', // Your custom voice
-        stability: 0.5,
-        similarityBoost: 0.8,
-        style: 0.2,
-        useSpeakerBoost: true,
-      },
-      firstMessage: "Hi! I'm Maya, ready to help you capture some memories. What's on your mind today?",
-      serverUrl: 'https://thisisme-three.vercel.app/api/vapi/webhook',
-      functions: [
-        {
-          name: 'save-memory',
-          description: 'Save a memory to the user\'s timeline when they share a story, experience, or moment they want to remember',
-          parameters: {
-            type: 'object',
-            properties: {
-              title: {
-                type: 'string',
-                description: 'A short, descriptive title for the memory'
-              },
-              content: {
-                type: 'string',
-                description: 'The full memory content and story'
-              },
-              age: {
-                type: 'number',
-                description: 'The user\'s age when this memory happened'
-              },
-              year: {
-                type: 'number',
-                description: 'The year when this memory happened'
-              },
-              location: {
-                type: 'string',
-                description: 'Where this memory took place'
-              },
-              people: {
-                type: 'string',
-                description: 'People who were involved in this memory'
-              },
-              chapter: {
-                type: 'string',
-                description: 'The life chapter this memory belongs to (e.g., "School Years", "College", "First Job")'
-              },
-              sensory_details: {
-                type: 'string',
-                description: 'Sensory details like sounds, smells, feelings that make the memory vivid'
-              },
-              tags: {
-                type: 'string',
-                description: 'Relevant tags or keywords for this memory'
-              }
-            },
-            required: ['title', 'content']
+  // Initialize VAPI client
+  useEffect(() => {
+    const initVapi = async () => {
+      try {
+        const Vapi = (await import('@vapi-ai/web')).default
+        const client = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || '')
+        setVapiClient(client)
+        
+        // Set up event listeners
+        client.on('call-start', () => {
+          console.log('🎤 VAPI: Call started')
+          setIsConnected(true)
+          setConnectionStatus('connected')
+        })
+        
+        client.on('call-end', () => {
+          console.log('🎤 VAPI: Call ended')
+          setIsConnected(false)
+          setConnectionStatus('disconnected')
+        })
+        
+        client.on('speech-start', () => {
+          console.log('🎤 VAPI: User started speaking')
+          setIsListening(true)
+        })
+        
+        client.on('speech-end', () => {
+          console.log('🎤 VAPI: User stopped speaking')
+          setIsListening(false)
+        })
+        
+        client.on('message', (message: any) => {
+          if (message.type === 'transcript' && message.transcript) {
+            setTranscript(message.transcript.text || '')
           }
-        },
-        {
-          name: 'search-memories',
-          description: 'Search through the user\'s existing memories to provide context or find related memories',
-          parameters: {
-            type: 'object',
-            properties: {
-              query: {
-                type: 'string',
-                description: 'Search term or topic to look for in memories'
-              },
-              timeframe: {
-                type: 'string',
-                description: 'Time period to search within (e.g., "childhood", "college years", "2010s")'
-              },
-              age: {
-                type: 'number',
-                description: 'Specific age to search memories from'
-              },
-              year: {
-                type: 'number',
-                description: 'Specific year to search memories from'
-              },
-              chapter_name: {
-                type: 'string',
-                description: 'Specific chapter/life period to search within'
-              }
-            }
+          if (message.type === 'function-call' && message.functionCall) {
+            console.log('🎤 VAPI: Function called:', message.functionCall)
           }
-        },
-        {
-          name: 'get-user-context',
-          description: 'Get information about the user\'s timeline, chapters, and life context to help with memory organization',
-          parameters: {
-            type: 'object',
-            properties: {
-              age: {
-                type: 'number',
-                description: 'Get context for a specific age period'
-              },
-              year: {
-                type: 'number',
-                description: 'Get context for a specific year'
-              },
-              context_type: {
-                type: 'string',
-                enum: ['chapters', 'timeline_overview', 'recent_memories'],
-                description: 'Type of context information needed'
-              }
-            }
-          }
-        },
-        {
-          name: 'upload-media',
-          description: 'Guide user to upload photos, videos, or documents related to a memory',
-          parameters: {
-            type: 'object',
-            properties: {
-              media_type: {
-                type: 'string',
-                enum: ['photos', 'videos', 'documents'],
-                description: 'Type of media the user wants to upload'
-              },
-              memory_id: {
-                type: 'string',
-                description: 'ID of the memory to attach media to'
-              },
-              description: {
-                type: 'string',
-                description: 'Description of what media they want to add'
-              }
-            }
-          }
-        }
-      ]
+        })
+        
+        client.on('volume-level', (level: number) => {
+          setVolumeLevel(level)
+        })
+        
+      } catch (error) {
+        console.error('🎤 VAPI: Failed to initialize:', error)
+      }
     }
-  })
+    
+    initVapi()
+  }, [])
 
   // Handle VAPI events
   useEffect(() => {
@@ -214,11 +101,6 @@ Always use the available functions to save memories and search for context.`,
     return () => window.removeEventListener('message', handleMessage)
   }, [onMemoryAdded, onMemoryHighlight])
 
-  useEffect(() => {
-    setIsConnected(isSessionActive)
-    setConnectionStatus(isSessionActive ? 'connected' : 'disconnected')
-  }, [isSessionActive])
-
   // Handle voice activity
   useEffect(() => {
     if (volumeLevel && volumeLevel > 0.1) {
@@ -229,16 +111,23 @@ Always use the available functions to save memories and search for context.`,
   }, [volumeLevel])
 
   const handleToggleCall = async () => {
+    if (!vapiClient) {
+      console.error('🎤 VAPI client not initialized')
+      return
+    }
+    
     try {
-      if (isSessionActive) {
-        await stop()
+      if (isConnected) {
+        await vapiClient.stop()
         setConnectionStatus('disconnected')
       } else {
         setConnectionStatus('connecting')
-        await start()
+        await vapiClient.start({
+          assistantId: '8ceaceba-6047-4965-92c5-225d0ebc1c4f' // Your VAPI assistant ID
+        })
       }
     } catch (error) {
-      console.error('Error toggling call:', error)
+      console.error('🎤 Error toggling call:', error)
       setConnectionStatus('disconnected')
     }
   }
@@ -408,7 +297,7 @@ Always use the available functions to save memories and search for context.`,
         
         {/* Chat Area */}
         <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
-          {!isSessionActive ? (
+          {!isConnected ? (
             <div className="text-center py-8">
               <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Mic size={24} className="text-white" />
@@ -486,16 +375,16 @@ Always use the available functions to save memories and search for context.`,
             <button
               onClick={handleToggleCall}
               className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ${
-                isSessionActive 
+                isConnected 
                   ? 'bg-red-500 hover:bg-red-600 text-white' 
                   : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:shadow-lg text-white'
               }`}
             >
-              {isSessionActive ? <MicOff size={20} /> : <Mic size={20} />}
+              {isConnected ? <MicOff size={20} /> : <Mic size={20} />}
             </button>
           </div>
           <p className="text-center text-xs text-gray-500 mt-2">
-            {isSessionActive ? 'Tap to end conversation' : 'Tap to start voice chat'}
+            {isConnected ? 'Tap to end conversation' : 'Tap to start voice chat'}
           </p>
         </div>
       </div>
