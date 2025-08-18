@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
       memoryCreated: false, // Don't create in streaming mode yet
       suggestedActions: aiResponse.suggestedActions,
       followUpQuestions: extraction.followUpQuestions,
-      shouldSuggestPhotos: aiResponse.shouldSuggestPhotos || false,
-      memoryType: aiResponse.memoryType || 'general',
+      shouldSuggestPhotos: (aiResponse as any).shouldSuggestPhotos || false,
+      memoryType: (aiResponse as any).memoryType || 'general',
       priority, // high/medium/low for streaming optimization
       streamingReady: true
     })

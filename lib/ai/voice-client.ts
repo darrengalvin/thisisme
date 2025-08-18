@@ -63,7 +63,7 @@ export class VoiceClient {
 
       // Convert ReadableStream to Buffer
       const chunks: Uint8Array[] = []
-      const reader = audioStream.getReader()
+      const reader = (audioStream as any).getReader()
       
       while (true) {
         const { done, value } = await reader.read()
@@ -87,7 +87,7 @@ export class VoiceClient {
     config?: VoiceConfig
   ): Promise<void> {
     try {
-      const audioStream = await this.elevenLabs.textToSpeech.convertWithStream(
+      const audioStream = await this.elevenLabs.textToSpeech.convertAsStream(
         config?.voiceId || this.defaultVoiceId,
         {
           text,
@@ -99,7 +99,7 @@ export class VoiceClient {
         }
       )
 
-      const reader = audioStream.getReader()
+      const reader = (audioStream as any).getReader()
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -352,8 +352,8 @@ export class VoiceClient {
     
     return voices.voices.map(voice => ({
       id: voice.voice_id,
-      name: voice.name,
-      preview_url: voice.preview_url,
+      name: voice.name || '',
+      preview_url: voice.preview_url || '',
       category: voice.category || 'general'
     }))
   }

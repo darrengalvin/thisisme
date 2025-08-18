@@ -678,7 +678,7 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
           title={tempImageForCrop.isExisting ? "Crop existing photo" : "Crop new photo"}
           aspectRatio={tempImageForCrop.aspectRatio || 1}
           outputWidth={tempImageForCrop.aspectRatio && tempImageForCrop.aspectRatio > 1 ? 1920 : 1080}
-          outputHeight={tempImageForCrop.aspectRatio && tempImageForCrop.aspectRatio > 1 ? Math.round(1920 / tempImageForCrop.aspectRatio) : Math.round(1080 * tempImageForCrop.aspectRatio)}
+          outputHeight={tempImageForCrop.aspectRatio && tempImageForCrop.aspectRatio > 1 ? Math.round(1920 / tempImageForCrop.aspectRatio) : Math.round(1080 * (tempImageForCrop.aspectRatio || 1))}
         />
       )}
 

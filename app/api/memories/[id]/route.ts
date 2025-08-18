@@ -78,7 +78,7 @@ export async function PUT(
 
     // Delete specified media files
     for (const mediaId of mediaToDelete) {
-      const mediaToRemove = existingMemory.media.find(m => m.id === mediaId)
+      const mediaToRemove = existingMemory.media.find((m: any) => m.id === mediaId)
       if (mediaToRemove) {
         // Delete physical files
         try {

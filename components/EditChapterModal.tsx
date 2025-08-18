@@ -40,8 +40,8 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
     
     return [...memories].sort((a, b) => {
       try {
-        const dateA = new Date(a.memoryDate || a.createdAt || 0).getTime()
-        const dateB = new Date(b.memoryDate || b.createdAt || 0).getTime()
+        const dateA = new Date((a as any).memoryDate || a.createdAt || 0).getTime()
+        const dateB = new Date((b as any).memoryDate || b.createdAt || 0).getTime()
         
         if (isNaN(dateA) || isNaN(dateB)) {
           console.warn('Invalid date detected in memory sorting')
@@ -57,7 +57,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   }
 
   // Helper function to format date for input
-  const formatDateForInput = (dateString: string | null): string => {
+  const formatDateForInput = (dateString: string | null | undefined): string => {
     if (!dateString) return ''
     try {
       const date = new Date(dateString)
