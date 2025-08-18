@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
-// Helper function to extract user ID - prioritize authenticated user
+// Helper function to extract user ID from VAPI call object
 function extractUserIdFromCall(call: any, authenticatedUserId: string | null): string | null {
-  // If we have an authenticated user ID from the URL, use that first
+  // If we have an authenticated user ID from the URL parameters, use that first
   if (authenticatedUserId) {
     return authenticatedUserId
   }
   
-  // Fallback to trying VAPI call object (less reliable)
+  // VAPI's recommended approach: extract from customer field
   if (call?.customer?.userId) {
     return call.customer.userId
-  } else if (call?.metadata?.userId) {
+  }
+  
+  // Alternative: extract from metadata field
+  if (call?.metadata?.userId) {
     return call.metadata.userId
-  } else if (call?.customerData?.userId) {
+  }
+  
+  // Legacy fallbacks (less reliable)
+  if (call?.customerData?.userId) {
     return call.customerData.userId
   } else if (call?.user?.id) {
     return call.user.id

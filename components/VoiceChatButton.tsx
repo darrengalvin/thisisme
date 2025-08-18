@@ -37,8 +37,11 @@ export default function VoiceChatButton() {
       console.log('🎤 Voice chat config:', data)
 
       // Here you would integrate with VAPI SDK
+      // Example: const vapi = new Vapi('YOUR_VAPI_PUBLIC_KEY')
+      // vapi.start(data.vapiConfig)
+      
       // For now, we'll show what would happen
-      alert(`Voice chat started!\n\nMaya knows you as: ${data.user.email}\nWebhook URL: ${data.vapiConfig.webhookUrl}\n\nGreeting: "${data.vapiConfig.greeting}"`)
+      alert(`Voice chat configured!\n\nMaya knows you as: ${data.user.name} (${data.user.email})\nAge: ${data.user.currentAge}\nBorn: ${data.user.birthYear}\n\nWebhook: ${data.instructions.webhookUrl}\n\nVAPI Config:\n${JSON.stringify(data.vapiConfig, null, 2)}\n\nGreeting: "${data.greeting}"`)
       
       setIsCallActive(true)
 
