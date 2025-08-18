@@ -725,8 +725,8 @@ export default function Dashboard() {
     
     // Add to voice-added memories for special styling
     if (memory.id) {
-      setVoiceAddedMemories(prev => new Set([...prev, memory.id]))
-      setHighlightedMemories(prev => new Set([...prev, memory.id]))
+      setVoiceAddedMemories(prev => new Set([...Array.from(prev), memory.id]))
+      setHighlightedMemories(prev => new Set([...Array.from(prev), memory.id]))
       
       // Remove highlight after 10 seconds
       setTimeout(() => {
@@ -745,8 +745,8 @@ export default function Dashboard() {
   const handleVoiceMemoryHighlight = (memoryId: string) => {
     console.log('🎯 DASHBOARD: Highlighting voice memory:', memoryId)
     
-    setHighlightedMemories(prev => new Set([...prev, memoryId]))
-    setVoiceAddedMemories(prev => new Set([...prev, memoryId]))
+    setHighlightedMemories(prev => new Set([...Array.from(prev), memoryId]))
+    setVoiceAddedMemories(prev => new Set([...Array.from(prev), memoryId]))
     
     // Remove highlight after 8 seconds
     setTimeout(() => {
