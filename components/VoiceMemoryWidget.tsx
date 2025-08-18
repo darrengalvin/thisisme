@@ -3,29 +3,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { Mic, MicOff, Volume2, VolumeX, Sparkles, MessageCircle, X, Minimize2, Maximize2 } from 'lucide-react'
 
-// Custom styles for staggered animations
-const pulseStyles = `
-  .animation-delay-0 { animation-delay: 0s; }
-  .animation-delay-300 { animation-delay: 0.3s; }
-  .animation-delay-600 { animation-delay: 0.6s; }
-  .pulse-ring {
-    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-  @keyframes pulse-ring {
-    0% {
-      transform: scale(0.8);
-      opacity: 1;
-    }
-    50% {
-      transform: scale(1.2);
-      opacity: 0.3;
-    }
-    100% {
-      transform: scale(1.4);
-      opacity: 0;
-    }
-  }
-`
+// Custom CSS classes for animations
+const customStyles = {
+  pulseRing: {
+    animation: 'pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+  },
+  animationDelay0: { animationDelay: '0s' },
+  animationDelay300: { animationDelay: '0.3s' },
+  animationDelay600: { animationDelay: '0.6s' }
+}
 
 interface VoiceMemoryWidgetProps {
   onMemoryAdded?: (memory: any) => void
@@ -230,11 +216,7 @@ export default function VoiceMemoryWidget({
 
   if (isMinimized) {
     return (
-      <>
-        {/* Inject custom styles */}
-        <style jsx>{pulseStyles}</style>
-        
-        <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
+      <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
         {/* Floating Voice Bubble */}
         <div className="relative">
           {/* Recent memories indicator */}
@@ -252,9 +234,18 @@ export default function VoiceMemoryWidget({
             {/* Multiple animated pulse rings */}
             {isListening && (
               <>
-                <div className="absolute inset-0 bg-white/30 rounded-full pulse-ring animation-delay-0"></div>
-                <div className="absolute inset-0 bg-white/20 rounded-full pulse-ring animation-delay-300"></div>
-                <div className="absolute inset-0 bg-white/10 rounded-full pulse-ring animation-delay-600"></div>
+                <div 
+                  className="absolute inset-0 bg-white/30 rounded-full animate-ping" 
+                  style={customStyles.animationDelay0}
+                ></div>
+                <div 
+                  className="absolute inset-0 bg-white/20 rounded-full animate-ping" 
+                  style={customStyles.animationDelay300}
+                ></div>
+                <div 
+                  className="absolute inset-0 bg-white/10 rounded-full animate-ping" 
+                  style={customStyles.animationDelay600}
+                ></div>
               </>
             )}
             
@@ -341,11 +332,7 @@ export default function VoiceMemoryWidget({
   }
 
   return (
-    <>
-      {/* Inject custom styles */}
-      <style jsx>{pulseStyles}</style>
-      
-      <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
+    <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
       {/* Expanded Voice Chat Interface */}
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-80 h-96 flex flex-col overflow-hidden">
         {/* Header */}
