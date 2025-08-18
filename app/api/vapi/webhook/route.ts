@@ -68,7 +68,7 @@ async function handleFunctionCall(body: any) {
   } catch (error) {
     console.error('🎤 VAPI FUNCTION ERROR:', error)
     return NextResponse.json({
-      result: `Error executing ${name}: ${error.message}`
+      result: `Error executing ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`
     })
   }
 }
