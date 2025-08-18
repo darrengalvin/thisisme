@@ -33,6 +33,7 @@ Available functions:
 - get-user-context: ALWAYS call first to get birth year and existing chapters
 - save-memory: Save with title, content, timeframe, age, year, location, people, chapter
 - search-memories: Find existing memories for organization
+- create-chapter: Create new chapters when memories don't fit existing ones
 - upload-media: Trigger photo upload when they mention photos`
     },
     
@@ -127,6 +128,37 @@ Available functions:
               description: "Type of context to retrieve"
             }
           }
+        }
+      },
+      
+      {
+        name: "create-chapter",
+        description: "Create a new chapter/timeline section for organizing memories",
+        parameters: {
+          type: "object",
+          properties: {
+            title: {
+              type: "string",
+              description: "Name of the chapter (e.g., 'College Years', 'First Job', 'Wedding')"
+            },
+            description: {
+              type: "string",
+              description: "Optional description of what this chapter covers"
+            },
+            timeframe: {
+              type: "string",
+              description: "Time period this chapter covers (e.g., '2010-2014', 'Age 18-22')"
+            },
+            start_year: {
+              type: "integer",
+              description: "Starting year for this chapter"
+            },
+            end_year: {
+              type: "integer", 
+              description: "Ending year for this chapter"
+            }
+          },
+          required: ["title"]
         }
       }
     ],

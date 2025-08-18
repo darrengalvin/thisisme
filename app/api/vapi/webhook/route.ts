@@ -60,6 +60,9 @@ async function handleFunctionCall(body: any) {
       case 'upload-media':
         return await uploadMedia(parameters, call)
       
+      case 'create-chapter':
+        return await createChapter(parameters, call)
+      
       default:
         return NextResponse.json({
           result: `Function ${name} not implemented yet`
@@ -447,6 +450,57 @@ async function handleCallEnd(body: any) {
   
   // You could save call analytics here
   return NextResponse.json({ success: true })
+}
+
+// Create a new chapter (timezone) for organizing memories
+async function createChapter(parameters: any, call: any) {
+  const { title, description, timeframe, start_year, end_year } = parameters
+  const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
+  
+  console.log('📚 CREATING CHAPTER:', { title, description, timeframe, start_year, end_year })
+  
+  try {
+    // Create chapter using Supabase
+    const { data: chapter, error } = await supabaseAdmin
+      .from('timezones')
+      .insert({
+        title: title || 'New Chapter',
+        description: description || null,
+        type: 'PRIVATE',
+        start_date: start_year ? new Date(`${start_year}-01-01`).toISOString() : null,
+        end_date: end_year ? new Date(`${end_year}-12-31`).toISOString() : null,
+        creator_id: userId
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    
+    // Add creator as member
+    await supabaseAdmin
+      .from('timezone_members')
+      .insert({
+        timezone_id: chapter.id,
+        user_id: userId,
+        role: 'CREATOR'
+      })
+    
+    console.log('📚 CHAPTER CREATED:', chapter.id, title)
+    
+    return NextResponse.json({
+      result: `Perfect! I've created the "${title}" chapter for you. Now I can save memories there.`,
+      chapterId: chapter.id,
+      chapterTitle: title,
+      success: true
+    })
+    
+  } catch (error) {
+    console.error('📚 CREATE CHAPTER ERROR:', error)
+    return NextResponse.json({
+      result: "I had trouble creating that chapter. Let me save the memory for now and you can organize it later.",
+      success: false
+    })
+  }
 }
 
 // Handle transcript updates
