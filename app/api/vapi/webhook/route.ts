@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
     
     console.log('🎤 VAPI WEBHOOK: Event type:', type)
     console.log('🎤 VAPI WEBHOOK: Call ID:', call?.id)
+    console.log('🎤 VAPI WEBHOOK: Full body:', JSON.stringify(body, null, 2))
     
     switch (type) {
       case 'function-call':
@@ -70,9 +71,13 @@ async function handleFunctionCall(body: any) {
     }
   } catch (error) {
     console.error('🎤 VAPI FUNCTION ERROR:', error)
-    return NextResponse.json({
-      result: `Error executing ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`
-    })
+    return NextResponse.json(
+      {
+        error: `I'm having trouble with that right now. Our technical team has been notified. Please try again in a few minutes.`,
+        result: `Sorry, I'm experiencing technical difficulties and can't ${name.replace('-', ' ')} right now. Please try again later.`
+      },
+      { status: 500 }
+    )
   }
 }
 
@@ -170,10 +175,14 @@ async function saveMemory(parameters: any, call: any) {
     
   } catch (error) {
     console.error('💾 SAVE MEMORY ERROR:', error)
-    return NextResponse.json({
-      result: "I had trouble saving that memory. Can you tell me when it happened so I can place it correctly on your timeline?",
-      success: false
-    })
+    return NextResponse.json(
+      {
+        error: "Failed to save memory to database",
+        result: "Sorry, I'm having trouble saving memories right now. Our technical team has been notified. Please try again in a few minutes.",
+        success: false
+      },
+      { status: 500 }
+    )
   }
 }
 
@@ -257,10 +266,14 @@ async function searchMemories(parameters: any, call: any) {
     
   } catch (error) {
     console.error('🔍 SEARCH MEMORIES ERROR:', error)
-    return NextResponse.json({
-      result: "Let me just save this as a new memory. When did this happen?",
-      memories: []
-    })
+    return NextResponse.json(
+      {
+        error: "Failed to search memories",
+        result: "I'm having trouble searching your memories right now. Let me just save this as a new memory instead.",
+        memories: []
+      },
+      { status: 500 }
+    )
   }
 }
 
@@ -270,6 +283,12 @@ async function getUserContext(parameters: any, call: any) {
   const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
   
   console.log('👤 GETTING USER CONTEXT for:', userId, { age, year, context_type })
+  console.log('👤 CALL OBJECT:', JSON.stringify(call, null, 2))
+  
+  // Check if we're using the fallback user ID
+  if (userId === '550e8400-e29b-41d4-a716-446655440000') {
+    console.warn('⚠️ WARNING: Using fallback user ID - real user ID not found in call object')
+  }
   
   try {
     // Get user profile data (including birth year)
@@ -393,10 +412,16 @@ async function getUserContext(parameters: any, call: any) {
     
   } catch (error) {
     console.error('👤 USER CONTEXT ERROR:', error)
-    return NextResponse.json({
-      result: "Ready to capture a new memory! What's on your mind?",
-      memory_count: 0
-    })
+    return NextResponse.json(
+      {
+        error: "Failed to get user context",
+        result: "I'm having trouble accessing your timeline information right now. Our technical team has been notified. Let me try to help you anyway - what memory would you like to share?",
+        memory_count: 0,
+        user_birth_year: null,
+        chapters: []
+      },
+      { status: 500 }
+    )
   }
 }
 
@@ -496,10 +521,14 @@ async function createChapter(parameters: any, call: any) {
     
   } catch (error) {
     console.error('📚 CREATE CHAPTER ERROR:', error)
-    return NextResponse.json({
-      result: "I had trouble creating that chapter. Let me save the memory for now and you can organize it later.",
-      success: false
-    })
+    return NextResponse.json(
+      {
+        error: "Failed to create chapter",
+        result: "Sorry, I'm having trouble creating chapters right now. Our technical team has been notified. Please try again in a few minutes, or I can save your memory without a chapter for now.",
+        success: false
+      },
+      { status: 500 }
+    )
   }
 }
 
