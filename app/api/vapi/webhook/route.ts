@@ -7,11 +7,46 @@ export async function POST(request: NextRequest) {
     console.log('🎤 VAPI WEBHOOK: Received webhook call')
     
     const body = await request.json()
+    
+    // Check for empty or malformed payload
+    if (!body || typeof body !== 'object') {
+      console.error('🎤 VAPI WEBHOOK: Invalid or empty payload')
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    }
+    
     const { type, call, message } = body
     
     console.log('🎤 VAPI WEBHOOK: Event type:', type)
     console.log('🎤 VAPI WEBHOOK: Call ID:', call?.id)
     console.log('🎤 VAPI WEBHOOK: Full body:', JSON.stringify(body, null, 2))
+    
+    // Enhanced debugging for undefined type
+    if (type === undefined) {
+      console.log('🔍 DEBUGGING UNDEFINED TYPE:')
+      console.log('🔍 Body keys:', Object.keys(body))
+      console.log('🔍 Body type:', typeof body)
+      console.log('🔍 Raw body:', body)
+      console.log('🔍 Type value:', type, 'typeof:', typeof type)
+      
+      // Check for alternative event type fields
+      const possibleTypeFields = ['eventType', 'event', 'messageType', 'webhookType', 'message.type']
+      possibleTypeFields.forEach(field => {
+        if (body[field] !== undefined) {
+          console.log(`🔍 Found alternative type field '${field}':`, body[field])
+        }
+      })
+      
+      // Check if this is a message-based webhook format
+      if (body.message && body.message.type) {
+        console.log('🔍 Found message.type:', body.message.type)
+        // Handle the message-based format
+        return handleMessageBasedWebhook(body)
+      }
+      
+      // For now, return success to avoid errors
+      console.log('🔍 Returning success for undefined type to avoid errors')
+      return NextResponse.json({ success: true, message: 'Event type undefined but handled gracefully' })
+    }
     
     switch (type) {
       case 'function-call':
@@ -648,4 +683,90 @@ async function handleTranscript(body: any) {
   
   // You could save transcripts for analysis
   return NextResponse.json({ success: true })
+}
+
+// Handle new VAPI tool-calls format
+async function handleToolCalls(body: any) {
+  console.log('🔧 HANDLING TOOL-CALLS')
+  const { message, call } = body
+  const toolCalls = message?.toolCalls || []
+  
+  console.log('🔧 Tool calls count:', toolCalls.length)
+  console.log('🔧 Tool calls:', JSON.stringify(toolCalls, null, 2))
+  
+  if (toolCalls.length === 0) {
+    console.log('🔧 No tool calls found')
+    return NextResponse.json({ success: true })
+  }
+  
+  // Process the first tool call (VAPI typically sends one at a time)
+  const toolCall = toolCalls[0]
+  const functionName = toolCall?.function?.name
+  const functionArgs = toolCall?.function?.arguments
+  
+  console.log('🔧 Processing tool call:', functionName)
+  console.log('🔧 Function arguments:', functionArgs)
+  
+  // Parse arguments if they're a string
+  let parameters = functionArgs
+  if (typeof functionArgs === 'string') {
+    try {
+      parameters = JSON.parse(functionArgs)
+    } catch (error) {
+      console.error('🔧 Failed to parse function arguments:', error)
+      parameters = {}
+    }
+  }
+  
+  // Restructure to match our existing handleFunctionCall format
+  const restructuredBody = {
+    type: 'function-call',
+    functionCall: {
+      name: functionName,
+      parameters: parameters
+    },
+    call: call
+  }
+  
+  console.log('🔧 Restructured body:', JSON.stringify(restructuredBody, null, 2))
+  
+  return handleFunctionCall(restructuredBody)
+}
+
+// Handle message-based webhook format (new VAPI format)
+async function handleMessageBasedWebhook(body: any) {
+  console.log('🔄 HANDLING MESSAGE-BASED WEBHOOK')
+  const { message, call } = body
+  const messageType = message?.type
+  
+  console.log('🔄 Message type:', messageType)
+  console.log('🔄 Message content:', JSON.stringify(message, null, 2))
+  
+  switch (messageType) {
+    case 'tool-calls':
+      // Handle the new VAPI tool-calls format
+      return handleToolCalls(body)
+    
+    case 'function-call':
+      // Legacy format - restructure to match expected format
+      const restructuredBody = {
+        type: 'function-call',
+        functionCall: message.functionCall || message,
+        call: call
+      }
+      return handleFunctionCall(restructuredBody)
+    
+    case 'transcript':
+      return handleTranscript({ transcript: message, call })
+    
+    case 'call-start':
+      return handleCallStart({ call })
+    
+    case 'call-end':
+      return handleCallEnd({ call })
+    
+    default:
+      console.log('🔄 UNHANDLED MESSAGE TYPE:', messageType)
+      return NextResponse.json({ success: true })
+  }
 }
