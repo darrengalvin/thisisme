@@ -192,7 +192,7 @@ export default function VoiceMemoryWidget({
               <div className="animate-spin">
                 <Sparkles size={24} />
               </div>
-            ) : isSessionActive ? (
+            ) : isConnected ? (
               isListening ? <Volume2 size={24} /> : <MessageCircle size={24} />
             ) : (
               <Mic size={24} />
