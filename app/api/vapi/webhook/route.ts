@@ -216,7 +216,7 @@ async function handleFunctionCall(body: any, authenticatedUserId: string | null 
 }
 
 // Save a memory to the database
-async function saveMemory(parameters: any, call: any) {
+async function saveMemory(parameters: any, call: any, authenticatedUserId: string | null = null) {
   const { 
     title, 
     content, 
@@ -232,21 +232,8 @@ async function saveMemory(parameters: any, call: any) {
   
   console.log('💾 SAVING MEMORY:', { title, timeframe, age, year, location, chapter })
   
-  // Extract user ID from various possible locations in the call object
-  let userId = null
-  if (call?.customer?.userId) {
-    userId = call.customer.userId
-  } else if (call?.metadata?.userId) {
-    userId = call.metadata.userId
-  } else if (call?.customerData?.userId) {
-    userId = call.customerData.userId
-  } else if (call?.user?.id) {
-    userId = call.user.id
-  } else if (call?.userId) {
-    userId = call.userId
-  } else {
-    userId = '550e8400-e29b-41d4-a716-446655440000'
-  }
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
     
     console.log('💾 SAVE MEMORY - User ID:', userId)
     console.log('💾 SAVE MEMORY - Parameters:', JSON.stringify(parameters, null, 2))
@@ -347,7 +334,7 @@ async function saveMemory(parameters: any, call: any) {
 }
 
 // Search existing memories for organization and context
-async function searchMemories(parameters: any, call: any) {
+async function searchMemories(parameters: any, call: any, authenticatedUserId: string | null = null) {
   const { query, timeframe, age, year, chapter_name } = parameters
   
   console.log('🔍 SEARCHING MEMORIES:', { query, timeframe, age, year, chapter_name })
@@ -452,7 +439,7 @@ async function searchMemories(parameters: any, call: any) {
 }
 
 // Get user context for timeline organization
-async function getUserContext(parameters: any, call: any) {
+async function getUserContext(parameters: any, call: any, authenticatedUserId: string | null = null) {
   const { age, year, context_type } = parameters
   
   // Extract user ID from various possible locations in the call object
@@ -660,7 +647,7 @@ async function getUserContext(parameters: any, call: any) {
 }
 
 // Handle media upload requests
-async function uploadMedia(parameters: any, call: any) {
+async function uploadMedia(parameters: any, call: any, authenticatedUserId: string | null = null) {
   const { media_type, memory_id, description } = parameters
   const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
   
@@ -840,7 +827,7 @@ async function createChapter(parameters: any, call: any, authenticatedUserId: st
 }
 
 // Save user's birth year to their profile
-async function saveBirthYear(parameters: any, call: any) {
+async function saveBirthYear(parameters: any, call: any, authenticatedUserId: string | null = null) {
   const { birth_year } = parameters
   
   // Extract user ID from various possible locations in the call object
