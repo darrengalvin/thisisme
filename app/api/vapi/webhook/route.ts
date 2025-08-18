@@ -725,7 +725,7 @@ async function handleToolCalls(body: any) {
       name: functionName,
       parameters: parameters
     },
-    call: call
+    call: message.call || call // Use call from message if available, fallback to top-level call
   }
   
   console.log('🔧 Restructured body:', JSON.stringify(restructuredBody, null, 2))
