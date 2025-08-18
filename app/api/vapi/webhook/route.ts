@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
+// Helper function to extract user ID from VAPI call object
+function extractUserIdFromCall(call: any): string | null {
+  // Try different paths for user ID extraction
+  if (call?.customer?.userId) {
+    return call.customer.userId
+  } else if (call?.metadata?.userId) {
+    return call.metadata.userId
+  } else if (call?.customerData?.userId) {
+    return call.customerData.userId
+  } else if (call?.user?.id) {
+    return call.user.id
+  } else if (call?.userId) {
+    return call.userId
+  }
+  
+  // No valid user ID found
+  return null
+}
+
 // VAPI Webhook Handler for Memory Assistant
 export async function POST(request: NextRequest) {
   try {
@@ -707,39 +726,41 @@ async function createChapter(parameters: any, call: any) {
   }
   
   try {
-    // First, ensure the user exists in the database
-    const { data: existingUser, error: userCheckError } = await supabaseAdmin
+    // We need proper user identification from VAPI - no fallbacks
+    if (userId === '550e8400-e29b-41d4-a716-446655440000' || userId.startsWith('vapi_call_') || userId === 'NOT_FOUND') {
+      console.log('📚 ERROR: No valid user identification from VAPI')
+      console.log('📚 Available call data:', Object.keys(call || {}))
+      console.log('📚 Call object:', JSON.stringify(call, null, 2))
+      
+      return NextResponse.json({
+        error: "User identification required",
+        result: "I need to know who you are to access your timeline. Please configure user identification in VAPI or provide your user ID.",
+        success: false,
+        debug_info: {
+          received_user_id: userId,
+          call_keys: Object.keys(call || {}),
+          needs_configuration: true
+        }
+      }, { status: 400 })
+    }
+    
+    // Verify the provided user ID exists in our database
+    const { data: targetUser, error: userError } = await supabaseAdmin
       .from('users')
-      .select('id')
+      .select('id, email, name, birth_year')
       .eq('id', userId)
       .single()
     
-    // If user doesn't exist, create them
-    if (!existingUser) {
-      console.log('📚 Creating user record for:', userId)
-      const { data: newUser, error: createUserError } = await supabaseAdmin
-        .from('users')
-        .insert({
-          id: userId,
-          email: `vapi_user_${userId.replace(/[^a-zA-Z0-9]/g, '_')}@thisisme.app`,
-          name: 'VAPI User',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single()
-      
-      if (createUserError) {
-        console.log('📚 Error creating user:', createUserError)
-        return NextResponse.json({
-          error: "Failed to create user account",
-          result: "I'm having trouble setting up your account. Please try again.",
-          success: false
-        }, { status: 500 })
-      }
-      
-      console.log('📚 Created user:', newUser?.id)
+    if (userError || !targetUser) {
+      console.log('📚 User not found in database:', { userId, userError })
+      return NextResponse.json({
+        error: "User not found",
+        result: `I can't find a user with ID ${userId} in the database. Please check your VAPI configuration.`,
+        success: false
+      }, { status: 404 })
     }
+    
+    console.log('📚 Using verified user:', { id: targetUser.id, email: targetUser.email })
     
     // Create chapter using Supabase
     const { data: chapter, error } = await supabaseAdmin
