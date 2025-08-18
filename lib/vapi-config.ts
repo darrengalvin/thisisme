@@ -157,7 +157,7 @@ export function createVAPICall(userId?: string, customPrompt?: string) {
   
   // Add user context to the call
   if (userId) {
-    config.metadata = { userId }
+    (config as any).metadata = { userId }
   }
   
   // Customize system message if needed
