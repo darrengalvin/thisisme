@@ -108,7 +108,6 @@ async function handleFunctionCall(body: any) {
     // Return a new response with the same data
     return NextResponse.json(resultData, { status })
     
-    }
   } catch (error) {
     console.error('🎤 VAPI FUNCTION ERROR:', error)
     return NextResponse.json(
