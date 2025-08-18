@@ -46,28 +46,68 @@ async function handleFunctionCall(body: any) {
   const { name, parameters } = functionCall
   
   console.log('🎤 VAPI FUNCTION CALL:', name, parameters)
+  console.log('🎤 FUNCTION CALL DETAILS:', {
+    functionName: name,
+    parameters: parameters,
+    callId: call?.id,
+    userId: call?.customer?.userId || call?.metadata?.userId || 'NOT_FOUND',
+    timestamp: new Date().toISOString()
+  })
   
   try {
+    let result
+    const startTime = Date.now()
+    
     switch (name) {
       case 'save-memory':
-        return await saveMemory(parameters, call)
+        console.log('💾 STARTING save-memory function')
+        result = await saveMemory(parameters, call)
+        break
       
       case 'search-memories':
-        return await searchMemories(parameters, call)
+        console.log('🔍 STARTING search-memories function')
+        result = await searchMemories(parameters, call)
+        break
       
       case 'get-user-context':
-        return await getUserContext(parameters, call)
+        console.log('👤 STARTING get-user-context function')
+        result = await getUserContext(parameters, call)
+        break
       
       case 'upload-media':
-        return await uploadMedia(parameters, call)
+        console.log('📸 STARTING upload-media function')
+        result = await uploadMedia(parameters, call)
+        break
       
       case 'create-chapter':
-        return await createChapter(parameters, call)
+        console.log('📚 STARTING create-chapter function')
+        result = await createChapter(parameters, call)
+        break
       
       default:
-        return NextResponse.json({
+        console.log('❌ UNKNOWN FUNCTION:', name)
+        result = NextResponse.json({
           result: `Function ${name} not implemented yet`
         })
+    }
+    
+    const duration = Date.now() - startTime
+    const resultData = await result.json()
+    const status = result.status
+    
+    console.log('✅ FUNCTION COMPLETED:', {
+      functionName: name,
+      status: status,
+      success: status === 200,
+      duration: `${duration}ms`,
+      result: resultData.result?.substring(0, 100) + (resultData.result?.length > 100 ? '...' : ''),
+      hasError: !!resultData.error,
+      timestamp: new Date().toISOString()
+    })
+    
+    // Return a new response with the same data
+    return NextResponse.json(resultData, { status })
+    
     }
   } catch (error) {
     console.error('🎤 VAPI FUNCTION ERROR:', error)
@@ -96,10 +136,13 @@ async function saveMemory(parameters: any, call: any) {
     tags 
   } = parameters
   
-  console.log('💾 SAVING MEMORY:', { title, timeframe, age, year, location, chapter })
-  
-  // Get user ID from call metadata or customer info
-  const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
+      console.log('💾 SAVING MEMORY:', { title, timeframe, age, year, location, chapter })
+    
+    // Get user ID from call metadata or customer info
+    const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
+    
+    console.log('💾 SAVE MEMORY - User ID:', userId)
+    console.log('💾 SAVE MEMORY - Parameters:', JSON.stringify(parameters, null, 2))
   
   try {
     // Get user's birth year for age calculations
@@ -110,6 +153,8 @@ async function saveMemory(parameters: any, call: any) {
       .single()
     
     const userBirthYear = userProfile?.birth_year
+    
+    console.log('💾 SAVE MEMORY - User birth year:', userBirthYear)
     
     // Calculate approximate date from age or year
     let approximateDate = timeframe
@@ -150,9 +195,17 @@ async function saveMemory(parameters: any, call: any) {
       .select()
       .single()
     
-    if (error) throw error
+    if (error) {
+      console.error('💾 SAVE MEMORY - Database error:', error)
+      throw error
+    }
     
-    console.log('💾 MEMORY SAVED:', memory.id)
+    console.log('💾 MEMORY SAVED SUCCESSFULLY:', {
+      memoryId: memory.id,
+      title: memory.title,
+      userId: userId,
+      approximateDate: approximateDate
+    })
     
     // Create response based on what was saved
     let response = `Perfect! I've saved "${title || 'that memory'}" to your timeline.`
@@ -300,6 +353,13 @@ async function getUserContext(parameters: any, call: any) {
     
     if (userError) {
       console.error('👤 USER PROFILE ERROR:', userError)
+    } else {
+      console.log('👤 USER PROFILE FOUND:', {
+        userId: userId,
+        birthYear: userProfile?.birth_year,
+        email: userProfile?.email,
+        hasProfile: !!userProfile
+      })
     }
     
     // Get user's chapters (timezones)
@@ -311,6 +371,12 @@ async function getUserContext(parameters: any, call: any) {
     
     if (chaptersError) {
       console.error('👤 CHAPTERS ERROR:', chaptersError)
+    } else {
+      console.log('👤 CHAPTERS FOUND:', {
+        userId: userId,
+        chapterCount: chapters?.length || 0,
+        chapterTitles: chapters?.map(c => c.title) || []
+      })
     }
     
     // Get memories organized by timeframe
@@ -389,25 +455,34 @@ async function getUserContext(parameters: any, call: any) {
       contextInfo += ` You have ${chapterCount} chapters in your timeline: ${chapterNames}${chapterCount > 3 ? ' and more' : ''}. I can help place new memories in existing chapters or suggest creating new ones.`
     }
     
-    if (memoryCount === 0) {
-      return NextResponse.json({
-        result: `This looks like your first memory! I'm excited to help you start building your timeline.${contextInfo} What would you like to share?`,
-        memory_count: 0,
-        is_first_memory: true,
-        user_birth_year: birthYear,
-        user_current_age: currentAge,
-        chapters: chapters || [],
-        chapter_count: chapterCount
-      })
-    }
-    
-    return NextResponse.json({
-      result: `You have ${memoryCount} memories in your timeline.${contextInfo} What new memory would you like to add?`,
+    const responseData = {
       memory_count: memoryCount,
       user_birth_year: birthYear,
       user_current_age: currentAge,
       chapters: chapters || [],
       chapter_count: chapterCount
+    }
+    
+    console.log('👤 USER CONTEXT RESPONSE:', {
+      userId: userId,
+      birthYear: birthYear,
+      currentAge: currentAge,
+      memoryCount: memoryCount,
+      chapterCount: chapterCount,
+      isFirstMemory: memoryCount === 0
+    })
+    
+    if (memoryCount === 0) {
+      return NextResponse.json({
+        result: `This looks like your first memory! I'm excited to help you start building your timeline.${contextInfo} What would you like to share?`,
+        is_first_memory: true,
+        ...responseData
+      })
+    }
+    
+    return NextResponse.json({
+      result: `You have ${memoryCount} memories in your timeline.${contextInfo} What new memory would you like to add?`,
+      ...responseData
     })
     
   } catch (error) {
@@ -483,6 +558,8 @@ async function createChapter(parameters: any, call: any) {
   const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
   
   console.log('📚 CREATING CHAPTER:', { title, description, timeframe, start_year, end_year })
+  console.log('📚 CREATE CHAPTER - User ID:', userId)
+  console.log('📚 CREATE CHAPTER - Parameters:', JSON.stringify(parameters, null, 2))
   
   try {
     // Create chapter using Supabase
@@ -510,7 +587,13 @@ async function createChapter(parameters: any, call: any) {
         role: 'CREATOR'
       })
     
-    console.log('📚 CHAPTER CREATED:', chapter.id, title)
+    console.log('📚 CHAPTER CREATED SUCCESSFULLY:', {
+      chapterId: chapter.id,
+      title: title,
+      userId: userId,
+      description: description,
+      timeframe: timeframe
+    })
     
     return NextResponse.json({
       result: `Perfect! I've created the "${title}" chapter for you. Now I can save memories there.`,
