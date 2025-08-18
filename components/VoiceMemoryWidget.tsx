@@ -3,6 +3,30 @@
 import { useState, useEffect, useRef } from 'react'
 import { Mic, MicOff, Volume2, VolumeX, Sparkles, MessageCircle, X, Minimize2, Maximize2 } from 'lucide-react'
 
+// Custom styles for staggered animations
+const pulseStyles = `
+  .animation-delay-0 { animation-delay: 0s; }
+  .animation-delay-300 { animation-delay: 0.3s; }
+  .animation-delay-600 { animation-delay: 0.6s; }
+  .pulse-ring {
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(0.8);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 0.3;
+    }
+    100% {
+      transform: scale(1.4);
+      opacity: 0;
+    }
+  }
+`
+
 interface VoiceMemoryWidgetProps {
   onMemoryAdded?: (memory: any) => void
   onMemoryHighlight?: (memoryId: string) => void
@@ -30,11 +54,11 @@ export default function VoiceMemoryWidget({
   useEffect(() => {
     const initVapi = async () => {
       try {
-        const apiKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY
+        const apiKey = process.env.NEXT_PUBLIC_VAPI_API_KEY
         console.log('🎤 VAPI: Initializing with API key:', apiKey ? 'Present' : 'Missing')
         
         if (!apiKey) {
-          console.error('🎤 VAPI: No API key found. Please set NEXT_PUBLIC_VAPI_PUBLIC_KEY')
+          console.error('🎤 VAPI: No API key found. Please set NEXT_PUBLIC_VAPI_API_KEY')
           return
         }
         
@@ -125,10 +149,10 @@ export default function VoiceMemoryWidget({
       return
     }
     
-    const apiKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY
+    const apiKey = process.env.NEXT_PUBLIC_VAPI_API_KEY
     if (!apiKey) {
       console.error('🎤 VAPI: No API key configured')
-      alert('Voice assistant not configured. Please set NEXT_PUBLIC_VAPI_PUBLIC_KEY environment variable.')
+      alert('Voice assistant not configured. Please set NEXT_PUBLIC_VAPI_API_KEY environment variable.')
       return
     }
     
@@ -140,24 +164,32 @@ export default function VoiceMemoryWidget({
       } else {
         console.log('🎤 VAPI: Starting call with assistant ID: 8ceaceba-6047-4965-92c5-225d0ebc1c4f')
         setConnectionStatus('connecting')
-        await vapiClient.start({
-          assistantId: '8ceaceba-6047-4965-92c5-225d0ebc1c4f' // Your VAPI assistant ID
-        })
+        
+        // Use the same working pattern as VAPIMemoryAssistant
+        const assistantId = "8ceaceba-6047-4965-92c5-225d0ebc1c4f"
+        await vapiClient.start(assistantId)
       }
     } catch (error) {
       console.error('🎤 Error toggling call:', error)
+      console.error('🎤 Error details:', JSON.stringify(error, null, 2))
       setConnectionStatus('disconnected')
       
       // More specific error messages
       if (error instanceof Error) {
+        console.error('🎤 Error message:', error.message)
+        console.error('🎤 Error stack:', error.stack)
+        
         if (error.message.includes('401') || error.message.includes('Unauthorized')) {
           alert('Authentication failed. Please check your VAPI API key.')
+        } else if (error.message.includes('400') || error.message.includes('Bad Request')) {
+          alert('Invalid request. Please check your assistant configuration.')
         } else if (error.message.includes('assistant')) {
           alert('Assistant not found. Please check your assistant ID.')
         } else {
           alert(`Voice connection failed: ${error.message}`)
         }
       } else {
+        console.error('🎤 Non-Error object:', error)
         alert('Voice connection failed. Please try again.')
       }
     }
@@ -198,7 +230,11 @@ export default function VoiceMemoryWidget({
 
   if (isMinimized) {
     return (
-      <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
+      <>
+        {/* Inject custom styles */}
+        <style jsx>{pulseStyles}</style>
+        
+        <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
         {/* Floating Voice Bubble */}
         <div className="relative">
           {/* Recent memories indicator */}
@@ -208,37 +244,51 @@ export default function VoiceMemoryWidget({
             </div>
           )}
           
-          {/* Main voice button */}
+          {/* Main voice button - bigger and more pulsy */}
           <button
             onClick={handleToggleCall}
-            className={`w-16 h-16 rounded-full bg-gradient-to-r ${getStatusColor()} text-white shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-110 flex items-center justify-center relative overflow-hidden group`}
+            className={`w-20 h-20 rounded-full bg-gradient-to-r ${getStatusColor()} text-white shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-110 flex items-center justify-center relative overflow-hidden group`}
           >
-            {/* Animated background pulse */}
+            {/* Multiple animated pulse rings */}
             {isListening && (
-              <div className="absolute inset-0 bg-white/20 rounded-full animate-ping"></div>
+              <>
+                <div className="absolute inset-0 bg-white/30 rounded-full pulse-ring animation-delay-0"></div>
+                <div className="absolute inset-0 bg-white/20 rounded-full pulse-ring animation-delay-300"></div>
+                <div className="absolute inset-0 bg-white/10 rounded-full pulse-ring animation-delay-600"></div>
+              </>
             )}
             
-            {/* Icon */}
+            {/* Connecting pulse */}
+            {connectionStatus === 'connecting' && (
+              <div className="absolute inset-0 bg-white/25 rounded-full animate-pulse"></div>
+            )}
+            
+            {/* Icon - bigger */}
             {connectionStatus === 'connecting' ? (
               <div className="animate-spin">
-                <Sparkles size={24} />
+                <Sparkles size={28} />
               </div>
             ) : isConnected ? (
-              isListening ? <Volume2 size={24} /> : <MessageCircle size={24} />
+              isListening ? <Volume2 size={28} className="animate-pulse" /> : <MessageCircle size={28} />
             ) : (
-              <Mic size={24} />
+              <Mic size={28} />
             )}
             
-            {/* Voice level indicator */}
+            {/* Voice level indicator - bigger */}
             {isListening && volumeLevel && (
               <div 
-                className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-white/60 rounded-full overflow-hidden"
+                className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-10 h-1.5 bg-white/60 rounded-full overflow-hidden"
               >
                 <div 
-                  className="h-full bg-white transition-all duration-100"
+                  className="h-full bg-white transition-all duration-100 animate-pulse"
                   style={{ width: `${Math.min(volumeLevel * 100, 100)}%` }}
                 />
               </div>
+            )}
+            
+            {/* Outer glow ring for connected state */}
+            {isConnected && (
+              <div className="absolute -inset-2 bg-gradient-to-r from-green-400/20 to-emerald-400/20 rounded-full animate-pulse"></div>
             )}
           </button>
           
@@ -291,7 +341,11 @@ export default function VoiceMemoryWidget({
   }
 
   return (
-    <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
+    <>
+      {/* Inject custom styles */}
+      <style jsx>{pulseStyles}</style>
+      
+      <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
       {/* Expanded Voice Chat Interface */}
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-80 h-96 flex flex-col overflow-hidden">
         {/* Header */}
