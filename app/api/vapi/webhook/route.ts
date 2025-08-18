@@ -707,6 +707,40 @@ async function createChapter(parameters: any, call: any) {
   }
   
   try {
+    // First, ensure the user exists in the database
+    const { data: existingUser, error: userCheckError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .single()
+    
+    // If user doesn't exist, create them
+    if (!existingUser) {
+      console.log('📚 Creating user record for:', userId)
+      const { data: newUser, error: createUserError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          id: userId,
+          email: `vapi_user_${userId.replace(/[^a-zA-Z0-9]/g, '_')}@thisisme.app`,
+          name: 'VAPI User',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+      
+      if (createUserError) {
+        console.log('📚 Error creating user:', createUserError)
+        return NextResponse.json({
+          error: "Failed to create user account",
+          result: "I'm having trouble setting up your account. Please try again.",
+          success: false
+        }, { status: 500 })
+      }
+      
+      console.log('📚 Created user:', newUser?.id)
+    }
+    
     // Create chapter using Supabase
     const { data: chapter, error } = await supabaseAdmin
       .from('timezones')
