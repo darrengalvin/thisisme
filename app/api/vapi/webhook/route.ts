@@ -94,11 +94,22 @@ async function saveMemory(parameters: any, call: any) {
   const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
   
   try {
+    // Get user's birth year for age calculations
+    const { data: userProfile } = await supabaseAdmin
+      .from('users')
+      .select('birth_year')
+      .eq('id', userId)
+      .single()
+    
+    const userBirthYear = userProfile?.birth_year
+    
     // Calculate approximate date from age or year
     let approximateDate = timeframe
-    if (age && !approximateDate) {
-      const currentYear = new Date().getFullYear()
-      approximateDate = `Age ${age} (around ${currentYear - (currentYear - age) + age})`
+    if (age && !approximateDate && userBirthYear) {
+      const calculatedYear = userBirthYear + parseInt(age)
+      approximateDate = `Age ${age} (${calculatedYear})`
+    } else if (age && !approximateDate) {
+      approximateDate = `Age ${age}`
     }
     if (year && !approximateDate) {
       approximateDate = year.toString()
@@ -258,6 +269,28 @@ async function getUserContext(parameters: any, call: any) {
   console.log('👤 GETTING USER CONTEXT for:', userId, { age, year, context_type })
   
   try {
+    // Get user profile data (including birth year)
+    const { data: userProfile, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, birth_year, created_at')
+      .eq('id', userId)
+      .single()
+    
+    if (userError) {
+      console.error('👤 USER PROFILE ERROR:', userError)
+    }
+    
+    // Get user's chapters (timezones)
+    const { data: chapters, error: chaptersError } = await supabaseAdmin
+      .from('timezones')
+      .select('id, title, description, start_date, end_date, location')
+      .eq('creator_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (chaptersError) {
+      console.error('👤 CHAPTERS ERROR:', chaptersError)
+    }
+    
     // Get memories organized by timeframe
     const { data: memories, error } = await supabaseAdmin
       .from('memories')
@@ -317,18 +350,42 @@ async function getUserContext(parameters: any, call: any) {
       }
     }
     
-    // Default context
+    // Default context - include user birth year for age calculations
+    const currentYear = new Date().getFullYear()
+    const birthYear = userProfile?.birth_year || null
+    const currentAge = birthYear ? currentYear - birthYear : null
+    const chapterCount = chapters?.length || 0
+    
+    let contextInfo = ""
+    if (birthYear) {
+      contextInfo = ` I know you were born in ${birthYear}, so you're currently ${currentAge}. This helps me place memories on your timeline when you mention ages.`
+    }
+    
+    // Add chapter information
+    if (chapterCount > 0) {
+      const chapterNames = chapters?.slice(0, 3).map(c => c.title).join(', ') || ''
+      contextInfo += ` You have ${chapterCount} chapters in your timeline: ${chapterNames}${chapterCount > 3 ? ' and more' : ''}. I can help place new memories in existing chapters or suggest creating new ones.`
+    }
+    
     if (memoryCount === 0) {
       return NextResponse.json({
-        result: "This looks like your first memory! I'm excited to help you start building your timeline. What would you like to share?",
+        result: `This looks like your first memory! I'm excited to help you start building your timeline.${contextInfo} What would you like to share?`,
         memory_count: 0,
-        is_first_memory: true
+        is_first_memory: true,
+        user_birth_year: birthYear,
+        user_current_age: currentAge,
+        chapters: chapters || [],
+        chapter_count: chapterCount
       })
     }
     
     return NextResponse.json({
-      result: `You have ${memoryCount} memories in your timeline. What new memory would you like to add?`,
-      memory_count: memoryCount
+      result: `You have ${memoryCount} memories in your timeline.${contextInfo} What new memory would you like to add?`,
+      memory_count: memoryCount,
+      user_birth_year: birthYear,
+      user_current_age: currentAge,
+      chapters: chapters || [],
+      chapter_count: chapterCount
     })
     
   } catch (error) {
