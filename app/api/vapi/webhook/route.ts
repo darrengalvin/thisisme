@@ -119,6 +119,11 @@ async function handleFunctionCall(body: any) {
         result = await createChapter(parameters, call)
         break
       
+      case 'save-birth-year':
+        console.log('🎂 STARTING save-birth-year function')
+        result = await saveBirthYear(parameters, call)
+        break
+      
       default:
         console.log('❌ UNKNOWN FUNCTION:', name)
         result = NextResponse.json({
@@ -367,7 +372,25 @@ async function searchMemories(parameters: any, call: any) {
 // Get user context for timeline organization
 async function getUserContext(parameters: any, call: any) {
   const { age, year, context_type } = parameters
-  const userId = call.customer?.userId || call.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
+  
+  // Extract user ID from various possible locations in the call object
+  let userId = null
+  
+  // Try different paths for user ID extraction
+  if (call?.customer?.userId) {
+    userId = call.customer.userId
+  } else if (call?.metadata?.userId) {
+    userId = call.metadata.userId
+  } else if (call?.customerData?.userId) {
+    userId = call.customerData.userId
+  } else if (call?.user?.id) {
+    userId = call.user.id
+  } else if (call?.userId) {
+    userId = call.userId
+  } else {
+    // Fallback - but this means we need to get user ID from somewhere else
+    userId = '550e8400-e29b-41d4-a716-446655440000'
+  }
   
   console.log('👤 GETTING USER CONTEXT for:', userId, { age, year, context_type })
   console.log('👤 CALL OBJECT:', JSON.stringify(call, null, 2))
@@ -375,6 +398,16 @@ async function getUserContext(parameters: any, call: any) {
   // Check if we're using the fallback user ID
   if (userId === '550e8400-e29b-41d4-a716-446655440000') {
     console.warn('⚠️ WARNING: Using fallback user ID - real user ID not found in call object')
+    console.warn('⚠️ Available call object keys:', Object.keys(call || {}))
+    
+    // For now, let's return a helpful message asking for birth year
+    return NextResponse.json({
+      result: "I don't have your birth year in my system yet. When were you born? That'll help me place your memories on the right timeline.",
+      user_birth_year: null,
+      memory_count: 0,
+      chapters: [],
+      needs_birth_year: true
+    })
   }
   
   try {
@@ -673,6 +706,62 @@ async function createChapter(parameters: any, call: any) {
       },
       { status: 500 }
     )
+  }
+}
+
+// Save user's birth year to their profile
+async function saveBirthYear(parameters: any, call: any) {
+  const { birth_year } = parameters
+  const userId = call?.customer?.userId || call?.metadata?.userId || '550e8400-e29b-41d4-a716-446655440000'
+  
+  console.log('🎂 SAVING BIRTH YEAR:', { birth_year, userId })
+  
+  if (!birth_year) {
+    return NextResponse.json({
+      error: "Birth year is required",
+      result: "I need your birth year to help organize your memories. What year were you born?",
+      success: false
+    }, { status: 400 })
+  }
+  
+  try {
+    // Update or create user profile with birth year
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .upsert({
+        id: userId,
+        birth_year: parseInt(birth_year),
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'id'
+      })
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('🎂 SAVE BIRTH YEAR ERROR:', error)
+      throw error
+    }
+    
+    console.log('🎂 BIRTH YEAR SAVED SUCCESSFULLY:', { userId, birth_year })
+    
+    const currentYear = new Date().getFullYear()
+    const currentAge = currentYear - parseInt(birth_year)
+    
+    return NextResponse.json({
+      result: `Perfect! I've saved that you were born in ${birth_year}. That makes you ${currentAge} now. This will help me organize your memories on the timeline. What memory would you like to share?`,
+      birth_year: parseInt(birth_year),
+      current_age: currentAge,
+      success: true
+    })
+    
+  } catch (error) {
+    console.error('🎂 SAVE BIRTH YEAR ERROR:', error)
+    return NextResponse.json({
+      error: "Failed to save birth year",
+      result: "I'm having trouble saving your birth year right now. Let me try to help you anyway - what memory would you like to share?",
+      success: false
+    }, { status: 500 })
   }
 }
 
