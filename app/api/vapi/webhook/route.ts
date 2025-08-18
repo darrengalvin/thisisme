@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 // VAPI Webhook Handler for Memory Assistant
 export async function POST(request: NextRequest) {
@@ -117,8 +117,7 @@ async function saveMemory(parameters: any, call: any) {
     }
 
     // Create memory using Supabase
-    const supabase = createClient()
-    const { data: memory, error } = await supabase
+    const { data: memory, error } = await supabaseAdmin
       .from('memories')
       .insert({
         title: title || 'Voice Memory',
@@ -197,8 +196,7 @@ async function searchMemories(parameters: any, call: any) {
       }
     }
 
-    const supabase = createClient()
-    let query = supabase
+    let query = supabaseAdmin
       .from('memories')
       .select('id, title, text_content, approximate_date, created_at')
       .eq('user_id', userId)
@@ -288,8 +286,7 @@ async function getUserContext(parameters: any, call: any) {
   
   try {
     // Get memories organized by timeframe
-    const supabase = createClient()
-    const { data: memories, error } = await supabase
+    const { data: memories, error } = await supabaseAdmin
       .from('memories')
       .select('id, title, approximate_date, created_at')
       .eq('user_id', userId)
