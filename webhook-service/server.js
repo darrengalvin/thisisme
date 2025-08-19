@@ -305,7 +305,10 @@ async function createChapterForTool(parameters, call, urlUserId = null) {
 
 // Save memory tool  
 async function saveMemoryForTool(parameters, call, urlUserId = null) {
-  const { title, content, year, age, location, userId: paramUserId } = parameters
+  const { title, content, text_content, year, age, location, userId: paramUserId } = parameters
+  
+  // Handle both 'content' and 'text_content' parameter names
+  const actualContent = text_content || content
   
   console.log('💭 🚀 MEMORY CREATION STARTING')
   console.log('💭 Title:', title)
@@ -325,7 +328,7 @@ async function saveMemoryForTool(parameters, call, urlUserId = null) {
     return "❌ I need to know who you are to save a memory. Please make sure you're logged in."
   }
   
-  if (!title || !content) {
+  if (!title || !actualContent) {
     return "❌ I need at least a title and some content to save your memory."
   }
 
@@ -334,9 +337,15 @@ async function saveMemoryForTool(parameters, call, urlUserId = null) {
     const insertData = {
       user_id: userId,
       title: title,
-      content: content,
+      text_content: actualContent,
       year: year ? parseInt(year) : null,
-      location: location || null
+      approximate_date: year ? year.toString() : null,
+      date_precision: year ? 'exact' : 'approximate'
+    }
+    
+    // Add location to content if provided
+    if (location) {
+      insertData.text_content += `\n\nLocation: ${location}`
     }
     
     const { data: memory, error } = await supabase
