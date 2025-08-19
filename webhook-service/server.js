@@ -264,7 +264,25 @@ async function createChapterForTool(parameters, call, urlUserId = null) {
     }
 
     console.log('📚 ✅ Chapter created successfully:', chapter.id)
-    return `✅ Perfect! I've created the "${title}" chapter${end_year ? ` (${start_year}-${end_year})` : ` starting in ${start_year}`}. ${description ? `Description: ${description}` : ''} You can now add memories to this chapter!`
+    
+    // Format years for natural speech
+    const startYearText = start_year === '2020' ? 'twenty twenty' : 
+                         start_year === '2021' ? 'twenty twenty-one' :
+                         start_year === '2022' ? 'twenty twenty-two' :
+                         start_year === '2023' ? 'twenty twenty-three' :
+                         start_year === '2024' ? 'twenty twenty-four' :
+                         start_year === '2025' ? 'twenty twenty-five' :
+                         `year ${start_year}`
+    
+    const endYearText = end_year === '2020' ? 'twenty twenty' : 
+                       end_year === '2021' ? 'twenty twenty-one' :
+                       end_year === '2022' ? 'twenty twenty-two' :
+                       end_year === '2023' ? 'twenty twenty-three' :
+                       end_year === '2024' ? 'twenty twenty-four' :
+                       end_year === '2025' ? 'twenty twenty-five' :
+                       end_year ? `year ${end_year}` : null
+    
+    return `✅ Perfect! I've created your "${title}" chapter${endYearText ? ` covering ${startYearText} to ${endYearText}` : ` starting in ${startYearText}`}. ${description ? `${description}` : ''} You can now tell me about memories from this time period and I'll organize them for you!`
 
   } catch (error) {
     console.error('📚 💥 Chapter creation error:', error)

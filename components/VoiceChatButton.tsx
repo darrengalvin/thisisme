@@ -251,14 +251,37 @@ export default function VoiceChatButton() {
         </div>
       )}
 
-      <div className="mt-3 text-xs text-gray-500">
-        <p><strong>How it works:</strong></p>
-        <ul className="list-disc list-inside space-y-1">
-          <li>Maya gets your user ID: {user.id.substring(0, 8)}...</li>
-          <li>She knows your birth year, chapters, and memories</li>
-          <li>Try saying: "Do you know who I am?" or "What's my birth year?"</li>
-          <li>Each user gets their own personalized experience</li>
-        </ul>
+      <div className="mt-3 text-xs text-gray-600">
+        <p className="font-semibold text-gray-800 mb-2">✨ What you can say to Maya:</p>
+        <div className="space-y-2">
+          <div className="bg-blue-50 rounded-lg p-2">
+            <p className="font-medium text-blue-800 text-sm">🏛️ Chapter Management</p>
+            <p className="text-blue-600 mt-1">"Create a chapter for my university years from 1995 to 1999"</p>
+            <p className="text-blue-600">"Add a chapter called 'My Career at Google' starting in 2010"</p>
+          </div>
+          
+          <div className="bg-green-50 rounded-lg p-2">
+            <p className="font-medium text-green-800 text-sm">💭 Memory Sharing</p>
+            <p className="text-green-600 mt-1">"I want to tell you about my graduation day in 2003"</p>
+            <p className="text-green-600">"Let me share a memory from my wedding in Spain"</p>
+          </div>
+          
+          <div className="bg-purple-50 rounded-lg p-2">
+            <p className="font-medium text-purple-800 text-sm">🔍 Timeline Exploration</p>
+            <p className="text-purple-600 mt-1">"What do you know about my timeline?"</p>
+            <p className="text-purple-600">"Tell me about my memories from the 1990s"</p>
+          </div>
+          
+          <div className="bg-orange-50 rounded-lg p-2">
+            <p className="font-medium text-orange-800 text-sm">❓ Getting Started</p>
+            <p className="text-orange-600 mt-1">"Do you know who I am?" • "What's my birth year?"</p>
+            <p className="text-orange-600">"How many chapters do I have?"</p>
+          </div>
+        </div>
+        
+        <p className="text-gray-500 mt-3 text-center italic">
+          Maya knows your entire timeline and can help organize your life story naturally through conversation.
+        </p>
       </div>
 
       {!vapiLoaded && (
