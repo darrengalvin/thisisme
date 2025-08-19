@@ -16,23 +16,56 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-// User ID extraction function (copied from your working code)
-function extractUserIdFromCall(call, authenticatedUserId = null) {
+// User ID extraction function with session support
+async function extractUserIdFromCall(call, authenticatedUserId = null) {
   if (authenticatedUserId) {
     return authenticatedUserId
   }
   
-  // PRIORITY 1: Check variableValues (VAPI's newer approach)
+  // PRIORITY 1: Check for sessionId in various locations
+  const sessionId = 
+    call?.metadata?.sessionId ||
+    call?.assistantOverrides?.metadata?.sessionId ||
+    call?.variableValues?.sessionId;
+  
+  if (sessionId) {
+    console.log('🔍 Found sessionId:', sessionId)
+    
+    // Lookup session in Supabase
+    const { data, error } = await supabase
+      .from('vapi_sessions')
+      .select('*')
+      .eq('session_id', sessionId)
+      .single()
+    
+    if (data && !error) {
+      console.log('✅ Session found! User ID:', data.user_id)
+      console.log('📋 User data from session:', data.user_data)
+      
+      // Store user data in global context for tools to use
+      global.vapiUserContext = {
+        userId: data.user_id,
+        userData: data.user_data
+      }
+      
+      return data.user_id
+    } else {
+      console.log('❌ Session not found or expired:', sessionId)
+    }
+  }
+  
+  // Fallback methods if no session
+  // PRIORITY 2: Check variableValues (VAPI's newer approach)
   if (call?.variableValues?.userId) {
     return call.variableValues.userId
   }
   
-  // PRIORITY 2: Check metadata (simple VAPI format)
+  // PRIORITY 3: Check metadata (simple VAPI format)
   if (call?.metadata?.userId) {
     return call.metadata.userId
   }
   
-  // PRIORITY 3: Check assistantOverrides.metadata 
+  // PRIORITY 4: Check assistantOverrides.metadata 
   if (call?.assistantOverrides?.metadata?.userId) {
     return call.assistantOverrides.metadata.userId
   }
@@ -55,7 +88,7 @@ function extractUserIdFromCall(call, authenticatedUserId = null) {
 // Get user context tool
 async function getUserContextForTool(parameters, call, authenticatedUserId = null) {
   const { age, year, context_type } = parameters
-  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  const userId = await extractUserIdFromCall(call, authenticatedUserId)
   
   // CRITICAL DEBUG: Log the ENTIRE payload structure we receive from VAPI
   console.log('🔥 CRITICAL DEBUG - Full request body keys:', Object.keys(arguments[2] || {}))

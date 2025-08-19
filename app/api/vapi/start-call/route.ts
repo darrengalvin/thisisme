@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     console.log('🎤 VAPI START-CALL: Sending configuration to frontend')
     console.log('🎤 Assistant ID:', VAPI_ASSISTANT_ID)
     console.log('🎤 User ID:', user.id)
-    console.log('🎤 Webhook URL (for VAPI tools):', `https://thisisme-production.up.railway.app/vapi/webhook?userId=${user.id}`)
+    console.log('🎤 Webhook URL (for VAPI tools):', `https://thisisme-production.up.railway.app/vapi/webhook`)
     console.log('🎤 User ID will be passed via variableValues:', user.id)
     console.log('🎤 Customer data:', vapiCallConfig.customer)
     console.log('🎤 Metadata:', vapiCallConfig.metadata)
