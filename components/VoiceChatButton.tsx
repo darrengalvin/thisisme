@@ -86,25 +86,7 @@ export default function VoiceChatButton() {
     setIsLoading(true)
     
     try {
-      // Step 1: Create session with user context
-      console.log('📝 Creating VAPI session...')
-      const sessionResponse = await fetch('/api/vapi/session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        credentials: 'include' // Ensure cookies are sent
-      })
-      
-      if (!sessionResponse.ok) {
-        throw new Error('Failed to create VAPI session')
-      }
-      
-      const { sessionId } = await sessionResponse.json()
-      console.log('✅ Created VAPI session:', sessionId)
-      
-      // Step 2: Get VAPI configuration
+      // Get VAPI configuration
       const token = session.access_token
       
       if (!token) {
@@ -132,25 +114,31 @@ export default function VoiceChatButton() {
       const data = await response.json()
       console.log('🎤 Starting VAPI call with config:', data.vapiConfig)
       console.log('🎤 Assistant ID:', data.vapiConfig.assistantId)
+      console.log('🎤 User ID:', data.vapiConfig.metadata.userId)
       
-      // Step 3: Start VAPI call with only sessionId in metadata
+      // SIMPLIFIED APPROACH: Just pass userId directly in metadata
+      // We know this works from the test tools
       const callOptions = {
         metadata: {
-          sessionId: sessionId
+          userId: data.vapiConfig.metadata.userId,
+          userEmail: data.vapiConfig.metadata.userEmail,
+          userName: data.vapiConfig.metadata.userName,
+          birthYear: data.vapiConfig.metadata.birthYear,
+          currentAge: data.vapiConfig.metadata.currentAge
         }
       }
       
-      console.log('🎤 Call options (with session):', callOptions)
+      console.log('🎤 Call options (direct userId):', callOptions)
       await vapi.start(data.vapiConfig.assistantId, callOptions)
       
-      console.log('🎤 ✅ VAPI CALL STARTED WITH SESSION!')
-      console.log('🎤 📝 Session ID:', sessionId)
-      console.log('🎤 🔍 Check webhook monitor to see if Maya can access user context')
-      console.log('🎤 🤞 Maya should now lookup session and get full user data')
+      console.log('🎤 ✅ VAPI CALL STARTED WITH USER ID!')
+      console.log('🎤 📝 User ID passed directly:', data.vapiConfig.metadata.userId)
+      console.log('🎤 🔍 Check webhook monitor to see if Maya receives user context')
+      console.log('🎤 🤞 Maya should now have your user ID and be able to identify you')
 
       console.log('🎤 VAPI call started successfully!')
       console.log(`🎤 ✅ Maya should know you as: ${data.user.name} (born ${data.user.birthYear})`)
-      console.log(`🎤 📋 Session contains full user context`)
+      console.log(`🎤 📋 User ID: ${data.vapiConfig.metadata.userId}`)
 
     } catch (error) {
       console.error('Error starting VAPI call:', error)

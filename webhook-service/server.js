@@ -16,60 +16,67 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-// User ID extraction function with session support
+// User ID extraction function - prioritize direct userId over sessions
 async function extractUserIdFromCall(call, authenticatedUserId = null) {
   if (authenticatedUserId) {
     return authenticatedUserId
   }
   
-  // PRIORITY 1: Check for sessionId in various locations
+  // PRIORITY 1: Check metadata for direct userId (this is what works)
+  if (call?.metadata?.userId) {
+    console.log('✅ Found direct userId in metadata:', call.metadata.userId)
+    return call.metadata.userId
+  }
+  
+  // PRIORITY 2: Check assistantOverrides.metadata 
+  if (call?.assistantOverrides?.metadata?.userId) {
+    console.log('✅ Found userId in assistantOverrides:', call.assistantOverrides.metadata.userId)
+    return call.assistantOverrides.metadata.userId
+  }
+  
+  // PRIORITY 3: Check variableValues (VAPI's newer approach)
+  if (call?.variableValues?.userId) {
+    console.log('✅ Found userId in variableValues:', call.variableValues.userId)
+    return call.variableValues.userId
+  }
+  
+  // PRIORITY 4: Check for sessionId as fallback
   const sessionId = 
     call?.metadata?.sessionId ||
     call?.assistantOverrides?.metadata?.sessionId ||
     call?.variableValues?.sessionId;
   
   if (sessionId) {
-    console.log('🔍 Found sessionId:', sessionId)
+    console.log('🔍 Found sessionId as fallback:', sessionId)
     
     // Lookup session in Supabase
-    const { data, error } = await supabase
-      .from('vapi_sessions')
-      .select('*')
-      .eq('session_id', sessionId)
-      .single()
-    
-    if (data && !error) {
-      console.log('✅ Session found! User ID:', data.user_id)
-      console.log('📋 User data from session:', data.user_data)
+    try {
+      const { data, error } = await supabase
+        .from('vapi_sessions')
+        .select('*')
+        .eq('session_id', sessionId)
+        .single()
       
-      // Store user data in global context for tools to use
-      global.vapiUserContext = {
-        userId: data.user_id,
-        userData: data.user_data
+      if (data && !error) {
+        console.log('✅ Session found! User ID:', data.user_id)
+        console.log('📋 User data from session:', data.user_data)
+        
+        // Store user data in global context for tools to use
+        global.vapiUserContext = {
+          userId: data.user_id,
+          userData: data.user_data
+        }
+        
+        return data.user_id
+      } else {
+        console.log('❌ Session not found or expired:', sessionId)
       }
-      
-      return data.user_id
-    } else {
-      console.log('❌ Session not found or expired:', sessionId)
+    } catch (err) {
+      console.log('❌ Session lookup failed:', err.message)
     }
   }
   
-  // Fallback methods if no session
-  // PRIORITY 2: Check variableValues (VAPI's newer approach)
-  if (call?.variableValues?.userId) {
-    return call.variableValues.userId
-  }
-  
-  // PRIORITY 3: Check metadata (simple VAPI format)
-  if (call?.metadata?.userId) {
-    return call.metadata.userId
-  }
-  
-  // PRIORITY 4: Check assistantOverrides.metadata 
-  if (call?.assistantOverrides?.metadata?.userId) {
-    return call.assistantOverrides.metadata.userId
-  }
-  
+  // Other fallback methods
   if (call?.customer?.userId) {
     return call.customer.userId
   }
