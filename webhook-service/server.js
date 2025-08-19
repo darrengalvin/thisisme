@@ -31,15 +31,16 @@ async function extractUserIdFromCall(call, authenticatedUserId = null, urlUserId
     console.log('🔍 ❌ TRY 1 FAILED: No userId in URL parameters')
   }
   
-  // TRY 2: variableValues (newer VAPI approach - check multiple locations)
-  const variableValues = call?.variableValues || arguments[2]?.variableValues || arguments[2]?.message?.variableValues
+  // TRY 2: variableValues (newer VAPI approach - check CORRECT location)
+  const variableValues = call?.assistantOverrides?.variableValues || call?.variableValues || arguments[2]?.variableValues
   if (variableValues?.userId) {
-    console.log('🔍 ✅ TRY 2 SUCCESS: Found userId in variableValues:', variableValues.userId)
+    console.log('🔍 ✅ TRY 2 SUCCESS: Found userId in assistantOverrides.variableValues:', variableValues.userId)
     return variableValues.userId
   } else {
     console.log('🔍 ❌ TRY 2 FAILED: No userId in variableValues')
-    console.log('🔍 variableValues content:', variableValues)
-    console.log('🔍 Full request args:', Object.keys(arguments[2] || {}))
+    console.log('🔍 call.assistantOverrides:', call?.assistantOverrides)
+    console.log('🔍 call.variableValues:', call?.variableValues)
+    console.log('🔍 Full call structure:', JSON.stringify(call, null, 2))
   }
   
   // TRY 3: metadata (original approach)
