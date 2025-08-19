@@ -361,8 +361,77 @@ async function saveMemoryForTool(parameters, call, urlUserId = null) {
 
 // Search memories tool
 async function searchMemoriesForTool(parameters, call, urlUserId = null) {
-  console.log('🔍 Memory search requested but not implemented yet')
-  return "🔍 Memory search feature is coming soon! For now, you can browse your timeline in the main interface."
+  const { query, year, location, userId: paramUserId } = parameters
+  
+  console.log('🔍 🚀 MEMORY SEARCH STARTING')
+  console.log('🔍 Query:', query)
+  console.log('🔍 Year filter:', year)
+  console.log('🔍 Location filter:', location)
+  
+  // Get userId - prioritize parameter, then fallback
+  let userId = paramUserId
+  if (!userId) {
+    userId = await extractUserIdFromCall(call, null, urlUserId)
+  }
+  
+  console.log('🔍 👤 Final userId for search:', userId)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "❌ I need to know who you are to search your memories. Please make sure you're logged in."
+  }
+
+  try {
+    // Build search query
+    let searchQuery = supabase
+      .from('memories')
+      .select('*')
+      .eq('user_id', userId)
+    
+    // Add filters if provided
+    if (query) {
+      searchQuery = searchQuery.or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+    }
+    
+    if (year) {
+      searchQuery = searchQuery.eq('year', parseInt(year))
+    }
+    
+    if (location) {
+      searchQuery = searchQuery.ilike('location', `%${location}%`)
+    }
+    
+    // Order by most recent first
+    searchQuery = searchQuery.order('created_at', { ascending: false })
+    
+    const { data: memories, error } = await searchQuery.limit(10)
+
+    if (error) {
+      console.error('🔍 ❌ Memory search failed:', error)
+      return `❌ Failed to search memories: ${error.message}`
+    }
+
+    console.log('🔍 ✅ Found', memories?.length || 0, 'memories')
+    
+    if (!memories || memories.length === 0) {
+      return `🔍 No memories found${query ? ` for "${query}"` : ''}${year ? ` from ${year}` : ''}${location ? ` in ${location}` : ''}. Try a different search or add some memories first!`
+    }
+
+    let response = `🔍 Found ${memories.length} memor${memories.length === 1 ? 'y' : 'ies'}${query ? ` matching "${query}"` : ''}:\n\n`
+    
+    memories.forEach((memory, index) => {
+      response += `${index + 1}. **${memory.title}**`
+      if (memory.year) response += ` (${memory.year})`
+      if (memory.location) response += ` - ${memory.location}`
+      response += `\n   ${memory.content.substring(0, 100)}${memory.content.length > 100 ? '...' : ''}\n\n`
+    })
+    
+    response += `Would you like me to tell you more about any of these memories?`
+    return response
+
+  } catch (error) {
+    console.error('🔍 💥 Memory search error:', error)
+    return `❌ Sorry, I had trouble searching your memories: ${error.message}`
+  }
 }
 
 // VAPI Webhook Handler
