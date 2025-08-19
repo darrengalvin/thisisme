@@ -13,9 +13,29 @@ function extractUserIdFromCall(call: any, authenticatedUserId: string | null): s
     return call.customer.userId
   }
   
+  // CRITICAL: Check assistantOverrides.metadata (where VAPI actually puts it)
+  if (call?.assistantOverrides?.metadata?.userId) {
+    return call.assistantOverrides.metadata.userId
+  }
+  
   // Alternative: extract from metadata field
   if (call?.metadata?.userId) {
     return call.metadata.userId
+  }
+  
+  // VAPI's variableValues format (newer approach) - try multiple locations
+  if (call?.client?.variableValues?.userId) {
+    return call.client.variableValues.userId
+  }
+  
+  // Alternative variableValues locations
+  if (call?.variableValues?.userId) {
+    return call.variableValues.userId
+  }
+  
+  // Check if variableValues is at root level
+  if (call?.userId) {
+    return call.userId
   }
   
   // Legacy fallbacks (less reliable)
@@ -72,6 +92,7 @@ export async function POST(request: NextRequest) {
     console.log('🔐 AUTH CHECK: Token present:', !!authToken)
     console.log('🔐 AUTH CHECK: User ID param:', userIdParam)
     console.log('🔐 AUTH CHECK: Full URL params:', Object.fromEntries(url.searchParams.entries()))
+    console.log('🔐 AUTH CHECK: Full URL:', request.url)
     
     // Verify user authentication
     let authenticatedUserId: string | null = null
@@ -107,14 +128,23 @@ export async function POST(request: NextRequest) {
     // Log the body to webhook monitor
     try {
       const { addWebhookLog } = await import('@/lib/webhook-logger')
+      console.log('🔥 ADDING WEBHOOK LOG TO MONITOR')
       addWebhookLog({
-        type: 'webhook_body',
+        type: 'webhook_received',
         body: body,
         bodyType: typeof body,
-        bodyKeys: Object.keys(body || {})
+        bodyKeys: Object.keys(body || {}),
+        conversationContext: {
+          messageType: body?.message?.type,
+          toolCallCount: body?.message?.toolCallList?.length || 0,
+          userId: extractUserIdFromCall(body?.call, authenticatedUserId),
+          callId: body?.call?.id,
+          timestamp: new Date().toISOString()
+        }
       })
+      console.log('🔥 WEBHOOK LOG ADDED SUCCESSFULLY')
     } catch (e) {
-      // Ignore logging errors
+      console.error('🔥 ERROR ADDING WEBHOOK LOG:', e)
     }
     
     // Check for empty or malformed payload
@@ -1054,9 +1084,18 @@ async function handleToolCalls(body: any, authenticatedUserId: string | null = n
     const { addWebhookLog } = await import('@/lib/webhook-logger')
     addWebhookLog({
       type: 'tool_call_response',
-      toolCalls: toolCalls.map((tc: any) => ({ id: tc.id, name: tc.name })),
+      toolCalls: toolCalls.map((tc: any) => ({ 
+        id: tc.id, 
+        name: tc.name || tc.function?.name || 'unknown',
+        arguments: tc.arguments || tc.function?.arguments
+      })),
       results: results,
-      resultCount: results.length
+      resultCount: results.length,
+      conversationContext: {
+        userId: extractUserIdFromCall(call, authenticatedUserId),
+        callId: call?.id,
+        timestamp: new Date().toISOString()
+      }
     })
   } catch (e) {
     // Ignore logging errors
@@ -1112,6 +1151,16 @@ async function getUserContextForTool(parameters: any, call: any, authenticatedUs
   const userId = extractUserIdFromCall(call, authenticatedUserId)
   
   console.log('👤 GETTING USER CONTEXT (TOOL) for:', userId, { age, year, context_type })
+  console.log('👤 FULL CALL OBJECT:', JSON.stringify(call, null, 2))
+  console.log('👤 AUTHENTICATED USER ID FROM URL:', authenticatedUserId)
+  console.log('👤 🔥 USER ID EXTRACTION RESULTS:')
+  console.log('👤 🔥 - From URL param:', authenticatedUserId)
+  console.log('👤 🔥 - From call.customer.userId:', call?.customer?.userId)
+  console.log('👤 🔥 - From call.assistantOverrides.metadata.userId:', call?.assistantOverrides?.metadata?.userId)
+  console.log('👤 🔥 - From call.metadata.userId:', call?.metadata?.userId)
+  console.log('👤 🔥 - From call.client.variableValues.userId:', call?.client?.variableValues?.userId)
+  console.log('👤 🔥 - From call.variableValues.userId:', call?.variableValues?.userId)
+  console.log('👤 🔥 - FINAL EXTRACTED USER ID:', userId)
   
   // Validate user ID
   if (!userId || userId === 'NOT_FOUND') {
