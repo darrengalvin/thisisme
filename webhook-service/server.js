@@ -16,34 +16,48 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-// User ID extraction function - prioritize URL parameters over everything
+// TRIPLE FALLBACK USER ID EXTRACTION - handles all three approaches from frontend
 async function extractUserIdFromCall(call, authenticatedUserId = null, urlUserId = null) {
-  // PRIORITY 0: URL parameter (our dynamic webhook approach)
+  console.log('🔍 🚀 TRIPLE FALLBACK USER ID EXTRACTION STARTING')
+  console.log('🔍 URL userId parameter:', urlUserId)
+  console.log('🔍 Authenticated userId:', authenticatedUserId)
+  console.log('🔍 Call object keys:', call ? Object.keys(call) : 'No call object')
+  
+  // TRY 1: URL parameter (fallback approach)
   if (urlUserId) {
-    console.log('✅ Found userId in webhook URL:', urlUserId)
+    console.log('🔍 ✅ TRY 1 SUCCESS: Found userId in webhook URL:', urlUserId)
     return urlUserId
+  } else {
+    console.log('🔍 ❌ TRY 1 FAILED: No userId in URL parameters')
+  }
+  
+  // TRY 2: variableValues (newer VAPI approach)
+  if (call?.variableValues?.userId) {
+    console.log('🔍 ✅ TRY 2 SUCCESS: Found userId in variableValues:', call.variableValues.userId)
+    return call.variableValues.userId
+  } else {
+    console.log('🔍 ❌ TRY 2 FAILED: No userId in variableValues')
+    console.log('🔍 variableValues content:', call?.variableValues)
+  }
+  
+  // TRY 3: metadata (original approach)
+  if (call?.metadata?.userId) {
+    console.log('🔍 ✅ TRY 3 SUCCESS: Found userId in metadata:', call.metadata.userId)
+    return call.metadata.userId
+  } else {
+    console.log('🔍 ❌ TRY 3 FAILED: No userId in metadata')
+    console.log('🔍 metadata content:', call?.metadata)
   }
   
   if (authenticatedUserId) {
+    console.log('🔍 ✅ FALLBACK: Using authenticated userId:', authenticatedUserId)
     return authenticatedUserId
   }
   
-  // PRIORITY 1: Check metadata for direct userId (this is what works)
-  if (call?.metadata?.userId) {
-    console.log('✅ Found direct userId in metadata:', call.metadata.userId)
-    return call.metadata.userId
-  }
-  
-  // PRIORITY 2: Check assistantOverrides.metadata 
+  // Additional checks for other possible locations
   if (call?.assistantOverrides?.metadata?.userId) {
-    console.log('✅ Found userId in assistantOverrides:', call.assistantOverrides.metadata.userId)
+    console.log('🔍 ✅ BACKUP: Found userId in assistantOverrides:', call.assistantOverrides.metadata.userId)
     return call.assistantOverrides.metadata.userId
-  }
-  
-  // PRIORITY 3: Check variableValues (VAPI's newer approach)
-  if (call?.variableValues?.userId) {
-    console.log('✅ Found userId in variableValues:', call.variableValues.userId)
-    return call.variableValues.userId
   }
   
   // PRIORITY 4: Check for sessionId as fallback
