@@ -16,8 +16,14 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-// User ID extraction function - prioritize direct userId over sessions
-async function extractUserIdFromCall(call, authenticatedUserId = null) {
+// User ID extraction function - prioritize URL parameters over everything
+async function extractUserIdFromCall(call, authenticatedUserId = null, urlUserId = null) {
+  // PRIORITY 0: URL parameter (our dynamic webhook approach)
+  if (urlUserId) {
+    console.log('✅ Found userId in webhook URL:', urlUserId)
+    return urlUserId
+  }
+  
   if (authenticatedUserId) {
     return authenticatedUserId
   }
@@ -89,15 +95,14 @@ async function extractUserIdFromCall(call, authenticatedUserId = null) {
     return call.userId
   }
   
-  // EMERGENCY FALLBACK: Your specific user ID since VAPI isn't forwarding data
-  console.log('🚨 EMERGENCY FALLBACK: Using hardcoded user ID since VAPI sends no call data')
-  return '9a9c09ee-8d59-450b-bf43-58ee373621b8'
+  console.log('❌ No user ID found in any source (URL, metadata, call data)')
+  return null
 }
 
 // Get user context tool
-async function getUserContextForTool(parameters, call, authenticatedUserId = null) {
+async function getUserContextForTool(parameters, call, urlUserId = null) {
   const { age, year, context_type } = parameters
-  const userId = await extractUserIdFromCall(call, authenticatedUserId)
+  const userId = await extractUserIdFromCall(call, null, urlUserId)
   
   // CRITICAL DEBUG: Log the ENTIRE payload structure we receive from VAPI
   console.log('🔥 CRITICAL DEBUG - Full request body keys:', Object.keys(arguments[2] || {}))

@@ -116,19 +116,21 @@ export default function VoiceChatButton() {
       console.log('🎤 Assistant ID:', data.vapiConfig.assistantId)
       console.log('🎤 User ID:', data.vapiConfig.metadata.userId)
       
-      // SIMPLIFIED APPROACH: Just pass userId directly in metadata
-      // We know this works from the test tools
+      // DYNAMIC WEBHOOK URL APPROACH: Bypass VAPI's forwarding completely
+      // Create a unique webhook URL with user ID for this specific call
+      const timestamp = Date.now()
+      const dynamicWebhookUrl = `https://thisisme-production.up.railway.app/vapi/webhook?userId=${data.vapiConfig.metadata.userId}&t=${timestamp}`
+      
+      console.log('🎤 Dynamic webhook URL:', dynamicWebhookUrl)
+      
+      // Override the assistant's tools to use our dynamic webhook URL
       const callOptions = {
-        metadata: {
-          userId: data.vapiConfig.metadata.userId,
-          userEmail: data.vapiConfig.metadata.userEmail,
-          userName: data.vapiConfig.metadata.userName,
-          birthYear: data.vapiConfig.metadata.birthYear,
-          currentAge: data.vapiConfig.metadata.currentAge
+        assistantOverrides: {
+          serverUrl: dynamicWebhookUrl
         }
       }
       
-      console.log('🎤 Call options (direct userId):', callOptions)
+      console.log('🎤 Call options (dynamic webhook):', callOptions)
       await vapi.start(data.vapiConfig.assistantId, callOptions)
       
       console.log('🎤 ✅ VAPI CALL STARTED WITH USER ID!')
