@@ -59,20 +59,12 @@ export async function POST(request: NextRequest) {
     const currentYear = new Date().getFullYear()
     const currentAge = userProfile.birth_year ? currentYear - userProfile.birth_year : null
 
-    // VAPI configuration using customer field (VAPI's recommended approach)
+    // VAPI configuration using metadata (this is what actually works)
     const VAPI_ASSISTANT_ID = process.env.VAPI_ASSISTANT_ID || '8ceaceba-6047-4965-92c5-225d0ebc1c4f'
     
     const vapiCallConfig = {
       assistantId: VAPI_ASSISTANT_ID,
-      // This is the key part - VAPI will include this customer object in webhook calls
-      customer: {
-        userId: user.id,
-        email: user.email,
-        name: userName,
-        birthYear: userProfile.birth_year,
-        currentAge: currentAge
-      },
-      // Additional metadata (also included in webhook calls)
+      // Use metadata instead of customer to avoid 400 errors
       metadata: {
         userId: user.id,
         userEmail: user.email,
@@ -87,8 +79,7 @@ export async function POST(request: NextRequest) {
     console.log('🎤 Assistant ID:', VAPI_ASSISTANT_ID)
     console.log('🎤 User ID:', user.id)
     console.log('🎤 Webhook URL (for VAPI tools):', `https://thisisme-production.up.railway.app/vapi/webhook`)
-    console.log('🎤 User ID will be passed via variableValues:', user.id)
-    console.log('🎤 Customer data:', vapiCallConfig.customer)
+    console.log('🎤 User ID will be passed via metadata:', user.id)
     console.log('🎤 Metadata:', vapiCallConfig.metadata)
 
     return NextResponse.json({
