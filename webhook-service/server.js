@@ -282,7 +282,7 @@ async function createChapterForTool(parameters, call, urlUserId = null) {
                        end_year === '2025' ? 'twenty twenty-five' :
                        end_year ? `year ${end_year}` : null
     
-    return `✅ Perfect! I've created your "${title}" chapter${endYearText ? ` covering ${startYearText} to ${endYearText}` : ` starting in ${startYearText}`}. ${description ? `${description}` : ''} You can now tell me about memories from this time period and I'll organize them for you!`
+    return `✅ Perfect! I've created your "${title}" chapter${endYearText ? ` covering ${startYearText} to ${endYearText}` : ` starting in ${startYearText}`}. ${description ? `${description}` : ''} Feel free to add any pictures or videos to bring your chapter to life, or you can do this later. You can now tell me about memories from this time period and I'll organize them for you!`
 
   } catch (error) {
     console.error('📚 💥 Chapter creation error:', error)
@@ -292,8 +292,58 @@ async function createChapterForTool(parameters, call, urlUserId = null) {
 
 // Save memory tool  
 async function saveMemoryForTool(parameters, call, urlUserId = null) {
-  console.log('💭 Memory save requested but not implemented yet')
-  return "💭 Memory saving feature is coming soon! For now, you can use the main interface to add memories."
+  const { title, content, year, age, location, userId: paramUserId } = parameters
+  
+  console.log('💭 🚀 MEMORY CREATION STARTING')
+  console.log('💭 Title:', title)
+  console.log('💭 Content:', content)
+  console.log('💭 Year:', year)
+  console.log('💭 Location:', location)
+  
+  // Get userId - prioritize parameter, then fallback
+  let userId = paramUserId
+  if (!userId) {
+    userId = await extractUserIdFromCall(call, null, urlUserId)
+  }
+  
+  console.log('💭 👤 Final userId for memory:', userId)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "❌ I need to know who you are to save a memory. Please make sure you're logged in."
+  }
+  
+  if (!title || !content) {
+    return "❌ I need at least a title and some content to save your memory."
+  }
+
+  try {
+    // Insert memory into database
+    const insertData = {
+      user_id: userId,
+      title: title,
+      content: content,
+      year: year ? parseInt(year) : null,
+      location: location || null
+    }
+    
+    const { data: memory, error } = await supabase
+      .from('memories')
+      .insert([insertData])
+      .select()
+      .single()
+
+    if (error) {
+      console.error('💭 ❌ Memory creation failed:', error)
+      return `❌ Failed to save memory: ${error.message}`
+    }
+
+    console.log('💭 ✅ Memory saved successfully:', memory.id)
+    return `✅ Perfect! I've saved your "${title}" memory. Feel free to add any pictures or videos to it, or you can do this later. What other memories would you like to share?`
+
+  } catch (error) {
+    console.error('💭 💥 Memory creation error:', error)
+    return `❌ Sorry, I had trouble saving that memory: ${error.message}`
+  }
 }
 
 // Search memories tool

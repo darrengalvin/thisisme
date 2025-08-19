@@ -11,6 +11,8 @@ export default function VoiceChatButton() {
   const [vapiLoaded, setVapiLoaded] = useState(false)
   const [conversationLog, setConversationLog] = useState<Array<{role: string, message: string, timestamp: string}>>([])
   const [showConversation, setShowConversation] = useState(false)
+  const [showUploadWidget, setShowUploadWidget] = useState(false)
+  const [lastCreatedItem, setLastCreatedItem] = useState<{type: 'chapter' | 'memory', title: string, id?: string} | null>(null)
 
   // Load VAPI SDK
   useEffect(() => {
@@ -48,11 +50,40 @@ export default function VoiceChatButton() {
         vapiInstance.on('message', (message: any) => {
           console.log('🎤 VAPI Message:', message)
           if (message?.type === 'transcript' && message?.transcript) {
+            const transcript = message.transcript
             setConversationLog(prev => [...prev, {
               role: message.role === 'assistant' ? 'assistant' : 'user',
-              message: message.transcript,
+              message: transcript,
               timestamp: new Date().toLocaleTimeString()
             }])
+            
+            // Detect chapter/memory creation in Maya's responses
+            if (message.role === 'assistant' && transcript) {
+              if (transcript.includes("I've created") || transcript.includes("created your")) {
+                if (transcript.toLowerCase().includes("chapter")) {
+                  // Extract chapter title from response
+                  const titleMatch = transcript.match(/created.*?"([^"]+)"/i) || transcript.match(/created.*?(\w+[\w\s]*)/i)
+                  const title = titleMatch ? titleMatch[1] : 'your chapter'
+                  setLastCreatedItem({type: 'chapter', title})
+                  setShowUploadWidget(true)
+                } else if (transcript.toLowerCase().includes("memory") || transcript.toLowerCase().includes("memor")) {
+                  // Extract memory title from response  
+                  const titleMatch = transcript.match(/created.*?"([^"]+)"/i) || transcript.match(/created.*?(\w+[\w\s]*)/i)
+                  const title = titleMatch ? titleMatch[1] : 'your memory'
+                  setLastCreatedItem({type: 'memory', title})
+                  setShowUploadWidget(true)
+                }
+              }
+              
+              // Also show upload widget if Maya asks about images/media
+              if (transcript.toLowerCase().includes("add a picture") || 
+                  transcript.toLowerCase().includes("add any pictures") ||
+                  transcript.toLowerCase().includes("upload") ||
+                  transcript.toLowerCase().includes("add media") ||
+                  transcript.toLowerCase().includes("add image")) {
+                setShowUploadWidget(true)
+              }
+            }
           }
         })
         
@@ -248,6 +279,70 @@ export default function VoiceChatButton() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Upload Media Widget */}
+      {showUploadWidget && lastCreatedItem && (
+        <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📸</span>
+              <h4 className="font-semibold text-purple-800">Add Media to {lastCreatedItem.title}</h4>
+            </div>
+            <button
+              onClick={() => setShowUploadWidget(false)}
+              className="text-gray-400 hover:text-gray-600 text-lg"
+            >
+              ×
+            </button>
+          </div>
+          
+          <p className="text-sm text-purple-700 mb-3">
+            Enhance your {lastCreatedItem.type} with photos and videos!
+          </p>
+          
+          <div className="space-y-2">
+            <input
+              type="file"
+              multiple
+              accept="image/*,video/*"
+              className="hidden"
+              id="media-upload"
+              onChange={(e) => {
+                // Handle file upload
+                const files = Array.from(e.target.files || [])
+                if (files.length > 0) {
+                  console.log('🎤 Files selected for upload:', files)
+                  // TODO: Implement actual upload logic
+                  alert(`Selected ${files.length} file(s) for ${lastCreatedItem.title}. Upload functionality will be implemented next.`)
+                  setShowUploadWidget(false)
+                }
+              }}
+            />
+            
+            <div className="grid grid-cols-2 gap-2">
+              <label
+                htmlFor="media-upload"
+                className="flex items-center justify-center gap-2 bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 cursor-pointer text-sm transition-colors"
+              >
+                <span>📷</span>
+                Choose Files
+              </label>
+              
+              <button
+                onClick={() => setShowUploadWidget(false)}
+                className="flex items-center justify-center gap-2 bg-gray-200 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-300 text-sm transition-colors"
+              >
+                <span>⏰</span>
+                Later
+              </button>
+            </div>
+            
+            <p className="text-xs text-purple-600 text-center">
+              Supports: JPG, PNG, GIF, MP4, MOV
+            </p>
+          </div>
         </div>
       )}
 

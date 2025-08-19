@@ -31,11 +31,10 @@ export async function POST(request: NextRequest) {
       case 'save-memory':
         mockArguments = {
           userId: userId,
-          title: 'Test Memory',
-          content: 'This is a test memory created from debug tools',
+          title: 'Test Memory from Debug',
+          content: 'This is a detailed test memory created from the debug tools. It includes rich content and details about a memorable experience.',
           year: 2022,
-          age: 41,
-          location: 'Test Location'
+          location: 'Test Location, UK'
         }
         break
         
