@@ -3,13 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 
-// VAPI Web SDK types (you'll need to install @vapi-ai/web)
-declare global {
-  interface Window {
-    Vapi: any;
-  }
-}
-
 export default function VoiceChatButton() {
   const { user, session } = useAuth()
   const [isCallActive, setIsCallActive] = useState(false)
@@ -20,39 +13,37 @@ export default function VoiceChatButton() {
   // Load VAPI SDK
   useEffect(() => {
     const loadVapi = async () => {
-      if (typeof window !== 'undefined' && !window.Vapi) {
-        // Load VAPI SDK from CDN
-        const script = document.createElement('script')
-        script.src = 'https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/index.js'
-        script.onload = () => {
-          if (window.Vapi) {
-            const vapiInstance = new window.Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || 'your-vapi-public-key')
-            setVapi(vapiInstance)
-            setVapiLoaded(true)
-            
-            // Set up event listeners
-            vapiInstance.on('call-start', () => {
-              console.log('🎤 VAPI Call started')
-              setIsCallActive(true)
-            })
-            
-            vapiInstance.on('call-end', () => {
-              console.log('🎤 VAPI Call ended')
-              setIsCallActive(false)
-            })
-            
-            vapiInstance.on('error', (error: any) => {
-              console.error('🎤 VAPI Error:', error)
-              setIsCallActive(false)
-              setIsLoading(false)
-            })
-          }
-        }
-        document.head.appendChild(script)
-      } else if (window.Vapi && !vapi) {
-        const vapiInstance = new window.Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || 'your-vapi-public-key')
+      try {
+        // Import VAPI SDK properly as an ES module
+        const { default: Vapi } = await import('@vapi-ai/web')
+        
+        const vapiInstance = new Vapi(process.env.NEXT_PUBLIC_VAPI_API_KEY || '')
         setVapi(vapiInstance)
         setVapiLoaded(true)
+        
+        console.log('🎤 VAPI SDK loaded successfully with key:', process.env.NEXT_PUBLIC_VAPI_API_KEY ? 'Present' : 'Missing')
+        
+        // Set up event listeners
+        vapiInstance.on('call-start', () => {
+          console.log('🎤 VAPI Call started')
+          setIsCallActive(true)
+        })
+        
+        vapiInstance.on('call-end', () => {
+          console.log('🎤 VAPI Call ended')
+          setIsCallActive(false)
+        })
+        
+        vapiInstance.on('error', (error: any) => {
+          console.error('🎤 VAPI Error:', error)
+          console.error('🎤 VAPI Error Details:', JSON.stringify(error, null, 2))
+          setIsCallActive(false)
+          setIsLoading(false)
+        })
+        
+      } catch (error) {
+        console.error('🎤 Failed to load VAPI SDK:', error)
+        setVapiLoaded(false)
       }
     }
 
@@ -73,8 +64,15 @@ export default function VoiceChatButton() {
     setIsLoading(true)
     
     try {
-      // Get auth token from session
+      // Use the session token directly
       const token = session.access_token
+      
+      if (!token) {
+        throw new Error('No authentication token available')
+      }
+      
+      console.log('🔑 Using session token:', token ? `${token.substring(0, 20)}...` : 'None')
+      console.log('🌐 Calling API endpoint:', '/api/vapi/start-call')
       
       // Call our API to get the VAPI configuration with user identification
       const response = await fetch('/api/vapi/start-call', {
@@ -84,6 +82,9 @@ export default function VoiceChatButton() {
           'Content-Type': 'application/json'
         }
       })
+      
+      console.log('📡 API Response status:', response.status)
+      console.log('📡 API Response ok:', response.ok)
 
       if (!response.ok) {
         throw new Error('Failed to get VAPI configuration')
@@ -91,19 +92,20 @@ export default function VoiceChatButton() {
 
       const data = await response.json()
       console.log('🎤 Starting VAPI call with config:', data.vapiConfig)
+      console.log('🎤 Assistant ID:', data.vapiConfig.assistantId)
+      console.log('🎤 User data:', data.user)
+      console.log('🎤 Customer data:', data.vapiConfig.customer)
+      console.log('🎤 Metadata:', data.vapiConfig.metadata)
 
-      // Actually start the VAPI call with the user identification
-      await vapi.start({
-        ...data.vapiConfig,
-        // Ensure the customer field is properly set for user identification
-        customer: {
-          userId: user.id,
-          email: user.email,
-          name: data.user.name,
-          birthYear: data.user.birthYear,
-          currentAge: data.user.currentAge
-        }
-      })
+      // STEP 1: Try absolute minimal approach first - just get the call working
+      console.log('🎤 STEP 1: Trying minimal VAPI call (just assistant ID)...')
+      console.log('🎤 This should at least start the call, even without user context')
+      
+      await vapi.start(data.vapiConfig.assistantId)
+      
+      console.log('🎤 ✅ MINIMAL CALL SUCCESSFUL!')
+      console.log('🎤 📝 NOTE: Maya may not have user context yet, but call should work')
+      console.log('🎤 🔍 Check webhook monitor to see if Maya tries to call tools')
 
       console.log('🎤 VAPI call started successfully!')
       console.log(`🎤 Maya will know you as: ${data.user.name} (born ${data.user.birthYear})`)

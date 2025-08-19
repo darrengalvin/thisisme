@@ -33,8 +33,30 @@ function extractUserIdFromCall(call: any, authenticatedUserId: string | null): s
 
 // VAPI Webhook Handler for Memory Assistant
 export async function POST(request: NextRequest) {
+  const timestamp = new Date().toISOString()
+  console.log('🎤 VAPI WEBHOOK: ========== NEW WEBHOOK CALL ==========')
+  console.log('🎤 VAPI WEBHOOK: Timestamp:', timestamp)
+  console.log('🎤 VAPI WEBHOOK: URL:', request.url)
+  console.log('🎤 VAPI WEBHOOK: Method:', request.method)
+  console.log('🎤 VAPI WEBHOOK: Headers:', Object.fromEntries(request.headers.entries()))
+  
+  // ALWAYS log webhook received - even if it fails later
   try {
-    console.log('🎤 VAPI WEBHOOK: Received webhook call')
+    const { addWebhookLog } = await import('../../debug/webhook-logs/route')
+    addWebhookLog({
+      type: 'webhook_received',
+      url: request.url,
+      method: request.method,
+      headers: Object.fromEntries(request.headers.entries()),
+      timestamp: timestamp
+    })
+  } catch (e) {
+    console.log('🎤 VAPI WEBHOOK: Failed to log webhook received:', e)
+  }
+
+  try {
+    // Enhanced console logging for debugging
+    console.log('🎤 VAPI WEBHOOK: Enhanced logging active')
     
     // Extract user authentication from URL parameters
     const url = new URL(request.url)
@@ -43,6 +65,7 @@ export async function POST(request: NextRequest) {
     
     console.log('🔐 AUTH CHECK: Token present:', !!authToken)
     console.log('🔐 AUTH CHECK: User ID param:', userIdParam)
+    console.log('🔐 AUTH CHECK: Full URL params:', Object.fromEntries(url.searchParams.entries()))
     
     // Verify user authentication
     let authenticatedUserId: string | null = null
@@ -69,6 +92,25 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json()
     
+    console.log('🎤 VAPI WEBHOOK: ========== RAW BODY ==========')
+    console.log('🎤 VAPI WEBHOOK: Body type:', typeof body)
+    console.log('🎤 VAPI WEBHOOK: Body keys:', Object.keys(body || {}))
+    console.log('🎤 VAPI WEBHOOK: Full body:', JSON.stringify(body, null, 2))
+    console.log('🎤 VAPI WEBHOOK: ========== END RAW BODY ==========')
+    
+    // Log the body to webhook monitor
+    try {
+      const { addWebhookLog } = await import('../../debug/webhook-logs/route')
+      addWebhookLog({
+        type: 'webhook_body',
+        body: body,
+        bodyType: typeof body,
+        bodyKeys: Object.keys(body || {})
+      })
+    } catch (e) {
+      // Ignore logging errors
+    }
+    
     // Check for empty or malformed payload
     if (!body || typeof body !== 'object') {
       console.error('🎤 VAPI WEBHOOK: Invalid or empty payload')
@@ -79,7 +121,9 @@ export async function POST(request: NextRequest) {
     
     console.log('🎤 VAPI WEBHOOK: Event type:', type)
     console.log('🎤 VAPI WEBHOOK: Call ID:', call?.id)
-    console.log('🎤 VAPI WEBHOOK: Full body:', JSON.stringify(body, null, 2))
+    console.log('🎤 VAPI WEBHOOK: Message type:', message?.type)
+    console.log('🎤 VAPI WEBHOOK: Has message:', !!message)
+    console.log('🎤 VAPI WEBHOOK: Has call:', !!call)
     
     // Enhanced debugging for undefined type
     if (type === undefined) {
@@ -129,6 +173,19 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('🎤 VAPI WEBHOOK: Error processing webhook:', error)
+    
+    // Log the error to webhook monitor
+    try {
+      const { addWebhookLog } = await import('../../debug/webhook-logs/route')
+      addWebhookLog({
+        type: 'error',
+        error: error instanceof Error ? error.message : 'Unknown webhook processing error',
+        timestamp: new Date().toISOString()
+      })
+    } catch (e) {
+      console.log('🎤 VAPI WEBHOOK: Failed to log error:', e)
+    }
+    
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 500 }
@@ -905,7 +962,7 @@ async function handleTranscript(body: any) {
 async function handleToolCalls(body: any, authenticatedUserId: string | null = null) {
   console.log('🔧 HANDLING TOOL-CALLS')
   const { message, call } = body
-  const toolCalls = message?.toolCalls || []
+  const toolCalls = message?.toolCallList || message?.toolCalls || []
   
   console.log('🔧 Tool calls count:', toolCalls.length)
   console.log('🔧 Tool calls:', JSON.stringify(toolCalls, null, 2))
@@ -915,38 +972,82 @@ async function handleToolCalls(body: any, authenticatedUserId: string | null = n
     return NextResponse.json({ success: true })
   }
   
-  // Process the first tool call (VAPI typically sends one at a time)
-  const toolCall = toolCalls[0]
-  const functionName = toolCall?.function?.name
-  const functionArgs = toolCall?.function?.arguments
+  // Process all tool calls and prepare results
+  const results = []
   
-  console.log('🔧 Processing tool call:', functionName)
-  console.log('🔧 Function arguments:', functionArgs)
-  
-  // Parse arguments if they're a string
-  let parameters = functionArgs
-  if (typeof functionArgs === 'string') {
+  for (const toolCall of toolCalls) {
+    const toolCallId = toolCall.id
+    const functionName = toolCall.name
+    const functionArgs = toolCall.arguments
+    
+    console.log('🔧 Processing tool call:', functionName, 'ID:', toolCallId)
+    console.log('🔧 Function arguments:', functionArgs)
+    
     try {
-      parameters = JSON.parse(functionArgs)
+      let result
+      
+      switch (functionName) {
+        case 'get-user-context':
+          console.log('👤 STARTING get-user-context tool')
+          result = await getUserContextForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        case 'save-memory':
+          console.log('💾 STARTING save-memory tool')
+          result = await saveMemoryForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        case 'search-memories':
+          console.log('🔍 STARTING search-memories tool')
+          result = await searchMemoriesForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        case 'create-chapter':
+          console.log('📚 STARTING create-chapter tool')
+          result = await createChapterForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        case 'upload-media':
+          console.log('📸 STARTING upload-media tool')
+          result = await uploadMediaForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        default:
+          console.log('❌ UNKNOWN TOOL:', functionName)
+          result = `Tool ${functionName} not implemented yet`
+      }
+      
+      results.push({
+        toolCallId: toolCallId,
+        result: result
+      })
+      
     } catch (error) {
-      console.error('🔧 Failed to parse function arguments:', error)
-      parameters = {}
+      console.error('🔧 Error processing tool call:', error)
+      results.push({
+        toolCallId: toolCallId,
+        result: `Error: ${error.message}`
+      })
     }
   }
   
-  // Restructure to match our existing handleFunctionCall format
-  const restructuredBody = {
-    type: 'function-call',
-    functionCall: {
-      name: functionName,
-      parameters: parameters
-    },
-    call: message.call || call // Use call from message if available, fallback to top-level call
+  console.log('🔧 VAPI Tool Response:', JSON.stringify({ results }, null, 2))
+  
+  // Log tool call results to webhook monitor
+  try {
+    const { addWebhookLog } = await import('../../debug/webhook-logs/route')
+    addWebhookLog({
+      type: 'tool_call_response',
+      toolCalls: toolCalls.map(tc => ({ id: tc.id, name: tc.name })),
+      results: results,
+      resultCount: results.length
+    })
+  } catch (e) {
+    // Ignore logging errors
   }
   
-  console.log('🔧 Restructured body:', JSON.stringify(restructuredBody, null, 2))
-  
-  return handleFunctionCall(restructuredBody, authenticatedUserId)
+  // Return in VAPI expected format
+  return NextResponse.json({ results })
 }
 
 // Handle message-based webhook format (new VAPI format)
@@ -986,3 +1087,122 @@ async function handleMessageBasedWebhook(body: any, authenticatedUserId: string 
       return NextResponse.json({ success: true })
   }
 }
+
+// Tool-specific functions that return just the result string (for VAPI tools format)
+async function getUserContextForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  const { age, year, context_type } = parameters
+  
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  
+  console.log('👤 GETTING USER CONTEXT (TOOL) for:', userId, { age, year, context_type })
+  
+  // Validate user ID
+  if (!userId || userId === 'NOT_FOUND') {
+    console.log('👤 ERROR: No valid user identification from VAPI')
+    return "I need to know who you are to access your timeline. Please configure user identification in VAPI."
+  }
+  
+  try {
+    // Get user profile data (including birth year)
+    const { data: userProfile, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, birth_year, created_at')
+      .eq('id', userId)
+      .single()
+    
+    if (userError || !userProfile) {
+      console.error('👤 USER PROFILE ERROR:', userError)
+      return "I can't find your user profile. Please check your VAPI configuration."
+    }
+    
+    console.log('👤 USER PROFILE FOUND:', {
+      userId: userId,
+      birthYear: userProfile?.birth_year,
+      email: userProfile?.email,
+      hasProfile: !!userProfile
+    })
+    
+    // Get user's name for personalization
+    const userName = userProfile?.email?.split('@')[0] || 'there'
+    
+    // Get user's chapters (timezones)
+    const { data: chapters, error: chaptersError } = await supabaseAdmin
+      .from('timezones')
+      .select('id, title, description, start_date, end_date, location')
+      .eq('creator_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (chaptersError) {
+      console.error('👤 CHAPTERS ERROR:', chaptersError)
+    } else {
+      console.log('👤 CHAPTERS FOUND:', {
+        userId: userId,
+        chapterCount: chapters?.length || 0,
+        chapterTitles: chapters?.map(c => c.title) || []
+      })
+    }
+    
+    // Get memories organized by timeframe
+    const { data: memories, error } = await supabaseAdmin
+      .from('memories')
+      .select('id, title, approximate_date, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    
+    if (error) throw error
+    
+    const memoryCount = memories?.length || 0
+    
+    // Build comprehensive user context
+    const currentYear = new Date().getFullYear()
+    const currentAge = userProfile.birth_year ? currentYear - userProfile.birth_year : null
+    
+    let contextResponse = `Hi ${userName}! I now have access to your timeline data:\n\n`
+    contextResponse += `👤 **Your Profile:**\n`
+    contextResponse += `- Name: ${userName}\n`
+    contextResponse += `- Email: ${userProfile.email}\n`
+    contextResponse += `- Birth Year: ${userProfile.birth_year}\n`
+    contextResponse += `- Current Age: ${currentAge}\n\n`
+    
+    if (chapters && chapters.length > 0) {
+      contextResponse += `📚 **Your Chapters (${chapters.length}):**\n`
+      chapters.forEach((chapter, index) => {
+        contextResponse += `${index + 1}. ${chapter.title}`
+        if (chapter.description) contextResponse += ` - ${chapter.description}`
+        contextResponse += `\n`
+      })
+      contextResponse += `\n`
+    } else {
+      contextResponse += `📚 **Chapters:** You don't have any chapters yet. I can help you create some!\n\n`
+    }
+    
+    contextResponse += `💭 **Your Memories:** You have ${memoryCount} memories saved\n\n`
+    contextResponse += `I'm ready to help you capture new memories, search existing ones, or organize your timeline!`
+    
+    return contextResponse
+    
+  } catch (error) {
+    console.error('👤 ERROR getting user context:', error)
+    return `Sorry, I encountered an error accessing your timeline data: ${error.message}`
+  }
+}
+
+// Placeholder functions for other tools
+async function saveMemoryForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  return "Save memory tool not yet implemented for new VAPI format"
+}
+
+async function searchMemoriesForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  return "Search memories tool not yet implemented for new VAPI format"
+}
+
+async function createChapterForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  return "Create chapter tool not yet implemented for new VAPI format"
+}
+
+async function uploadMediaForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  return "Upload media tool not yet implemented for new VAPI format"
+}
+
