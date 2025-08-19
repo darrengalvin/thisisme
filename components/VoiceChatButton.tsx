@@ -200,49 +200,103 @@ export default function VoiceChatButton() {
   }
 
   return (
-    <div className="p-4 border rounded-lg bg-blue-50">
-      <h3 className="text-lg font-semibold mb-3">Chat with Maya (Voice Assistant)</h3>
-      
-      <div className="mb-3">
-        <p className="text-sm text-gray-600">
-          <strong>Logged in as:</strong> {user.email}
-        </p>
-        <p className="text-sm text-gray-600">
-          Maya will know it's you and can access your timeline!
-        </p>
-        <p className="text-sm text-gray-500">
-          <strong>Voice Assistant:</strong> {vapiLoaded ? '✅ Ready' : '⏳ Loading...'}
-        </p>
+    <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 shadow-2xl text-white min-h-[400px] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-teal-400 to-teal-500 flex items-center justify-center">
+            {isCallActive && (
+              <div className="flex items-center gap-1">
+                <div className="w-1 h-3 bg-white rounded-full animate-pulse"></div>
+                <div className="w-1 h-4 bg-white rounded-full animate-pulse" style={{animationDelay: '0.1s'}}></div>
+                <div className="w-1 h-2 bg-white rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+              </div>
+            )}
+            {!isCallActive && !isLoading && (
+              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+              </svg>
+            )}
+            {isLoading && (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            )}
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-white">
+              Talk with Maya
+            </h3>
+            <p className="text-sm text-gray-300">
+              {isCallActive ? 'Listening...' : vapiLoaded ? 'Click the microphone to start' : 'Loading voice system...'}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-2">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col items-center justify-center">
+        {!isCallActive ? (
+          <div className="text-center">
+            <div className="w-20 h-20 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center mb-6 mx-auto transition-all duration-200 cursor-pointer" 
+                 onClick={startVoiceChat}>
+              <svg className="w-8 h-8 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <p className="text-gray-300 text-center mb-6">
+              Click the microphone to begin a conversation
+            </p>
+          </div>
+        ) : (
+          <div className="text-center">
+            <div className="w-20 h-20 rounded-full bg-teal-500 flex items-center justify-center mb-6 mx-auto relative">
+              <div className="absolute inset-0 rounded-full bg-teal-400 animate-ping opacity-75"></div>
+              <svg className="w-8 h-8 text-white relative z-10" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 715 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <p className="text-teal-300 text-center mb-6">
+              Maya is listening...
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Action Area */}
+      <div className="mt-auto">
         {!isCallActive ? (
           <button
             onClick={startVoiceChat}
             disabled={isLoading || !vapiLoaded}
-            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white py-4 rounded-xl hover:from-teal-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all duration-200 text-lg font-medium"
           >
             {isLoading ? (
               <>
-                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                Starting Voice Chat...
+                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                Starting...
               </>
             ) : !vapiLoaded ? (
               <>
-                ⏳ Loading Voice System...
+                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                Loading...
               </>
             ) : (
               <>
-                🎤 Start Voice Chat with Maya
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                </svg>
+                Start
               </>
             )}
           </button>
         ) : (
           <button
             onClick={stopVoiceChat}
-            className="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            className="w-full bg-red-600 text-white py-4 rounded-xl hover:bg-red-700 flex items-center justify-center gap-3 transition-all duration-200 text-lg font-medium"
           >
-            🛑 End Voice Chat
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+            </svg>
+            End Call
           </button>
         )}
       </div>
@@ -284,25 +338,29 @@ export default function VoiceChatButton() {
 
       {/* Upload Media Widget */}
       {showUploadWidget && lastCreatedItem && (
-        <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+        <div className="mt-4 bg-gradient-to-r from-gray-800 to-gray-700 rounded-xl p-4 border border-gray-600">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-lg">📸</span>
-              <h4 className="font-semibold text-purple-800">Add Media to {lastCreatedItem.title}</h4>
+              <div className="w-6 h-6 rounded bg-teal-500 flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h4 className="font-medium text-white">Add Media to {lastCreatedItem.title}</h4>
             </div>
             <button
               onClick={() => setShowUploadWidget(false)}
-              className="text-gray-400 hover:text-gray-600 text-lg"
+              className="text-gray-400 hover:text-white text-lg transition-colors"
             >
               ×
             </button>
           </div>
           
-          <p className="text-sm text-purple-700 mb-3">
-            Enhance your {lastCreatedItem.type} with photos and videos!
+          <p className="text-sm text-gray-300 mb-3">
+            Enhance your {lastCreatedItem.type} with photos and videos
           </p>
           
-          <div className="space-y-2">
+          <div className="space-y-3">
             <input
               type="file"
               multiple
@@ -321,66 +379,37 @@ export default function VoiceChatButton() {
               }}
             />
             
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <label
                 htmlFor="media-upload"
-                className="flex items-center justify-center gap-2 bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 cursor-pointer text-sm transition-colors"
+                className="flex items-center justify-center gap-2 bg-teal-600 text-white px-4 py-3 rounded-lg hover:bg-teal-700 cursor-pointer text-sm transition-colors font-medium"
               >
-                <span>📷</span>
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                </svg>
                 Choose Files
               </label>
               
               <button
                 onClick={() => setShowUploadWidget(false)}
-                className="flex items-center justify-center gap-2 bg-gray-200 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-300 text-sm transition-colors"
+                className="flex items-center justify-center gap-2 bg-gray-600 text-gray-200 px-4 py-3 rounded-lg hover:bg-gray-500 text-sm transition-colors font-medium"
               >
-                <span>⏰</span>
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
                 Later
               </button>
             </div>
             
-            <p className="text-xs text-purple-600 text-center">
+            <p className="text-xs text-gray-400 text-center">
               Supports: JPG, PNG, GIF, MP4, MOV
             </p>
           </div>
         </div>
       )}
 
-      <div className="mt-3 text-xs text-gray-600">
-        <p className="font-semibold text-gray-800 mb-2">✨ What you can say to Maya:</p>
-        <div className="space-y-2">
-          <div className="bg-blue-50 rounded-lg p-2">
-            <p className="font-medium text-blue-800 text-sm">🏛️ Chapter Management</p>
-            <p className="text-blue-600 mt-1">"Create a chapter for my university years from 1995 to 1999"</p>
-            <p className="text-blue-600">"Add a chapter called 'My Career at Google' starting in 2010"</p>
-          </div>
-          
-          <div className="bg-green-50 rounded-lg p-2">
-            <p className="font-medium text-green-800 text-sm">💭 Memory Sharing</p>
-            <p className="text-green-600 mt-1">"I want to tell you about my graduation day in 2003"</p>
-            <p className="text-green-600">"Let me share a memory from my wedding in Spain"</p>
-          </div>
-          
-          <div className="bg-purple-50 rounded-lg p-2">
-            <p className="font-medium text-purple-800 text-sm">🔍 Timeline Exploration</p>
-            <p className="text-purple-600 mt-1">"What do you know about my timeline?"</p>
-            <p className="text-purple-600">"Tell me about my memories from the 1990s"</p>
-          </div>
-          
-          <div className="bg-orange-50 rounded-lg p-2">
-            <p className="font-medium text-orange-800 text-sm">❓ Getting Started</p>
-            <p className="text-orange-600 mt-1">"Do you know who I am?" • "What's my birth year?"</p>
-            <p className="text-orange-600">"How many chapters do I have?"</p>
-          </div>
-        </div>
-        
-        <p className="text-gray-500 mt-3 text-center italic">
-          Maya knows your entire timeline and can help organize your life story naturally through conversation.
-        </p>
-      </div>
-
       {!vapiLoaded && (
-        <div className="mt-3 p-2 bg-yellow-100 rounded text-xs text-yellow-800">
+        <div className="mt-4 p-3 bg-gray-800 border border-gray-600 rounded-lg text-xs text-gray-300">
           <strong>Note:</strong> Voice chat requires API configuration. Contact support if you're having issues.
         </div>
       )}
