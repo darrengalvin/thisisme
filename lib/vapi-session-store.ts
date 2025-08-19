@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export interface VapiSession {
   sessionId: string;
@@ -21,11 +16,18 @@ export interface VapiSession {
 export class VapiSessionStore {
   private static SESSION_TTL_MINUTES = 30;
 
+  private static getSupabaseAdmin(): SupabaseClient {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    return createClient(supabaseUrl, supabaseServiceKey);
+  }
+
   static async createSession(userId: string, userData: any): Promise<string> {
     const sessionId = crypto.randomUUID();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + this.SESSION_TTL_MINUTES * 60 * 1000);
 
+    const supabase = this.getSupabaseAdmin();
     const { error } = await supabase
       .from('vapi_sessions')
       .insert({
@@ -48,6 +50,7 @@ export class VapiSessionStore {
   static async getSession(sessionId: string): Promise<VapiSession | null> {
     if (!sessionId) return null;
 
+    const supabase = this.getSupabaseAdmin();
     const { data, error } = await supabase
       .from('vapi_sessions')
       .select('*')
@@ -76,6 +79,7 @@ export class VapiSessionStore {
   }
 
   static async deleteSession(sessionId: string): Promise<void> {
+    const supabase = this.getSupabaseAdmin();
     await supabase
       .from('vapi_sessions')
       .delete()
@@ -83,6 +87,7 @@ export class VapiSessionStore {
   }
 
   static async cleanupExpiredSessions(): Promise<void> {
+    const supabase = this.getSupabaseAdmin();
     const { error } = await supabase
       .from('vapi_sessions')
       .delete()
