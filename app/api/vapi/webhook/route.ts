@@ -1038,7 +1038,7 @@ async function handleToolCalls(body: any, authenticatedUserId: string | null = n
     const { addWebhookLog } = await import('@/lib/webhook-logger')
     addWebhookLog({
       type: 'tool_call_response',
-      toolCalls: toolCalls.map(tc => ({ id: tc.id, name: tc.name })),
+      toolCalls: toolCalls.map((tc: any) => ({ id: tc.id, name: tc.name })),
       results: results,
       resultCount: results.length
     })
