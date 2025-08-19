@@ -18,6 +18,17 @@ interface WebhookLog {
   toolCalls?: any[]
 }
 
+interface ConversationMessage {
+  id: string
+  timestamp: string
+  type: 'user' | 'assistant' | 'tool_call' | 'tool_response'
+  content: string
+  toolName?: string
+  toolArgs?: any
+  toolResult?: string
+  status?: 'pending' | 'completed' | 'error'
+}
+
 export default function DebugVAPIPage() {
   const { user } = useAuth()
   const [testResult, setTestResult] = useState<any>(null)
@@ -27,10 +38,12 @@ export default function DebugVAPIPage() {
   // Webhook monitoring state
   const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([])
   const [autoRefresh, setAutoRefresh] = useState(true)
-  const [activeTab, setActiveTab] = useState<'voice' | 'tools' | 'webhooks'>('voice')
+  const [activeTab, setActiveTab] = useState<'voice' | 'tools' | 'webhooks' | 'conversation'>('voice')
   const [callStatus, setCallStatus] = useState<'idle' | 'starting' | 'active' | 'ending'>('idle')
   const [realTimeLogs, setRealTimeLogs] = useState<string[]>([])
   const [showRealTimeLogs, setShowRealTimeLogs] = useState(true)
+  const [conversationThread, setConversationThread] = useState<ConversationMessage[]>([])
+  const [toolCallHistory, setToolCallHistory] = useState<any[]>([])
 
   // Fetch webhook logs
   const fetchWebhookLogs = async () => {
@@ -45,6 +58,10 @@ export default function DebugVAPIPage() {
         const newString = JSON.stringify(logs.map((l: any) => l.id))
         return prevString !== newString ? logs : prevLogs
       })
+      
+      // Build conversation thread from webhook logs
+      updateConversationThread(logs)
+      updateToolCallHistory(logs)
       
       // Update call status based on recent webhook activity
       const recentLogs = logs.slice(0, 5) // Check last 5 logs
@@ -125,6 +142,83 @@ export default function DebugVAPIPage() {
       console.warn = originalConsoleWarn
     }
   }, [showRealTimeLogs])
+
+  // Build conversation thread from webhook logs
+  const updateConversationThread = (logs: WebhookLog[]) => {
+    const messages: ConversationMessage[] = []
+    
+    logs.forEach(log => {
+      if (log.type === 'webhook_body' && log.body?.message?.type === 'tool-calls') {
+        const toolCalls = log.body.message.toolCallList || []
+        toolCalls.forEach((tool: any) => {
+          messages.push({
+            id: `tool-call-${tool.id}`,
+            timestamp: log.timestamp,
+            type: 'tool_call',
+            content: `Maya is calling: ${tool.name}`,
+            toolName: tool.name,
+            toolArgs: tool.arguments,
+            status: 'pending'
+          })
+        })
+      }
+      
+      if (log.type === 'tool_call_response' && log.results) {
+        log.results.forEach((result: any, idx: number) => {
+          const toolCall = log.toolCalls?.[idx]
+          messages.push({
+            id: `tool-response-${result.toolCallId}`,
+            timestamp: log.timestamp,
+            type: 'tool_response',
+            content: `${toolCall?.name || 'Tool'} completed`,
+            toolName: toolCall?.name,
+            toolResult: result.result,
+            status: 'completed'
+          })
+        })
+      }
+    })
+    
+    // Sort by timestamp and keep latest 20
+    messages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    setConversationThread(messages.slice(0, 20))
+  }
+
+  // Update tool call history
+  const updateToolCallHistory = (logs: WebhookLog[]) => {
+    const toolCalls: any[] = []
+    
+    logs.forEach(log => {
+      if (log.type === 'webhook_body' && log.body?.message?.type === 'tool-calls') {
+        const calls = log.body.message.toolCallList || []
+        calls.forEach((tool: any) => {
+          // Find corresponding response
+          const responseLog = logs.find(l => 
+            l.type === 'tool_call_response' && 
+            l.results?.some((r: any) => r.toolCallId === tool.id)
+          )
+          
+          const response = responseLog?.results?.find((r: any) => r.toolCallId === tool.id)
+          
+          toolCalls.push({
+            id: tool.id,
+            name: tool.name,
+            arguments: tool.arguments,
+            timestamp: log.timestamp,
+            result: response?.result,
+            status: response ? 'completed' : 'pending',
+            duration: responseLog ? 
+              new Date(responseLog.timestamp).getTime() - new Date(log.timestamp).getTime() : 
+              null
+          })
+        })
+      }
+    })
+    
+    // Sort by timestamp (newest first)
+    toolCalls.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    setToolCallHistory(toolCalls.slice(0, 10))
+  }
 
   const testWebhookReachability = async () => {
     setIsLoading(true)
@@ -311,6 +405,16 @@ export default function DebugVAPIPage() {
           }`}
         >
           🔧 Test Tools
+        </button>
+        <button
+          onClick={() => setActiveTab('conversation')}
+          className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'conversation' 
+              ? 'bg-white text-blue-600 shadow-sm' 
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          💬 Conversation Flow
         </button>
         <button
           onClick={() => setActiveTab('webhooks')}
@@ -671,6 +775,151 @@ export default function DebugVAPIPage() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'conversation' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Conversation Thread */}
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">💬 Conversation Thread</h2>
+              <div className="text-sm text-gray-500">
+                {conversationThread.length} messages
+              </div>
+            </div>
+            
+            <div className="max-h-96 overflow-auto space-y-3">
+              {conversationThread.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <p>No conversation activity yet</p>
+                  <p className="text-sm">Start a voice chat to see the conversation flow</p>
+                </div>
+              ) : (
+                conversationThread.map((message) => (
+                  <div key={message.id} className={`p-3 rounded-lg ${
+                    message.type === 'tool_call' ? 'bg-blue-50 border-l-4 border-blue-400' :
+                    message.type === 'tool_response' ? 'bg-green-50 border-l-4 border-green-400' :
+                    'bg-gray-50'
+                  }`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          message.type === 'tool_call' ? 'bg-blue-100 text-blue-800' :
+                          message.type === 'tool_response' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {message.type === 'tool_call' ? '🔧 Tool Call' :
+                           message.type === 'tool_response' ? '✅ Tool Response' :
+                           message.type}
+                        </span>
+                        {message.toolName && (
+                          <span className="text-xs font-mono bg-gray-200 px-2 py-1 rounded">
+                            {message.toolName}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {formatTimestamp(message.timestamp)}
+                      </span>
+                    </div>
+                    
+                    <p className="text-sm font-medium text-gray-800 mb-2">
+                      {message.content}
+                    </p>
+                    
+                    {message.toolArgs && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-blue-600 cursor-pointer">Arguments</summary>
+                        <pre className="text-xs bg-gray-100 p-2 rounded mt-1 overflow-auto">
+                          {JSON.stringify(message.toolArgs, null, 2)}
+                        </pre>
+                      </details>
+                    )}
+                    
+                    {message.toolResult && (
+                      <div className="mt-2">
+                        <p className="text-xs text-green-600 font-medium mb-1">Result:</p>
+                        <div className="text-xs bg-green-50 p-2 rounded border">
+                          {message.toolResult.length > 200 ? 
+                            `${message.toolResult.substring(0, 200)}...` : 
+                            message.toolResult
+                          }
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Tool Call History */}
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">🔧 Tool Call History</h2>
+              <div className="text-sm text-gray-500">
+                {toolCallHistory.length} calls
+              </div>
+            </div>
+            
+            <div className="max-h-96 overflow-auto space-y-3">
+              {toolCallHistory.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <p>No tool calls yet</p>
+                  <p className="text-sm">Maya will call tools as she helps you</p>
+                </div>
+              ) : (
+                toolCallHistory.map((call) => (
+                  <div key={call.id} className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-medium">
+                          {call.name}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          call.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          call.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {call.status === 'completed' ? '✅ Completed' :
+                           call.status === 'pending' ? '⏳ Pending' :
+                           '❌ Error'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {formatTimestamp(call.timestamp)}
+                        {call.duration && (
+                          <span className="ml-2">({call.duration}ms)</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {call.arguments && Object.keys(call.arguments).length > 0 && (
+                      <details className="mb-2">
+                        <summary className="text-xs text-blue-600 cursor-pointer">Arguments</summary>
+                        <pre className="text-xs bg-gray-50 p-2 rounded mt-1 overflow-auto max-h-20">
+                          {JSON.stringify(call.arguments, null, 2)}
+                        </pre>
+                      </details>
+                    )}
+                    
+                    {call.result && (
+                      <div className="mt-2">
+                        <p className="text-xs text-green-600 font-medium mb-1">Result Preview:</p>
+                        <div className="text-xs bg-green-50 p-2 rounded border max-h-16 overflow-auto">
+                          {call.result.length > 150 ? 
+                            `${call.result.substring(0, 150)}...` : 
+                            call.result
+                          }
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}

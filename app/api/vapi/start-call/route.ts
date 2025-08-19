@@ -86,7 +86,8 @@ export async function POST(request: NextRequest) {
     console.log('🎤 VAPI START-CALL: Sending configuration to frontend')
     console.log('🎤 Assistant ID:', VAPI_ASSISTANT_ID)
     console.log('🎤 User ID:', user.id)
-    console.log('🎤 Webhook URL:', `${process.env.NEXT_PUBLIC_BASE_URL || 'https://thisisme-three.vercel.app'}/api/vapi/webhook?userId=${user.id}&secret=${process.env.VAPI_WEBHOOK_SECRET || 'dev-secret-123'}`)
+    console.log('🎤 Webhook URL (for VAPI tools):', `${process.env.NEXT_PUBLIC_BASE_URL || 'https://thisisme-three.vercel.app'}/api/vapi/webhook`)
+    console.log('🎤 User ID will be passed via variableValues:', user.id)
     console.log('🎤 Customer data:', vapiCallConfig.customer)
     console.log('🎤 Metadata:', vapiCallConfig.metadata)
 

@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
   // ALWAYS log webhook received - even if it fails later
   try {
     const { addWebhookLog } = await import('@/lib/webhook-logger')
-    addWebhookLog({
+    await addWebhookLog({
       type: 'webhook_received',
       url: request.url,
       method: request.method,
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     try {
       const { addWebhookLog } = await import('@/lib/webhook-logger')
       console.log('🔥 ADDING WEBHOOK LOG TO MONITOR')
-      addWebhookLog({
+      await addWebhookLog({
         type: 'webhook_received',
         body: body,
         bodyType: typeof body,
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     // Log the error to webhook monitor
     try {
       const { addWebhookLog } = await import('@/lib/webhook-logger')
-      addWebhookLog({
+      await addWebhookLog({
         type: 'error',
         error: error instanceof Error ? error.message : 'Unknown webhook processing error',
         timestamp: new Date().toISOString()
@@ -1082,7 +1082,7 @@ async function handleToolCalls(body: any, authenticatedUserId: string | null = n
   // Log tool call results to webhook monitor
   try {
     const { addWebhookLog } = await import('@/lib/webhook-logger')
-    addWebhookLog({
+    await addWebhookLog({
       type: 'tool_call_response',
       toolCalls: toolCalls.map((tc: any) => ({ 
         id: tc.id, 

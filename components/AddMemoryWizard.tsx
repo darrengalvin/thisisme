@@ -327,7 +327,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                         type="button"
                         onClick={handleVoiceRecord}
                         className="p-2.5 rounded-full transition-all duration-200 shadow-lg bg-slate-700 hover:bg-slate-800 text-white hover:shadow-xl border-2 border-slate-600 hover:border-slate-500"
-                        title="Start voice transcription (Premium)"
+                        title="Voice-to-Text Transcription (Premium Feature - Upgrade Required)"
                       >
                         <Mic size={18} />
                       </button>
@@ -638,7 +638,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
         isOpen={showPremiumNotification}
         type="premium"
         title="Premium Feature"
-        message="🎤 Voice transcription is a premium feature! Upgrade to Pro to unlock AI-powered voice-to-text for your memories."
+        message="🎤 Voice-to-Text Transcription is a premium feature! This converts your speech directly into text in the memory form. Upgrade to Pro to unlock AI-powered voice transcription. (Note: Free voice chat with Maya is available via the floating voice button in the bottom-right corner!)"
         actionText="Upgrade to Pro"
         onAction={() => {
           // TODO: Navigate to upgrade page

@@ -131,7 +131,7 @@ export default function VoiceMemoryWidget({
   const handleToggleCall = async () => {
     if (!vapiClient) {
       console.error('🎤 VAPI client not initialized')
-      alert('Voice assistant not ready. Please check your API key configuration.')
+      alert('Voice assistant is still loading. Please wait a moment and try again, or check your API key configuration.')
       return
     }
     
@@ -214,9 +214,12 @@ export default function VoiceMemoryWidget({
     return 'Tap to start'
   }
 
+  // Debug: Always log that the widget is rendering
+  console.log('🎤 VoiceMemoryWidget: Rendering widget, isMinimized:', isMinimized, 'vapiClient:', !!vapiClient)
+
   if (isMinimized) {
     return (
-      <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
+      <div className={`fixed bottom-6 right-6 z-[9999] ${className}`} style={{ pointerEvents: 'auto' }}>
         {/* Floating Voice Bubble */}
         <div className="relative">
           {/* Recent memories indicator */}
@@ -230,6 +233,7 @@ export default function VoiceMemoryWidget({
           <button
             onClick={handleToggleCall}
             className={`w-20 h-20 rounded-full bg-gradient-to-r ${getStatusColor()} text-white shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-110 flex items-center justify-center relative overflow-hidden group`}
+            title={vapiClient ? getStatusText() : "Voice assistant loading..."}
           >
             {/* Multiple animated pulse rings */}
             {isListening && (
@@ -293,7 +297,7 @@ export default function VoiceMemoryWidget({
           
           {/* Status tooltip */}
           <div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-black/80 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            {getStatusText()}
+            {getStatusText()} • Free Voice Chat
           </div>
         </div>
         
@@ -332,7 +336,7 @@ export default function VoiceMemoryWidget({
   }
 
   return (
-    <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
+    <div className={`fixed bottom-6 right-6 z-[9999] ${className}`} style={{ pointerEvents: 'auto' }}>
       {/* Expanded Voice Chat Interface */}
       <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-80 h-96 flex flex-col overflow-hidden">
         {/* Header */}
@@ -348,7 +352,7 @@ export default function VoiceMemoryWidget({
             </div>
             <div>
               <h3 className="font-semibold text-sm">Maya - Voice Memory</h3>
-              <p className="text-xs text-white/80">{getStatusText()}</p>
+              <p className="text-xs text-white/80">{getStatusText()} • Free VAPI Chat</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

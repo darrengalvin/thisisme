@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { addWebhookLog, getWebhookLogs, clearWebhookLogs } from '@/lib/webhook-logger'
 
 export async function GET() {
-  const logs = getWebhookLogs()
+  const logs = await getWebhookLogs()
   return NextResponse.json({
     logs,
     count: logs.length,
@@ -11,7 +11,7 @@ export async function GET() {
 }
 
 export async function DELETE() {
-  const clearedCount = clearWebhookLogs()
+  const clearedCount = await clearWebhookLogs()
   return NextResponse.json({ 
     success: true, 
     message: `Cleared ${clearedCount} logs` 
@@ -22,7 +22,7 @@ export async function DELETE() {
 export async function POST(request: NextRequest) {
   try {
     const logData = await request.json()
-    addWebhookLog(logData)
+    await addWebhookLog(logData)
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ 

@@ -97,27 +97,31 @@ export default function VoiceChatButton() {
       console.log('🎤 Customer data:', data.vapiConfig.customer)
       console.log('🎤 Metadata:', data.vapiConfig.metadata)
 
-      // Start VAPI call with user identification
-      console.log('🎤 Starting VAPI call with user identification...')
+      // Start VAPI call - try adding user metadata in the simplest format
+      console.log('🎤 Starting VAPI call - TRYING USER METADATA AGAIN...')
       
-      const vapiCallConfig = {
-        assistant: {
-          id: data.vapiConfig.assistantId
-        },
-        customer: data.vapiConfig.customer,
+      console.log('🎤 VAPI call config:')
+      console.log('🎤 Assistant ID:', data.vapiConfig.assistantId)
+      console.log('🎤 Trying with VAPI variableValues format...')
+      
+      // Try with ONLY metadata (no customer) to avoid the 400 error
+      console.log('🎤 Trying with metadata only...')
+      
+      const callOptions = {
         metadata: data.vapiConfig.metadata
       }
       
-      console.log('🎤 VAPI call config:', vapiCallConfig)
+      console.log('🎤 Call options (metadata only):', callOptions)
+      await vapi.start(data.vapiConfig.assistantId, callOptions)
       
-      await vapi.start(vapiCallConfig)
-      
-      console.log('🎤 ✅ VAPI CALL STARTED WITH USER DATA!')
-      console.log('🎤 📝 Maya should now have access to your user ID')
-      console.log('🎤 🔍 Check webhook monitor to see Maya calling tools with user context')
+      console.log('🎤 ✅ VAPI CALL WITH USER METADATA STARTED!')
+      console.log('🎤 📝 NOTE: Trying simple metadata format')
+      console.log('🎤 🔍 Check webhook monitor to see if Maya calls get-user-context')
+      console.log('🎤 🤞 Maya should now have user ID and be able to identify you')
 
       console.log('🎤 VAPI call started successfully!')
-      console.log(`🎤 Maya will know you as: ${data.user.name} (born ${data.user.birthYear})`)
+      console.log(`🎤 ✅ Maya should know you as: ${data.user.name} (born ${data.user.birthYear})`)
+      console.log(`🎤 📋 User ID passed: ${data.vapiConfig.metadata.userId}`)
 
     } catch (error) {
       console.error('Error starting VAPI call:', error)
