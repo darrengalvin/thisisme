@@ -55,13 +55,14 @@ async function getUserContextForTool(parameters, call, authenticatedUserId = nul
   const { age, year, context_type } = parameters
   const userId = extractUserIdFromCall(call, authenticatedUserId)
   
-  console.log('👤 GETTING USER CONTEXT for:', userId, { age, year, context_type })
-  console.log('👤 🔥 USER ID EXTRACTION RESULTS:')
-  console.log('👤 🔥 - From URL param:', authenticatedUserId)
-  console.log('👤 🔥 - From call.customer.userId:', call?.customer?.userId)
-  console.log('👤 🔥 - From call.assistantOverrides.metadata.userId:', call?.assistantOverrides?.metadata?.userId)
-  console.log('👤 🔥 - From call.metadata.userId:', call?.metadata?.userId)
-  console.log('👤 🔥 - FINAL EXTRACTED USER ID:', userId)
+  // CRITICAL DEBUG: Log the exact call data we receive
+  console.log('🔥 CRITICAL DEBUG - Call data:', JSON.stringify({
+    customer: call?.customer,
+    metadata: call?.metadata,
+    assistantOverrides: call?.assistantOverrides,
+    variableValues: call?.variableValues
+  }, null, 2))
+  console.log('👤 Extracted user ID:', userId)
   
   if (!userId || userId === 'NOT_FOUND') {
     return "I need to know who you are to access your timeline. Please configure user identification in VAPI."
@@ -131,18 +132,16 @@ async function getUserContextForTool(parameters, call, authenticatedUserId = nul
 // VAPI Webhook Handler
 app.post('/vapi/webhook', async (req, res) => {
   const timestamp = new Date().toISOString()
-  console.log('🎤 VAPI WEBHOOK: ========== NEW WEBHOOK CALL ==========')
-  console.log('🎤 VAPI WEBHOOK: Timestamp:', timestamp)
-  console.log('🎤 VAPI WEBHOOK: Body:', JSON.stringify(req.body, null, 2))
+  // Minimal logging - only essential info
+  console.log('🎤 WEBHOOK CALL:', timestamp)
 
   try {
     const body = req.body
     const { message, call } = body
 
     if (message?.type === 'tool-calls') {
-      console.log('🔧 HANDLING TOOL-CALLS')
+      // Handle tool calls with minimal logging
       const toolCalls = message.toolCallList || message.toolCalls || []
-      console.log('🔧 Tool calls count:', toolCalls.length)
 
       const results = []
 
@@ -151,13 +150,13 @@ app.post('/vapi/webhook', async (req, res) => {
         const functionName = toolCall.name || toolCall.function?.name
         const functionArgs = toolCall.arguments || toolCall.function?.arguments || {}
 
-        console.log('🔧 Processing tool call:', functionName, 'ID:', toolCallId)
+        // Process tool call
 
         let result = "Tool not yet implemented for new VAPI format..."
 
         switch (functionName) {
           case 'get-user-context':
-            console.log('👤 STARTING get-user-context tool')
+            // Get user context
             result = await getUserContextForTool(functionArgs, call)
             break
           
@@ -171,7 +170,7 @@ app.post('/vapi/webhook', async (req, res) => {
         })
       }
 
-      console.log('🔧 VAPI Tool Response:', JSON.stringify({ results }, null, 2))
+      // Return results to VAPI
       return res.json({ results })
     }
 
