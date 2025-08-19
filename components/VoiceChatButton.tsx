@@ -41,22 +41,15 @@ export default function VoiceChatButton() {
           console.log('🎤 User started speaking')
         })
         
-        vapiInstance.on('speech-end', (message: any) => {
-          console.log('🎤 User finished speaking:', message)
-          if (message?.transcript) {
-            setConversationLog(prev => [...prev, {
-              role: 'user',
-              message: message.transcript,
-              timestamp: new Date().toLocaleTimeString()
-            }])
-          }
+        vapiInstance.on('speech-end', () => {
+          console.log('🎤 User finished speaking')
         })
         
         vapiInstance.on('message', (message: any) => {
           console.log('🎤 VAPI Message:', message)
-          if (message?.type === 'transcript' && message?.transcript && message?.role === 'assistant') {
+          if (message?.type === 'transcript' && message?.transcript) {
             setConversationLog(prev => [...prev, {
-              role: 'assistant',
+              role: message.role === 'assistant' ? 'assistant' : 'user',
               message: message.transcript,
               timestamp: new Date().toLocaleTimeString()
             }])
