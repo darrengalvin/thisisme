@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     console.error('🔧 DEBUG: Error testing tool:', error)
     return NextResponse.json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
