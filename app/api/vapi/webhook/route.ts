@@ -1185,7 +1185,7 @@ async function getUserContextForTool(parameters: any, call: any, authenticatedUs
     
   } catch (error) {
     console.error('👤 ERROR getting user context:', error)
-    return `Sorry, I encountered an error accessing your timeline data: ${error.message}`
+    return `Sorry, I encountered an error accessing your timeline data: ${error instanceof Error ? error.message : 'Unknown error'}`
   }
 }
 

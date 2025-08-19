@@ -14,6 +14,8 @@ interface WebhookLog {
   response?: any
   status?: string
   duration?: number
+  results?: any[]
+  toolCalls?: any[]
 }
 
 export default function DebugVAPIPage() {
@@ -135,7 +137,7 @@ export default function DebugVAPIPage() {
       }
 
     } catch (error) {
-      setLogs(prev => [...prev, `❌ Webhook test failed: ${error.message}`])
+      setLogs(prev => [...prev, `❌ Webhook test failed: ${error instanceof Error ? error.message : 'Unknown error'}`])
     } finally {
       setIsLoading(false)
     }
@@ -165,7 +167,7 @@ export default function DebugVAPIPage() {
       setLogs(prev => [...prev, `✅ Tool test completed: ${JSON.stringify(result, null, 2)}`])
 
     } catch (error) {
-      setLogs(prev => [...prev, `❌ Tool test failed: ${error.message}`])
+      setLogs(prev => [...prev, `❌ Tool test failed: ${error instanceof Error ? error.message : 'Unknown error'}`])
     } finally {
       setIsLoading(false)
     }
