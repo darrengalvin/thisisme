@@ -7,13 +7,57 @@ export async function POST(request: NextRequest) {
     
     console.log('🔧 DEBUG: Testing tool:', toolName, 'for user:', userId)
     
+    // Create tool-specific test arguments
+    let mockArguments = {}
+    
+    switch (toolName) {
+      case 'get-user-context':
+        mockArguments = {
+          userId: userId,
+          context_type: 'timeline_overview'
+        }
+        break
+        
+      case 'create-chapter':
+        mockArguments = {
+          userId: userId,
+          title: 'Test Chapter from Debug',
+          start_year: 2020,
+          end_year: 2023,
+          description: 'This is a test chapter created from the debug tools'
+        }
+        break
+        
+      case 'save-memory':
+        mockArguments = {
+          userId: userId,
+          title: 'Test Memory',
+          content: 'This is a test memory created from debug tools',
+          year: 2022,
+          age: 41,
+          location: 'Test Location'
+        }
+        break
+        
+      case 'search-memories':
+        mockArguments = {
+          userId: userId,
+          query: 'test'
+        }
+        break
+        
+      default:
+        mockArguments = {
+          userId: userId,
+          context_type: 'timeline_overview'
+        }
+    }
+
     // Simulate a VAPI tool call
     const mockToolCall = {
       id: 'debug-tool-call-' + Date.now(),
       name: toolName,
-      arguments: {
-        context_type: 'timeline_overview'
-      }
+      arguments: mockArguments
     }
     
     const mockCall = {
