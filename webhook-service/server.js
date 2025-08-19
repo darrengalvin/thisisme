@@ -115,10 +115,20 @@ async function extractUserIdFromCall(call, authenticatedUserId = null, urlUserId
   return null
 }
 
-// Get user context tool
+// Get user context tool - UPDATED to require userId parameter
 async function getUserContextForTool(parameters, call, urlUserId = null) {
-  const { age, year, context_type } = parameters
-  const userId = await extractUserIdFromCall(call, null, urlUserId)
+  const { age, year, context_type, userId: paramUserId } = parameters
+  
+  // PRIORITY: Use userId from tool parameters (Maya should include this)
+  let userId = paramUserId
+  if (!userId) {
+    // FALLBACK: Extract from call data if Maya didn't include it
+    userId = await extractUserIdFromCall(call, null, urlUserId)
+  }
+  
+  console.log('👤 TOOL PARAMETER userId:', paramUserId)
+  console.log('👤 EXTRACTED userId:', userId)
+  console.log('👤 FINAL userId to use:', userId)
   
   // CRITICAL DEBUG: Log the ENTIRE payload structure we receive from VAPI
   console.log('🔥 CRITICAL DEBUG - Full request body keys:', Object.keys(arguments[2] || {}))
