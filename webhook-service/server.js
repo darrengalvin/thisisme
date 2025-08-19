@@ -238,16 +238,21 @@ async function createChapterForTool(parameters, call, urlUserId = null) {
   }
 
   try {
-    // Insert chapter into database (using 'timezones' table as mentioned by user)
+    // Insert chapter into database (using 'timezones' table - only insert columns that exist)
+    const insertData = {
+      user_id: userId,
+      title: title,
+      start_year: parseInt(start_year)
+    }
+    
+    // Only add description if provided and if column exists
+    if (description) {
+      insertData.description = description
+    }
+    
     const { data: chapter, error } = await supabase
       .from('timezones')
-      .insert([{
-        user_id: userId,
-        title: title,
-        start_year: parseInt(start_year),
-        end_year: end_year ? parseInt(end_year) : null,
-        description: description || null
-      }])
+      .insert([insertData])
       .select()
       .single()
 
