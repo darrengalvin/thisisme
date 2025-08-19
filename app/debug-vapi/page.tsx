@@ -38,7 +38,13 @@ export default function DebugVAPIPage() {
       const response = await fetch('/api/debug/webhook-logs')
       const data = await response.json()
       const logs = data.logs || []
-      setWebhookLogs(logs)
+      
+      // Only update if logs actually changed to prevent flashing
+      setWebhookLogs(prevLogs => {
+        const prevString = JSON.stringify(prevLogs.map(l => l.id))
+        const newString = JSON.stringify(logs.map(l => l.id))
+        return prevString !== newString ? logs : prevLogs
+      })
       
       // Update call status based on recent webhook activity
       const recentLogs = logs.slice(0, 5) // Check last 5 logs
@@ -59,10 +65,10 @@ export default function DebugVAPIPage() {
     }
   }
 
-  // Auto-refresh webhook logs
+  // Auto-refresh webhook logs (less aggressive)
   useEffect(() => {
     if (autoRefresh) {
-      const interval = setInterval(fetchWebhookLogs, 1000) // Refresh every second
+      const interval = setInterval(fetchWebhookLogs, 3000) // Refresh every 3 seconds instead of 1
       return () => clearInterval(interval)
     }
   }, [autoRefresh])
@@ -408,6 +414,12 @@ export default function DebugVAPIPage() {
                   className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
                 >
                   🔄 Refresh
+                </button>
+                <button
+                  onClick={() => setAutoRefresh(!autoRefresh)}
+                  className={`px-3 py-1 rounded text-sm ${autoRefresh ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'} text-white`}
+                >
+                  {autoRefresh ? '⏸️ Pause' : '▶️ Resume'}
                 </button>
                 <button
                   onClick={clearWebhookLogs}
