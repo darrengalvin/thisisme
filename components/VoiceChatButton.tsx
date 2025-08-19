@@ -9,6 +9,8 @@ export default function VoiceChatButton() {
   const [isLoading, setIsLoading] = useState(false)
   const [vapi, setVapi] = useState<any>(null)
   const [vapiLoaded, setVapiLoaded] = useState(false)
+  const [conversationLog, setConversationLog] = useState<Array<{role: string, message: string, timestamp: string}>>([])
+  const [showConversation, setShowConversation] = useState(false)
 
   // Load VAPI SDK
   useEffect(() => {
@@ -27,11 +29,38 @@ export default function VoiceChatButton() {
         vapiInstance.on('call-start', () => {
           console.log('🎤 VAPI Call started')
           setIsCallActive(true)
+          setConversationLog([])
         })
         
         vapiInstance.on('call-end', () => {
           console.log('🎤 VAPI Call ended')
           setIsCallActive(false)
+        })
+        
+        vapiInstance.on('speech-start', () => {
+          console.log('🎤 User started speaking')
+        })
+        
+        vapiInstance.on('speech-end', (message: any) => {
+          console.log('🎤 User finished speaking:', message)
+          if (message?.transcript) {
+            setConversationLog(prev => [...prev, {
+              role: 'user',
+              message: message.transcript,
+              timestamp: new Date().toLocaleTimeString()
+            }])
+          }
+        })
+        
+        vapiInstance.on('message', (message: any) => {
+          console.log('🎤 VAPI Message:', message)
+          if (message?.type === 'transcript' && message?.transcript && message?.role === 'assistant') {
+            setConversationLog(prev => [...prev, {
+              role: 'assistant',
+              message: message.transcript,
+              timestamp: new Date().toLocaleTimeString()
+            }])
+          }
         })
         
         vapiInstance.on('error', (error: any) => {
@@ -194,6 +223,41 @@ export default function VoiceChatButton() {
           </button>
         )}
       </div>
+
+      {/* Conversation Display */}
+      {conversationLog.length > 0 && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold">💬 Conversation</h4>
+            <button
+              onClick={() => setShowConversation(!showConversation)}
+              className="text-xs text-blue-600 hover:text-blue-800"
+            >
+              {showConversation ? 'Hide' : 'Show'} ({conversationLog.length})
+            </button>
+          </div>
+          
+          {showConversation && (
+            <div className="max-h-40 overflow-y-auto bg-gray-50 rounded p-2 space-y-1">
+              {conversationLog.map((entry, index) => (
+                <div key={index} className={`text-xs p-2 rounded ${
+                  entry.role === 'user' 
+                    ? 'bg-blue-100 text-blue-800 ml-4' 
+                    : 'bg-gray-100 text-gray-800 mr-4'
+                }`}>
+                  <div className="flex justify-between items-start">
+                    <span className="font-semibold">
+                      {entry.role === 'user' ? '👤 You' : '🤖 Maya'}:
+                    </span>
+                    <span className="text-gray-500 text-xs">{entry.timestamp}</span>
+                  </div>
+                  <div className="mt-1">{entry.message}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 text-xs text-gray-500">
         <p><strong>How it works:</strong></p>
