@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     console.log('🎤 VAPI START-CALL: Sending configuration to frontend')
     console.log('🎤 Assistant ID:', VAPI_ASSISTANT_ID)
     console.log('🎤 User ID:', user.id)
-    console.log('🎤 Webhook URL:', `${process.env.NEXT_PUBLIC_BASE_URL || 'https://thisisme-m2ku5utm7-darrengalvins-projects.vercel.app'}/api/vapi/webhook?userId=${user.id}`)
+    console.log('🎤 Webhook URL:', `${process.env.NEXT_PUBLIC_BASE_URL || 'https://thisisme-m2ku5utm7-darrengalvins-projects.vercel.app'}/api/vapi/webhook?userId=${user.id}&x-vercel-protection-bypass=${process.env.VERCEL_PROTECTION_BYPASS_SECRET || ''}`)
     console.log('🎤 Customer data:', vapiCallConfig.customer)
     console.log('🎤 Metadata:', vapiCallConfig.metadata)
 
@@ -103,14 +103,14 @@ export async function POST(request: NextRequest) {
       // Instructions for frontend
       instructions: {
         message: "Use this config when creating a VAPI call. The customer.userId will be available in webhook calls.",
-        webhookUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://thisisme-m2ku5utm7-darrengalvins-projects.vercel.app'}/api/vapi/webhook?userId=${user.id}`,
+        webhookUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://thisisme-m2ku5utm7-darrengalvins-projects.vercel.app'}/api/vapi/webhook?userId=${user.id}&x-vercel-protection-bypass=${process.env.VERCEL_PROTECTION_BYPASS_SECRET || ''}`,
         example: "vapi.start(vapiConfig) - Maya will know it's you from the customer.userId field"
       },
       greeting: `Hi ${userName}! I'm Maya, your memory assistant. I know you were born in ${userProfile.birth_year}, so you're currently ${currentAge}. I'm ready to help you capture and organize your memories!`,
       // Add debugging info
       debug: {
         assistantId: VAPI_ASSISTANT_ID,
-        webhookUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://thisisme-m2ku5utm7-darrengalvins-projects.vercel.app'}/api/vapi/webhook?userId=${user.id}`,
+        webhookUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://thisisme-m2ku5utm7-darrengalvins-projects.vercel.app'}/api/vapi/webhook?userId=${user.id}&x-vercel-protection-bypass=${process.env.VERCEL_PROTECTION_BYPASS_SECRET || ''}`,
         toolsConfigured: "Check VAPI dashboard to ensure tools are configured for this assistant",
         expectedWebhookCalls: "Maya should call webhook when she tries to use tools"
       }
