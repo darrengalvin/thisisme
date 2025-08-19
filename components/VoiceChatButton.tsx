@@ -130,10 +130,11 @@ export default function VoiceChatButton() {
       console.log('🎤 Trying with metadata only...')
       
       const callOptions = {
+        customer: data.vapiConfig.customer,
         metadata: data.vapiConfig.metadata
       }
       
-      console.log('🎤 Call options (metadata only):', callOptions)
+      console.log('🎤 Call options (customer + metadata):', callOptions)
       await vapi.start(data.vapiConfig.assistantId, callOptions)
       
       console.log('🎤 ✅ VAPI CALL WITH USER METADATA STARTED!')
