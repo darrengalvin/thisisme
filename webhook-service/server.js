@@ -31,13 +31,15 @@ async function extractUserIdFromCall(call, authenticatedUserId = null, urlUserId
     console.log('🔍 ❌ TRY 1 FAILED: No userId in URL parameters')
   }
   
-  // TRY 2: variableValues (newer VAPI approach)
-  if (call?.variableValues?.userId) {
-    console.log('🔍 ✅ TRY 2 SUCCESS: Found userId in variableValues:', call.variableValues.userId)
-    return call.variableValues.userId
+  // TRY 2: variableValues (newer VAPI approach - check multiple locations)
+  const variableValues = call?.variableValues || arguments[2]?.variableValues || arguments[2]?.message?.variableValues
+  if (variableValues?.userId) {
+    console.log('🔍 ✅ TRY 2 SUCCESS: Found userId in variableValues:', variableValues.userId)
+    return variableValues.userId
   } else {
     console.log('🔍 ❌ TRY 2 FAILED: No userId in variableValues')
-    console.log('🔍 variableValues content:', call?.variableValues)
+    console.log('🔍 variableValues content:', variableValues)
+    console.log('🔍 Full request args:', Object.keys(arguments[2] || {}))
   }
   
   // TRY 3: metadata (original approach)
@@ -205,7 +207,10 @@ app.post('/vapi/webhook', async (req, res) => {
 
   try {
     const body = req.body
-    const { message, call } = body
+    const { message } = body
+    
+    // Support both message.call and message.chat (newer VAPI format)
+    const call = message?.call || message?.chat || body.call
     
     // FALLBACK: Extract user ID from URL parameter if VAPI doesn't send call context
     const urlUserId = req.query.userId
