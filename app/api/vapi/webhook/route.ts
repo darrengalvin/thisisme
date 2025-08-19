@@ -966,6 +966,9 @@ async function handleToolCalls(body: any, authenticatedUserId: string | null = n
   
   console.log('🔧 Tool calls count:', toolCalls.length)
   console.log('🔧 Tool calls:', JSON.stringify(toolCalls, null, 2))
+  console.log('🔧 Raw message object:', JSON.stringify(message, null, 2))
+  console.log('🔧 Message type:', message?.type)
+  console.log('🔧 Available message keys:', Object.keys(message || {}))
   
   if (toolCalls.length === 0) {
     console.log('🔧 No tool calls found')
@@ -977,10 +980,12 @@ async function handleToolCalls(body: any, authenticatedUserId: string | null = n
   
   for (const toolCall of toolCalls) {
     const toolCallId = toolCall.id
-    const functionName = toolCall.name
-    const functionArgs = toolCall.arguments
+    // Try multiple possible field names for the function name
+    const functionName = toolCall.name || toolCall.function?.name || toolCall.tool?.name || toolCall.functionName
+    const functionArgs = toolCall.arguments || toolCall.function?.arguments || toolCall.parameters
     
     console.log('🔧 Processing tool call:', functionName, 'ID:', toolCallId)
+    console.log('🔧 Raw tool call object:', JSON.stringify(toolCall, null, 2))
     console.log('🔧 Function arguments:', functionArgs)
     
     try {
@@ -1014,7 +1019,12 @@ async function handleToolCalls(body: any, authenticatedUserId: string | null = n
         
         default:
           console.log('❌ UNKNOWN TOOL:', functionName)
-          result = `Tool ${functionName} not implemented yet`
+          console.log('❌ Available tool call fields:', Object.keys(toolCall))
+          if (!functionName) {
+            result = `Error: Could not determine tool name from VAPI payload. Available fields: ${Object.keys(toolCall).join(', ')}`
+          } else {
+            result = `Tool ${functionName} not implemented yet`
+          }
       }
       
       results.push({
