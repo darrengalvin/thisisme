@@ -211,7 +211,7 @@ export default function VoiceChatButton() {
           Maya will know it's you and can access your timeline!
         </p>
         <p className="text-sm text-gray-500">
-          <strong>VAPI Status:</strong> {vapiLoaded ? '✅ Ready' : '⏳ Loading SDK...'}
+          <strong>Voice Assistant:</strong> {vapiLoaded ? '✅ Ready' : '⏳ Loading...'}
         </p>
       </div>
 
@@ -225,11 +225,11 @@ export default function VoiceChatButton() {
             {isLoading ? (
               <>
                 <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                Starting VAPI Call...
+                Starting Voice Chat...
               </>
             ) : !vapiLoaded ? (
               <>
-                ⏳ Loading VAPI SDK...
+                ⏳ Loading Voice System...
               </>
             ) : (
               <>
@@ -381,7 +381,7 @@ export default function VoiceChatButton() {
 
       {!vapiLoaded && (
         <div className="mt-3 p-2 bg-yellow-100 rounded text-xs text-yellow-800">
-          <strong>Note:</strong> You'll need to add your VAPI Public Key to environment variables (NEXT_PUBLIC_VAPI_PUBLIC_KEY) for this to work.
+          <strong>Note:</strong> Voice chat requires API configuration. Contact support if you're having issues.
         </div>
       )}
     </div>

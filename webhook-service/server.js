@@ -193,6 +193,19 @@ async function getUserContextForTool(parameters, call, urlUserId = null) {
       response += `\n📚 **Your Chapters (${chapters.length}):**\n`
       chapters.forEach((chapter, index) => {
         response += `${index + 1}. ${chapter.title}`
+        
+        // Add date information for temporal reasoning
+        if (chapter.start_date || chapter.end_date) {
+          const startYear = chapter.start_date ? new Date(chapter.start_date).getFullYear() : null
+          const endYear = chapter.end_date ? new Date(chapter.end_date).getFullYear() : null
+          
+          if (startYear && endYear) {
+            response += ` (${startYear}-${endYear})`
+          } else if (startYear) {
+            response += ` (${startYear}-present)`
+          }
+        }
+        
         if (chapter.description) {
           response += ` - ${chapter.description}`
         }
