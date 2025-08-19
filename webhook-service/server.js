@@ -56,12 +56,18 @@ async function getUserContextForTool(parameters, call, authenticatedUserId = nul
   const { age, year, context_type } = parameters
   const userId = extractUserIdFromCall(call, authenticatedUserId)
   
-  // CRITICAL DEBUG: Log the exact call data we receive
+  // CRITICAL DEBUG: Log the ENTIRE payload structure we receive from VAPI
+  console.log('🔥 CRITICAL DEBUG - Full request body keys:', Object.keys(arguments[2] || {}))
   console.log('🔥 CRITICAL DEBUG - Call data:', JSON.stringify({
     customer: call?.customer,
     metadata: call?.metadata,
     assistantOverrides: call?.assistantOverrides,
-    variableValues: call?.variableValues
+    variableValues: call?.variableValues,
+    // Check if user data is in the call object itself
+    callCustomer: call?.customer,
+    callMetadata: call?.metadata,
+    // Check the entire call object structure
+    fullCall: call
   }, null, 2))
   console.log('👤 Extracted user ID:', userId)
   
@@ -133,12 +139,21 @@ async function getUserContextForTool(parameters, call, authenticatedUserId = nul
 // VAPI Webhook Handler
 app.post('/vapi/webhook', async (req, res) => {
   const timestamp = new Date().toISOString()
-  // Minimal logging - only essential info
   console.log('🎤 WEBHOOK CALL:', timestamp)
 
   try {
     const body = req.body
     const { message, call } = body
+    
+    // CRITICAL DEBUG: Log the complete request structure from VAPI
+    console.log('🔥 FULL VAPI REQUEST STRUCTURE:', JSON.stringify({
+      messageType: message?.type,
+      hasCall: !!call,
+      callKeys: call ? Object.keys(call) : [],
+      bodyKeys: Object.keys(body),
+      // Log the complete call object to see where user data might be
+      completeCall: call
+    }, null, 2))
 
     if (message?.type === 'tool-calls') {
       // Handle tool calls with minimal logging
