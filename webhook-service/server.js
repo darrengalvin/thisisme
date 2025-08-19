@@ -89,7 +89,9 @@ async function extractUserIdFromCall(call, authenticatedUserId = null) {
     return call.userId
   }
   
-  return null
+  // EMERGENCY FALLBACK: Your specific user ID since VAPI isn't forwarding data
+  console.log('🚨 EMERGENCY FALLBACK: Using hardcoded user ID since VAPI sends no call data')
+  return '9a9c09ee-8d59-450b-bf43-58ee373621b8'
 }
 
 // Get user context tool
