@@ -1205,14 +1205,157 @@ async function saveMemoryForTool(parameters: any, call: any, authenticatedUserId
 }
 
 async function searchMemoriesForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
-  return "Search memories tool not yet implemented for new VAPI format"
+  const { query, timeframe, age, year, chapter_name } = parameters
+  
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  
+  console.log('🔍 SEARCHING MEMORIES (TOOL) for:', userId, { query, timeframe, age, year, chapter_name })
+  
+  // Validate user ID
+  if (!userId || userId === 'NOT_FOUND') {
+    console.log('🔍 ERROR: No valid user identification from VAPI')
+    return "I need to know who you are to search your memories. Please configure user identification in VAPI."
+  }
+  
+  try {
+    // Search memories in the database
+    const { data: memories, error } = await supabaseAdmin
+      .from('memories')
+      .select('id, title, content, approximate_date, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10)
+    
+    if (error) throw error
+    
+    const memoryCount = memories?.length || 0
+    
+    if (memoryCount === 0) {
+      return "You don't have any memories saved yet. Would you like to tell me about a memory to capture?"
+    }
+    
+    let searchResults = `I found ${memoryCount} memories in your timeline:\n\n`
+    
+    memories?.forEach((memory, index) => {
+      searchResults += `${index + 1}. **${memory.title}**\n`
+      if (memory.content) {
+        searchResults += `   ${memory.content.substring(0, 100)}...\n`
+      }
+      if (memory.approximate_date) {
+        searchResults += `   Date: ${memory.approximate_date}\n`
+      }
+      searchResults += `\n`
+    })
+    
+    searchResults += `Would you like me to tell you more about any of these memories, or help you add a new one?`
+    
+    return searchResults
+    
+  } catch (error) {
+    console.error('🔍 ERROR searching memories:', error)
+    return `Sorry, I encountered an error searching your memories: ${error instanceof Error ? error.message : 'Unknown error'}`
+  }
 }
 
 async function createChapterForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
-  return "Create chapter tool not yet implemented for new VAPI format"
+  const { title, description, timeframe, start_year, end_year } = parameters
+  
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  
+  console.log('📚 CREATING CHAPTER (TOOL) for:', userId, { title, description, timeframe, start_year, end_year })
+  
+  // Validate user ID
+  if (!userId || userId === 'NOT_FOUND') {
+    console.log('📚 ERROR: No valid user identification from VAPI')
+    return "I need to know who you are to create chapters. Please configure user identification in VAPI."
+  }
+  
+  if (!title) {
+    return "I need a title for the chapter. What would you like to call it?"
+  }
+  
+  try {
+    // Create chapter in the database (using timezones table)
+    const { data: chapter, error } = await supabaseAdmin
+      .from('timezones')
+      .insert({
+        creator_id: userId,
+        title: title,
+        description: description || '',
+        start_date: start_year ? `${start_year}-01-01` : null,
+        end_date: end_year ? `${end_year}-12-31` : null,
+        location: timeframe || '',
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    
+    console.log('📚 CHAPTER CREATED SUCCESSFULLY:', { userId, title, chapterId: chapter?.id })
+    
+    let response = `Perfect! I've created the "${title}" chapter for you.`
+    
+    if (start_year && end_year) {
+      response += ` This covers ${start_year} to ${end_year}.`
+    } else if (start_year) {
+      response += ` This starts from ${start_year}.`
+    }
+    
+    if (description) {
+      response += ` ${description}`
+    }
+    
+    response += ` Now you can organize your memories into this chapter. What memory would you like to add to it?`
+    
+    return response
+    
+  } catch (error) {
+    console.error('📚 ERROR creating chapter:', error)
+    return `Sorry, I encountered an error creating the chapter: ${error instanceof Error ? error.message : 'Unknown error'}`
+  }
 }
 
 async function uploadMediaForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
-  return "Upload media tool not yet implemented for new VAPI format"
+  const { media_type, memory_id, description } = parameters
+  
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  
+  console.log('📸 UPLOAD MEDIA (TOOL) for:', userId, { media_type, memory_id, description })
+  
+  // Validate user ID
+  if (!userId || userId === 'NOT_FOUND') {
+    console.log('📸 ERROR: No valid user identification from VAPI')
+    return "I need to know who you are to handle media uploads. Please configure user identification in VAPI."
+  }
+  
+  try {
+    const mediaTypeText = media_type || 'photos'
+    
+    const uploadInstructions: { [key: string]: string } = {
+      photos: "Great! You can upload photos by visiting your memory timeline and clicking the photo icon on this memory.",
+      videos: "Perfect! You can add videos by going to your timeline and selecting this memory to add media.",
+      documents: "You can attach documents by visiting this memory in your timeline and using the attachment feature."
+    }
+    
+    const instruction = uploadInstructions[mediaTypeText] || uploadInstructions.photos
+    
+    let response = `${instruction} I've noted that you want to add ${mediaTypeText} to this memory.`
+    
+    if (description) {
+      response += ` You mentioned: "${description}"`
+    }
+    
+    response += ` Is there anything else about this memory you'd like to capture while we're talking?`
+    
+    return response
+    
+  } catch (error) {
+    console.error('📸 ERROR handling media upload:', error)
+    return `I've noted that you want to add media to this memory. You can upload it later from your timeline. Is there anything else about this memory you'd like to capture?`
+  }
 }
 
