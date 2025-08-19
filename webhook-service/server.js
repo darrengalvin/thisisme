@@ -167,8 +167,8 @@ async function getUserContextForTool(parameters, call, urlUserId = null) {
     const { data: chapters, error: chaptersError } = await supabase
       .from('timezones')
       .select('*')
-      .eq('user_id', userId)
-      .order('start_year', { ascending: true })
+      .eq('creator_id', userId)
+      .order('start_date', { ascending: true })
 
     // Get memories count
     const { count: memoriesCount, error: memoriesError } = await supabase
@@ -238,16 +238,18 @@ async function createChapterForTool(parameters, call, urlUserId = null) {
   }
 
   try {
-    // Insert chapter into database (using 'timezones' table - only insert columns that exist)
+    // Insert chapter into database (using 'timezones' table with correct column names)
     const insertData = {
-      user_id: userId,
+      creator_id: userId,  // correct column name
       title: title,
-      start_year: parseInt(start_year)
+      type: 'PRIVATE',     // default type
+      start_date: new Date(parseInt(start_year), 0, 1).toISOString(),  // convert year to date
+      description: description || null
     }
     
-    // Only add description if provided and if column exists
-    if (description) {
-      insertData.description = description
+    // Add end_date if end_year is provided
+    if (end_year) {
+      insertData.end_date = new Date(parseInt(end_year), 11, 31).toISOString()  // convert year to date
     }
     
     const { data: chapter, error } = await supabase
