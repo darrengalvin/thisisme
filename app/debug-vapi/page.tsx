@@ -41,8 +41,8 @@ export default function DebugVAPIPage() {
       
       // Only update if logs actually changed to prevent flashing
       setWebhookLogs(prevLogs => {
-        const prevString = JSON.stringify(prevLogs.map(l => l.id))
-        const newString = JSON.stringify(logs.map(l => l.id))
+        const prevString = JSON.stringify(prevLogs.map((l: any) => l.id))
+        const newString = JSON.stringify(logs.map((l: any) => l.id))
         return prevString !== newString ? logs : prevLogs
       })
       
