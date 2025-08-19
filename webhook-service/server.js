@@ -146,6 +146,10 @@ app.post('/vapi/webhook', async (req, res) => {
     const body = req.body
     const { message, call } = body
     
+    // FALLBACK: Extract user ID from URL parameter if VAPI doesn't send call context
+    const urlUserId = req.query.userId
+    console.log('🔧 FALLBACK: URL userId parameter:', urlUserId)
+    
     // CRITICAL DEBUG: Log the complete request structure from VAPI
     console.log('🔥 FULL VAPI REQUEST STRUCTURE:', JSON.stringify({
       messageType: message?.type,
@@ -173,8 +177,8 @@ app.post('/vapi/webhook', async (req, res) => {
 
         switch (functionName) {
           case 'get-user-context':
-            // Get user context
-            result = await getUserContextForTool(functionArgs, call)
+            // Get user context - use URL userId as fallback if call context is empty
+            result = await getUserContextForTool(functionArgs, call, urlUserId)
             break
           
           default:
