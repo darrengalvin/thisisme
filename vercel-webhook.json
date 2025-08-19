@@ -1,0 +1,16 @@
+{
+  "name": "thisisme-webhook",
+  "version": 2,
+  "builds": [
+    {
+      "src": "app/api/vapi/webhook/route.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/vapi/webhook",
+      "dest": "/app/api/vapi/webhook/route.ts"
+    }
+  ]
+}
