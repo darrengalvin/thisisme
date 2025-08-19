@@ -22,12 +22,17 @@ function extractUserIdFromCall(call, authenticatedUserId = null) {
     return authenticatedUserId
   }
   
-  // PRIORITY 1: Check metadata first (simple VAPI format)
+  // PRIORITY 1: Check variableValues (VAPI's newer approach)
+  if (call?.variableValues?.userId) {
+    return call.variableValues.userId
+  }
+  
+  // PRIORITY 2: Check metadata (simple VAPI format)
   if (call?.metadata?.userId) {
     return call.metadata.userId
   }
   
-  // PRIORITY 2: Check assistantOverrides.metadata 
+  // PRIORITY 3: Check assistantOverrides.metadata 
   if (call?.assistantOverrides?.metadata?.userId) {
     return call.assistantOverrides.metadata.userId
   }
@@ -38,10 +43,6 @@ function extractUserIdFromCall(call, authenticatedUserId = null) {
   
   if (call?.client?.variableValues?.userId) {
     return call.client.variableValues.userId
-  }
-  
-  if (call?.variableValues?.userId) {
-    return call.variableValues.userId
   }
   
   if (call?.userId) {

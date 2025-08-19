@@ -129,12 +129,18 @@ export default function VoiceChatButton() {
       // Try with ONLY metadata (no customer) to avoid the 400 error
       console.log('🎤 Trying with metadata only...')
       
-      // Use simple metadata only (VAPI's most basic approach)
+      // Try variableValues approach (VAPI's newer method)
       const callOptions = {
-        metadata: data.vapiConfig.metadata
+        variableValues: {
+          userId: data.vapiConfig.metadata.userId,
+          userEmail: data.vapiConfig.metadata.userEmail,
+          userName: data.vapiConfig.metadata.userName,
+          birthYear: data.vapiConfig.metadata.birthYear,
+          currentAge: data.vapiConfig.metadata.currentAge
+        }
       }
       
-      console.log('🎤 Call options (metadata only):', callOptions)
+      console.log('🎤 Call options (variableValues):', callOptions)
       await vapi.start(data.vapiConfig.assistantId, callOptions)
       
       console.log('🎤 ✅ VAPI CALL WITH USER METADATA STARTED!')
