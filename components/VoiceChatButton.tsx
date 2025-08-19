@@ -97,15 +97,24 @@ export default function VoiceChatButton() {
       console.log('🎤 Customer data:', data.vapiConfig.customer)
       console.log('🎤 Metadata:', data.vapiConfig.metadata)
 
-      // STEP 1: Try absolute minimal approach first - just get the call working
-      console.log('🎤 STEP 1: Trying minimal VAPI call (just assistant ID)...')
-      console.log('🎤 This should at least start the call, even without user context')
+      // Start VAPI call with user identification
+      console.log('🎤 Starting VAPI call with user identification...')
       
-      await vapi.start(data.vapiConfig.assistantId)
+      const vapiCallConfig = {
+        assistant: {
+          id: data.vapiConfig.assistantId
+        },
+        customer: data.vapiConfig.customer,
+        metadata: data.vapiConfig.metadata
+      }
       
-      console.log('🎤 ✅ MINIMAL CALL SUCCESSFUL!')
-      console.log('🎤 📝 NOTE: Maya may not have user context yet, but call should work')
-      console.log('🎤 🔍 Check webhook monitor to see if Maya tries to call tools')
+      console.log('🎤 VAPI call config:', vapiCallConfig)
+      
+      await vapi.start(vapiCallConfig)
+      
+      console.log('🎤 ✅ VAPI CALL STARTED WITH USER DATA!')
+      console.log('🎤 📝 Maya should now have access to your user ID')
+      console.log('🎤 🔍 Check webhook monitor to see Maya calling tools with user context')
 
       console.log('🎤 VAPI call started successfully!')
       console.log(`🎤 Maya will know you as: ${data.user.name} (born ${data.user.birthYear})`)
