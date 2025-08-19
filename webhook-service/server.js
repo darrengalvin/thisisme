@@ -211,6 +211,72 @@ async function getUserContextForTool(parameters, call, urlUserId = null) {
   }
 }
 
+// Create chapter tool
+async function createChapterForTool(parameters, call, urlUserId = null) {
+  const { title, start_year, end_year, description, userId: paramUserId } = parameters
+  
+  console.log('📚 🚀 CHAPTER CREATION STARTING')
+  console.log('📚 Title:', title)
+  console.log('📚 Start Year:', start_year)
+  console.log('📚 End Year:', end_year)
+  console.log('📚 Description:', description)
+  
+  // Get userId - prioritize parameter, then fallback
+  let userId = paramUserId
+  if (!userId) {
+    userId = await extractUserIdFromCall(call, null, urlUserId)
+  }
+  
+  console.log('📚 👤 Final userId for chapter:', userId)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "❌ I need to know who you are to create a chapter. Please make sure you're logged in."
+  }
+  
+  if (!title || !start_year) {
+    return "❌ I need at least a title and start year to create a chapter."
+  }
+
+  try {
+    // Insert chapter into database
+    const { data: chapter, error } = await supabase
+      .from('chapters')
+      .insert([{
+        user_id: userId,
+        title: title,
+        start_year: parseInt(start_year),
+        end_year: end_year ? parseInt(end_year) : null,
+        description: description || null
+      }])
+      .select()
+      .single()
+
+    if (error) {
+      console.error('📚 ❌ Chapter creation failed:', error)
+      return `❌ Failed to create chapter: ${error.message}`
+    }
+
+    console.log('📚 ✅ Chapter created successfully:', chapter.id)
+    return `✅ Perfect! I've created the "${title}" chapter${end_year ? ` (${start_year}-${end_year})` : ` starting in ${start_year}`}. ${description ? `Description: ${description}` : ''} You can now add memories to this chapter!`
+
+  } catch (error) {
+    console.error('📚 💥 Chapter creation error:', error)
+    return `❌ Sorry, I had trouble creating that chapter: ${error.message}`
+  }
+}
+
+// Save memory tool  
+async function saveMemoryForTool(parameters, call, urlUserId = null) {
+  console.log('💭 Memory save requested but not implemented yet')
+  return "💭 Memory saving feature is coming soon! For now, you can use the main interface to add memories."
+}
+
+// Search memories tool
+async function searchMemoriesForTool(parameters, call, urlUserId = null) {
+  console.log('🔍 Memory search requested but not implemented yet')
+  return "🔍 Memory search feature is coming soon! For now, you can browse your timeline in the main interface."
+}
+
 // VAPI Webhook Handler
 app.post('/vapi/webhook', async (req, res) => {
   const timestamp = new Date().toISOString()
@@ -248,18 +314,37 @@ app.post('/vapi/webhook', async (req, res) => {
         const functionName = toolCall.name || toolCall.function?.name
         const functionArgs = toolCall.arguments || toolCall.function?.arguments || {}
 
-        // Process tool call
+        // Enhanced logging for debugging
+        console.log(`🔧 📞 TOOL CALL: ${functionName}`)
+        console.log('🔧 📋 TOOL ARGS:', JSON.stringify(functionArgs, null, 2))
 
         let result = "Tool not yet implemented for new VAPI format..."
 
         switch (functionName) {
           case 'get-user-context':
-            // Get user context - use URL userId as fallback if call context is empty
+            console.log('🔧 ✅ EXECUTING: get-user-context')
             result = await getUserContextForTool(functionArgs, call, urlUserId)
+            break
+            
+          case 'create-chapter':
+            console.log('🔧 📚 CHAPTER CREATION REQUESTED!')
+            console.log('🔧 📚 CHAPTER ARGS:', functionArgs)
+            result = await createChapterForTool(functionArgs, call, urlUserId)
+            break
+            
+          case 'save-memory':
+            console.log('🔧 💭 MEMORY SAVE REQUESTED!')
+            result = await saveMemoryForTool(functionArgs, call, urlUserId)
+            break
+            
+          case 'search-memories':
+            console.log('🔧 🔍 MEMORY SEARCH REQUESTED!')
+            result = await searchMemoriesForTool(functionArgs, call, urlUserId)
             break
           
           default:
-            result = `${functionName} tool not yet implemented for new VAPI format...`
+            console.log(`🔧 ❌ UNKNOWN TOOL: ${functionName}`)
+            result = `❌ Tool "${functionName}" not yet implemented. Available tools: get-user-context, create-chapter, save-memory, search-memories`
         }
 
         results.push({
