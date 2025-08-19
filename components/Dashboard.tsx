@@ -17,7 +17,7 @@ import DeleteConfirmationModal from './DeleteConfirmationModal'
 import { useAuth } from '@/components/AuthProvider'
 import TicketNotifications from '@/components/TicketNotifications'
 import AIChatInterface from './AIChatInterface'
-import VoiceMemoryWidget from './VoiceMemoryWidget'
+import VoiceChatButton from './VoiceChatButton'
 import { MemoryWithRelations } from '@/lib/types'
 
 type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support'
@@ -1422,11 +1422,10 @@ export default function Dashboard() {
           onForceDelete={forceDeleteMemory}
         />
 
-      {/* Voice Memory Widget */}
-      <VoiceMemoryWidget 
-        onMemoryAdded={handleVoiceMemoryAdded}
-        onMemoryHighlight={handleVoiceMemoryHighlight}
-      />
+      {/* Voice Chat with Maya */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <VoiceChatButton />
+      </div>
 
       {/* AI Chat Floating Button - Secondary option */}
       {!showAIChat && (
