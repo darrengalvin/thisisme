@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
-  const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/vapi/webhook`
+  const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://thisisme-three.vercel.app'}/api/vapi/webhook?secret=dev-secret-123`
   
   console.log('🔍 Testing webhook reachability...')
   console.log('🔍 Webhook URL:', webhookUrl)

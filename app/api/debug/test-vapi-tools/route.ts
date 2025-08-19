@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const webhookModule = await import('../../vapi/webhook/route')
     
     // Create a mock request
-    const mockRequest = new Request('http://localhost:3000/api/vapi/webhook?userId=' + userId, {
+    const mockRequest = new Request('https://thisisme-three.vercel.app/api/vapi/webhook?userId=' + userId + '&secret=dev-secret-123', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(mockBody)

@@ -64,12 +64,10 @@ export async function POST(request: NextRequest) {
     const userIdParam = url.searchParams.get('userId')
     const webhookSecret = url.searchParams.get('secret')
     
-    // Check for webhook secret (allows public access for VAPI)
-    const expectedSecret = process.env.VAPI_WEBHOOK_SECRET
-    if (webhookSecret && expectedSecret && webhookSecret === expectedSecret) {
-      console.log('🔐 WEBHOOK SECRET: Valid secret provided, allowing public access')
-      // Skip authentication checks for valid webhook secret
-    }
+    // Allow public access for VAPI webhooks (VAPI doesn't use webhook secrets)
+    // VAPI authenticates via API keys, not webhook secrets
+    console.log('🔐 VAPI WEBHOOK: Allowing public access for VAPI integration')
+    // Skip authentication checks for VAPI webhook calls
     
     console.log('🔐 AUTH CHECK: Token present:', !!authToken)
     console.log('🔐 AUTH CHECK: User ID param:', userIdParam)
