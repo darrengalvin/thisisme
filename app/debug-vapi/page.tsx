@@ -247,23 +247,26 @@ export default function DebugVAPIPage() {
           >
             {autoRefresh ? '🔄 Auto-refresh' : '⏸️ Paused'}
           </button>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">
-              Webhooks: {webhookLogs.length}
-            </span>
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${
-                callStatus === 'active' ? 'bg-green-500 animate-pulse' : 
-                callStatus === 'starting' ? 'bg-yellow-500 animate-pulse' : 
-                'bg-gray-400'
-              }`}></div>
+                      <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600">
-                {callStatus === 'active' ? '🎤 Call Active' : 
-                 callStatus === 'starting' ? '⏳ Starting...' : 
-                 '💤 No Call'}
+                Webhooks: {webhookLogs.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  callStatus === 'active' ? 'bg-green-500 animate-pulse' : 
+                  callStatus === 'starting' ? 'bg-yellow-500 animate-pulse' : 
+                  'bg-gray-400'
+                }`}></div>
+                <span className="text-sm text-gray-600">
+                  {callStatus === 'active' ? '🎤 Call Active' : 
+                   callStatus === 'starting' ? '⏳ Starting...' : 
+                   '💤 No Call'}
+                </span>
+              </div>
+              <span className="text-xs text-gray-500">
+                v{Date.now().toString().slice(-6)} {/* Deployment indicator */}
               </span>
             </div>
-          </div>
         </div>
       </div>
       
@@ -400,6 +403,12 @@ export default function DebugVAPIPage() {
                 }`}>
                   {webhookLogs.length > 0 ? '🟢 ACTIVE' : '⚪ WAITING'}
                 </div>
+                <button
+                  onClick={fetchWebhookLogs}
+                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                >
+                  🔄 Refresh
+                </button>
                 <button
                   onClick={clearWebhookLogs}
                   className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"

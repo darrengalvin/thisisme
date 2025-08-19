@@ -6,7 +6,8 @@ export function addWebhookLog(log: any) {
   const logEntry = {
     ...log,
     timestamp: new Date().toISOString(),
-    id: Date.now() + Math.random() // Ensure unique IDs
+    id: Date.now() + Math.random(), // Ensure unique IDs
+    sessionId: process.env.VERCEL_DEPLOYMENT_ID || 'local' // Track which deployment/session
   }
   
   webhookLogs.unshift(logEntry)
@@ -16,7 +17,8 @@ export function addWebhookLog(log: any) {
     webhookLogs = webhookLogs.slice(0, MAX_LOGS)
   }
   
-  console.log('📝 WEBHOOK LOG ADDED:', logEntry.type, logEntry.id)
+  console.log('📝 WEBHOOK LOG ADDED:', logEntry.type, logEntry.id, 'Session:', logEntry.sessionId)
+  console.log('📝 TOTAL LOGS IN MEMORY:', webhookLogs.length)
 }
 
 export function getWebhookLogs() {
