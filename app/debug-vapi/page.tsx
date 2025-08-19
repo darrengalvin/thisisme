@@ -743,6 +743,137 @@ export default function DebugVAPIPage() {
                 </button>
               </div>
               
+              {/* VAPI Call Method Tests */}
+              <div className="border-t pt-3">
+                <h3 className="text-sm font-semibold text-gray-600 mb-2">🎤 VAPI Call Method Tests</h3>
+                
+                <button
+                  onClick={async () => {
+                    setIsLoading(true)
+                    setLogs(prev => [...prev, '🎤 TRY 1: Testing variableValues approach (direct to Railway)...'])
+                    try {
+                      const testPayload = {
+                        message: {
+                          type: 'tool-calls',
+                          toolCallList: [{
+                            id: `test-try1-${Date.now()}`,
+                            name: 'get-user-context',
+                            arguments: {}
+                          }]
+                        },
+                        call: {
+                          variableValues: {
+                            userId: user.id,
+                            userEmail: user.email,
+                            userName: user.email?.split('@')[0] || 'user'
+                          }
+                        }
+                      }
+                      
+                      const response = await fetch('https://thisisme-production.up.railway.app/vapi/webhook', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(testPayload)
+                      })
+                      
+                      const result = await response.json()
+                      setTestResult(result)
+                      setLogs(prev => [...prev, `🎤 TRY 1 RESULT: ${JSON.stringify(result, null, 2)}`])
+                    } catch (error) {
+                      setLogs(prev => [...prev, `🎤 TRY 1 FAILED: ${error}`])
+                    }
+                    setIsLoading(false)
+                  }}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 mb-2"
+                >
+                  {isLoading ? 'Testing...' : '🎤 TRY 1: Test variableValues Method'}
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    setIsLoading(true)
+                    setLogs(prev => [...prev, '🎤 TRY 2: Testing metadata approach (direct to Railway)...'])
+                    try {
+                      const testPayload = {
+                        message: {
+                          type: 'tool-calls',
+                          toolCallList: [{
+                            id: `test-try2-${Date.now()}`,
+                            name: 'get-user-context',
+                            arguments: {}
+                          }]
+                        },
+                        call: {
+                          metadata: {
+                            userId: user.id,
+                            userEmail: user.email,
+                            userName: user.email?.split('@')[0] || 'user'
+                          }
+                        }
+                      }
+                      
+                      const response = await fetch('https://thisisme-production.up.railway.app/vapi/webhook', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(testPayload)
+                      })
+                      
+                      const result = await response.json()
+                      setTestResult(result)
+                      setLogs(prev => [...prev, `🎤 TRY 2 RESULT: ${JSON.stringify(result, null, 2)}`])
+                    } catch (error) {
+                      setLogs(prev => [...prev, `🎤 TRY 2 FAILED: ${error}`])
+                    }
+                    setIsLoading(false)
+                  }}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 mb-2"
+                >
+                  {isLoading ? 'Testing...' : '🎤 TRY 2: Test metadata Method'}
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    setIsLoading(true)
+                    setLogs(prev => [...prev, '🎤 TRY 3: Testing URL parameter approach (direct to Railway)...'])
+                    try {
+                      const testPayload = {
+                        message: {
+                          type: 'tool-calls',
+                          toolCallList: [{
+                            id: `test-try3-${Date.now()}`,
+                            name: 'get-user-context',
+                            arguments: {}
+                          }]
+                        },
+                        call: {} // Empty call object
+                      }
+                      
+                      const timestamp = Date.now()
+                      const webhookUrl = `https://thisisme-production.up.railway.app/vapi/webhook?userId=${user.id}&t=${timestamp}`
+                      
+                      const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(testPayload)
+                      })
+                      
+                      const result = await response.json()
+                      setTestResult(result)
+                      setLogs(prev => [...prev, `🎤 TRY 3 RESULT: ${JSON.stringify(result, null, 2)}`])
+                    } catch (error) {
+                      setLogs(prev => [...prev, `🎤 TRY 3 FAILED: ${error}`])
+                    }
+                    setIsLoading(false)
+                  }}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 mb-2"
+                >
+                  {isLoading ? 'Testing...' : '🎤 TRY 3: Test URL Parameter Method'}
+                </button>
+              </div>
+
               {/* Tool Tests */}
               <div className="border-t pt-3">
                 <h3 className="text-sm font-semibold text-gray-600 mb-2">🔧 Tool Tests</h3>
