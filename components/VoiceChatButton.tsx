@@ -116,22 +116,66 @@ export default function VoiceChatButton() {
       console.log('🎤 Assistant ID:', data.vapiConfig.assistantId)
       console.log('🎤 User ID:', data.vapiConfig.metadata.userId)
       
-      // DYNAMIC WEBHOOK URL APPROACH: Bypass VAPI's forwarding completely
-      // Create a unique webhook URL with user ID for this specific call
+      // TRIPLE FALLBACK STRATEGY: Try multiple approaches to get user ID to Maya
       const timestamp = Date.now()
       const dynamicWebhookUrl = `https://thisisme-production.up.railway.app/vapi/webhook?userId=${data.vapiConfig.metadata.userId}&t=${timestamp}`
       
-      console.log('🎤 Dynamic webhook URL:', dynamicWebhookUrl)
+      console.log('🎤 🚀 ATTEMPTING TRIPLE FALLBACK STRATEGY FOR USER ID PASSING')
+      console.log('🎤 📋 User ID to pass:', data.vapiConfig.metadata.userId)
       
-      // Override the assistant's tools to use our dynamic webhook URL
-      const callOptions = {
-        assistantOverrides: {
-          serverUrl: dynamicWebhookUrl
+      // TRY 1: Variable values approach (newer VAPI format)
+      console.log('🎤 TRY 1: Using variableValues approach')
+      try {
+        const callOptionsTry1 = {
+          variableValues: {
+            userId: data.vapiConfig.metadata.userId,
+            userEmail: data.vapiConfig.metadata.userEmail,
+            userName: data.vapiConfig.metadata.userName
+          }
+        }
+        console.log('🎤 TRY 1 Call options:', callOptionsTry1)
+        await vapi.start(data.vapiConfig.assistantId, callOptionsTry1)
+        console.log('🎤 ✅ TRY 1 SUCCESS: VAPI call started with variableValues!')
+      } catch (error1) {
+        console.log('🎤 ❌ TRY 1 FAILED:', error1)
+        
+        // TRY 2: Metadata in call config
+        console.log('🎤 TRY 2: Using metadata in call config')
+        try {
+          await vapi.start(data.vapiConfig.assistantId, data.vapiConfig)
+          console.log('🎤 ✅ TRY 2 SUCCESS: VAPI call started with metadata!')
+        } catch (error2) {
+          console.log('🎤 ❌ TRY 2 FAILED:', error2)
+          
+          // TRY 3: Basic call with just assistant ID (let webhook URL handle it)
+          console.log('🎤 TRY 3: Basic call + session store fallback')
+          try {
+            // Create a session as fallback
+            const sessionResponse = await fetch('/api/vapi/session', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            
+            if (sessionResponse.ok) {
+              const sessionData = await sessionResponse.json()
+              console.log('🎤 TRY 3: Session created:', sessionData.sessionId)
+              
+              // Try basic call
+              await vapi.start(data.vapiConfig.assistantId)
+              console.log('🎤 ✅ TRY 3 SUCCESS: Basic VAPI call started, session stored!')
+            } else {
+              throw new Error('Session creation failed')
+            }
+          } catch (error3) {
+            console.log('🎤 ❌ TRY 3 FAILED:', error3)
+            console.log('🎤 💥 ALL ATTEMPTS FAILED - this is a VAPI configuration issue')
+            throw error3
+          }
         }
       }
-      
-      console.log('🎤 Call options (dynamic webhook):', callOptions)
-      await vapi.start(data.vapiConfig.assistantId, callOptions)
       
       console.log('🎤 ✅ VAPI CALL STARTED WITH USER ID!')
       console.log('🎤 📝 User ID passed directly:', data.vapiConfig.metadata.userId)
