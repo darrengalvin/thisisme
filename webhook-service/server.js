@@ -71,7 +71,7 @@ async function getUserContextForTool(parameters, call, authenticatedUserId = nul
     // Get user profile
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('id, email, first_name, last_name, birth_year')
+      .select('id, email, birth_year')
       .eq('id', userId)
       .single()
 
@@ -93,7 +93,7 @@ async function getUserContextForTool(parameters, call, authenticatedUserId = nul
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
 
-    const userName = user.first_name || user.last_name || user.email?.split('@')[0] || 'there'
+    const userName = user.email?.split('@')[0] || 'there'
     const currentYear = new Date().getFullYear()
     const currentAge = user.birth_year ? currentYear - user.birth_year : null
 
