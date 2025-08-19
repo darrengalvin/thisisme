@@ -129,12 +129,14 @@ export default function VoiceChatButton() {
       // Try with ONLY metadata (no customer) to avoid the 400 error
       console.log('🎤 Trying with metadata only...')
       
+      // Use assistantOverrides to pass user data (VAPI's newer approach)
       const callOptions = {
-        customer: data.vapiConfig.customer,
-        metadata: data.vapiConfig.metadata
+        assistantOverrides: {
+          metadata: data.vapiConfig.metadata
+        }
       }
       
-      console.log('🎤 Call options (customer + metadata):', callOptions)
+      console.log('🎤 Call options (assistantOverrides.metadata):', callOptions)
       await vapi.start(data.vapiConfig.assistantId, callOptions)
       
       console.log('🎤 ✅ VAPI CALL WITH USER METADATA STARTED!')
