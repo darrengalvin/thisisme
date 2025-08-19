@@ -606,48 +606,179 @@ export default function DebugVAPIPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Tool Testing */}
           <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">🔧 Test Tools Directly</h2>
+            <h2 className="text-xl font-semibold mb-4">🔧 Test Tools & Sessions</h2>
             
             <div className="space-y-3">
-              <button
-                onClick={testWebhookReachability}
-                disabled={isLoading}
-                className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
-              >
-                {isLoading ? 'Testing...' : '🌐 Test Webhook Reachability'}
-              </button>
+              {/* Session & Auth Tests */}
+              <div className="border-t pt-3">
+                <h3 className="text-sm font-semibold text-gray-600 mb-2">🔐 Session & Auth Tests</h3>
+                
+                <button
+                  onClick={async () => {
+                    setIsLoading(true)
+                    setLogs(prev => [...prev, '🔍 Testing session creation...'])
+                    try {
+                      const response = await fetch('/api/debug/test-session')
+                      const result = await response.json()
+                      setTestResult(result)
+                      if (result.success) {
+                        setLogs(prev => [...prev, '✅ Session test PASSED! All systems working.'])
+                      } else {
+                        setLogs(prev => [...prev, `❌ Session test failed: ${result.error}`])
+                        setLogs(prev => [...prev, `Details: ${JSON.stringify(result.details)}`])
+                      }
+                    } catch (error) {
+                      setLogs(prev => [...prev, `❌ Test failed: ${error}`])
+                    }
+                    setIsLoading(false)
+                  }}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 mb-2"
+                >
+                  {isLoading ? 'Testing...' : '🧪 Test Session Creation'}
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    setIsLoading(true)
+                    setLogs(prev => [...prev, '📝 Testing direct session API...'])
+                    try {
+                      const response = await fetch('/api/vapi/session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                      })
+                      const result = await response.json()
+                      setTestResult(result)
+                      if (result.sessionId) {
+                        setLogs(prev => [...prev, `✅ Session created: ${result.sessionId}`])
+                      } else {
+                        setLogs(prev => [...prev, `❌ Session API failed: ${result.error}`])
+                        if (result.details) {
+                          setLogs(prev => [...prev, `Details: ${result.details}`])
+                        }
+                      }
+                    } catch (error) {
+                      setLogs(prev => [...prev, `❌ API call failed: ${error}`])
+                    }
+                    setIsLoading(false)
+                  }}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700 disabled:opacity-50 mb-2"
+                >
+                  {isLoading ? 'Testing...' : '🔑 Test Session API Directly'}
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    setIsLoading(true)
+                    setLogs(prev => [...prev, '🔍 Checking Supabase tables...'])
+                    try {
+                      const response = await fetch('/api/debug/check-tables', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                      })
+                      const result = await response.json()
+                      setTestResult(result)
+                      setLogs(prev => [...prev, `Tables check: ${JSON.stringify(result, null, 2)}`])
+                    } catch (error) {
+                      setLogs(prev => [...prev, `❌ Table check failed: ${error}`])
+                    }
+                    setIsLoading(false)
+                  }}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50"
+                >
+                  {isLoading ? 'Checking...' : '📊 Check Supabase Tables'}
+                </button>
+              </div>
               
-              <button
-                onClick={() => testTool('get-user-context')}
-                disabled={isLoading}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isLoading ? 'Testing...' : 'Test get-user-context'}
-              </button>
+              {/* Railway Tests */}
+              <div className="border-t pt-3">
+                <h3 className="text-sm font-semibold text-gray-600 mb-2">🚂 Railway Tests</h3>
+                
+                <button
+                  onClick={testWebhookReachability}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 mb-2"
+                >
+                  {isLoading ? 'Testing...' : '🌐 Test Webhook Reachability'}
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    setIsLoading(true)
+                    setLogs(prev => [...prev, '🧪 Testing Railway with session...'])
+                    try {
+                      // First create a session
+                      const sessionResponse = await fetch('/api/vapi/session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                      })
+                      const { sessionId } = await sessionResponse.json()
+                      
+                      if (sessionId) {
+                        setLogs(prev => [...prev, `✅ Session created: ${sessionId}`])
+                        
+                        // Now test Railway with this session
+                        const testResponse = await fetch('/api/debug/test-railway-session', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ sessionId })
+                        })
+                        const result = await testResponse.json()
+                        setTestResult(result)
+                        setLogs(prev => [...prev, `Railway test: ${JSON.stringify(result, null, 2)}`])
+                      } else {
+                        setLogs(prev => [...prev, '❌ Could not create session for Railway test'])
+                      }
+                    } catch (error) {
+                      setLogs(prev => [...prev, `❌ Railway test failed: ${error}`])
+                    }
+                    setIsLoading(false)
+                  }}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
+                >
+                  {isLoading ? 'Testing...' : '🔗 Test Railway with Session'}
+                </button>
+              </div>
               
-              <button
-                onClick={() => testTool('search-memories')}
-                disabled={isLoading}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-              >
-                {isLoading ? 'Testing...' : 'Test search-memories'}
-              </button>
-              
-              <button
-                onClick={() => testTool('save-memory')}
-                disabled={isLoading}
-                className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
-              >
-                {isLoading ? 'Testing...' : 'Test save-memory'}
-              </button>
-              
-              <button
-                onClick={() => testTool('create-chapter')}
-                disabled={isLoading}
-                className="w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
-              >
-                {isLoading ? 'Testing...' : 'Test create-chapter'}
-              </button>
+              {/* Tool Tests */}
+              <div className="border-t pt-3">
+                <h3 className="text-sm font-semibold text-gray-600 mb-2">🔧 Tool Tests</h3>
+                
+                <button
+                  onClick={() => testTool('get-user-context')}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 mb-2"
+                >
+                  {isLoading ? 'Testing...' : 'Test get-user-context'}
+                </button>
+                
+                <button
+                  onClick={() => testTool('search-memories')}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 mb-2"
+                >
+                  {isLoading ? 'Testing...' : 'Test search-memories'}
+                </button>
+                
+                <button
+                  onClick={() => testTool('save-memory')}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 mb-2"
+                >
+                  {isLoading ? 'Testing...' : 'Test save-memory'}
+                </button>
+                
+                <button
+                  onClick={() => testTool('create-chapter')}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+                >
+                  {isLoading ? 'Testing...' : 'Test create-chapter'}
+                </button>
+              </div>
             </div>
 
             <button
