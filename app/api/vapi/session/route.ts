@@ -6,8 +6,31 @@ export async function POST(request: NextRequest) {
   try {
     console.log('📝 Session creation started');
     
+    // Try to get the auth token from the Authorization header
+    const authHeader = request.headers.get('Authorization');
+    console.log('🔑 Auth header present:', !!authHeader);
+    
     const supabase = createServerSupabaseClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    // If we have an auth header, try to use it to get the user
+    let user = null;
+    let authError = null;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      console.log('🔑 Using bearer token for auth');
+      
+      // Get user using the token
+      const { data, error } = await supabase.auth.getUser(token);
+      user = data?.user;
+      authError = error;
+    } else {
+      // Fall back to cookie-based auth
+      console.log('🍪 Using cookie-based auth');
+      const { data, error } = await supabase.auth.getUser();
+      user = data?.user;
+      authError = error;
+    }
     
     if (authError) {
       console.error('Auth error:', authError);
@@ -15,8 +38,8 @@ export async function POST(request: NextRequest) {
     }
     
     if (!user) {
-      console.error('No user found in session');
-      return NextResponse.json({ error: 'Unauthorized - no user session' }, { status: 401 });
+      console.error('No user found');
+      return NextResponse.json({ error: 'Unauthorized - no user found' }, { status: 401 });
     }
 
     console.log('👤 User authenticated:', user.id);

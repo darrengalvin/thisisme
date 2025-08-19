@@ -93,7 +93,8 @@ export default function VoiceChatButton() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
-        }
+        },
+        credentials: 'include' // Ensure cookies are sent
       })
       
       if (!sessionResponse.ok) {
