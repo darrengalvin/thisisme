@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     // Get all chapters for this user
     const { data: chapters, error: chaptersError } = await supabaseAdmin
-      .from('timezones')
+      .from('chapters')
       .select('id, title, creator_id')
       .eq('creator_id', userId)
       .order('created_at', { ascending: false })
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Get all memories for this user
     const { data: memories, error: memoriesError } = await supabaseAdmin
       .from('memories')
-      .select('id, title, timezone_id, user_id, created_at')
+      .select('id, title, chapter_id, user_id, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     // Test chapter search with "East End"
     const { data: eastEndChapters, error: searchError } = await supabaseAdmin
-      .from('timezones')
+      .from('chapters')
       .select('id, title')
       .eq('creator_id', userId)
       .ilike('title', '%East End%')
@@ -56,8 +56,8 @@ export async function GET(request: NextRequest) {
     })
 
     // Analyze memory-chapter relationships
-    const memoriesWithChapters = memories?.filter(m => m.timezone_id) || []
-    const memoriesWithoutChapters = memories?.filter(m => !m.timezone_id) || []
+    const memoriesWithChapters = memories?.filter(m => m.chapter_id) || []
+    const memoriesWithoutChapters = memories?.filter(m => !m.chapter_id) || []
 
     return NextResponse.json({
       success: true,
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
         memories: memories?.map(m => ({ 
           id: m.id, 
           title: m.title, 
-          timezone_id: m.timezone_id,
+          chapter_id: m.chapter_id,
           created_at: m.created_at
         })) || [],
         eastEndSearch: eastEndChapters?.map(c => ({ id: c.id, title: c.title })) || [],

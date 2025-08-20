@@ -47,13 +47,13 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    // Get all timezones for the user
-    const { data: timeZones, error: dbError } = await supabase
-      .from('timezones')
+    // Get all chapters for the user
+    const { data: chapters, error: dbError } = await supabase
+      .from('chapters')
       .select(`
         *,
-        creator:users!timezones_creator_id_fkey(id, email),
-        members:timezone_members(
+        creator:users!chapters_creator_id_fkey(id, email),
+        members:chapter_members(
           id,
           role,
           user:users(id, email)
@@ -71,35 +71,35 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform data to match expected format
-    const transformedTimeZones = timeZones?.map((tz: any) => {
+    const transformedChapters = chapters?.map((chapter: any) => {
       // Handle old local filesystem URLs (set to null since files don't exist in Supabase)
-      let headerImageUrl = tz.header_image_url
+      let headerImageUrl = chapter.header_image_url
       if (headerImageUrl && headerImageUrl.startsWith('/uploads/')) {
         // Old local filesystem URLs - set to null since files don't exist in Supabase Storage
-        console.log('🔄 TRANSFORM CHAPTER: Removing old local URL for:', tz.title, 'URL:', tz.header_image_url)
+        console.log('🔄 TRANSFORM CHAPTER: Removing old local URL for:', chapter.title, 'URL:', chapter.header_image_url)
         headerImageUrl = null
       } else {
-        console.log('🖼️ TRANSFORM CHAPTER:', tz.title, 'header_image_url:', tz.header_image_url)
+        console.log('🖼️ TRANSFORM CHAPTER:', chapter.title, 'header_image_url:', chapter.header_image_url)
       }
       
       return {
-        ...tz,
-        id: tz.id,
-        title: tz.title,
-        description: tz.description,
-        type: tz.type,
-        startDate: tz.start_date,
-        endDate: tz.end_date,
-        location: tz.location,
+        ...chapter,
+        id: chapter.id,
+        title: chapter.title,
+        description: chapter.description,
+        type: chapter.type,
+        startDate: chapter.start_date,
+        endDate: chapter.end_date,
+        location: chapter.location,
         headerImageUrl: headerImageUrl, // Use transformed URL
-        inviteCode: tz.invite_code,
-        createdById: tz.creator_id,
-        createdAt: tz.created_at,
-        updatedAt: tz.updated_at,
-        creator: tz.creator,
-        members: tz.members || [],
+        inviteCode: chapter.invite_code,
+        createdById: chapter.creator_id,
+        createdAt: chapter.created_at,
+        updatedAt: chapter.updated_at,
+        creator: chapter.creator,
+        members: chapter.members || [],
         _count: {
-          members: tz.members?.length || 0,
+          members: chapter.members?.length || 0,
           memories: 0 // TODO: Add memories count
         }
       }
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      timeZones: transformedTimeZones
+      timeZones: transformedChapters // Keep timeZones key for backward compatibility
     })
 
   } catch (error) {
@@ -251,8 +251,8 @@ export async function POST(request: NextRequest) {
     
     console.log('📝 CHAPTER CREATION: Insert data:', insertData)
 
-    const { data: timeZone, error: createError } = await supabase
-      .from('timezones')
+    const { data: chapter, error: createError } = await supabase
+      .from('chapters')
       .insert(insertData)
       .select()
       .single()
@@ -272,13 +272,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ CHAPTER CREATION: Timezone created successfully:', timeZone)
+    console.log('✅ CHAPTER CREATION: Chapter created successfully:', chapter)
 
     // Add creator as member
     const { error: memberError } = await supabase
-      .from('timezone_members')
+      .from('chapter_members')
       .insert({
-        timezone_id: timeZone.id,
+        chapter_id: chapter.id,
         user_id: user.userId,
         role: MEMBER_ROLES.CREATOR
       })
@@ -288,14 +288,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Transform response to match expected format
-    const transformedTimeZone = {
-      ...timeZone,
-      startDate: timeZone.start_date,
-      endDate: timeZone.end_date,
-      inviteCode: timeZone.invite_code,
-      createdById: timeZone.creator_id,
-      createdAt: timeZone.created_at,
-      updatedAt: timeZone.updated_at,
+    const transformedChapter = {
+      ...chapter,
+      startDate: chapter.start_date,
+      endDate: chapter.end_date,
+      inviteCode: chapter.invite_code,
+      createdById: chapter.creator_id,
+      createdAt: chapter.created_at,
+      updatedAt: chapter.updated_at,
       creator: { id: user.userId, email: user.email },
       members: [{ user: { id: user.userId, email: user.email }, role: MEMBER_ROLES.CREATOR }],
       _count: { members: 1, memories: 0 }
@@ -303,7 +303,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: transformedTimeZone,
+      data: transformedChapter,
       message: 'Chapter created successfully'
     })
 

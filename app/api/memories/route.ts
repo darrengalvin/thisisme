@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         user:users!memories_user_id_fkey(id, email),
-        timezone:timezones!memories_timezone_id_fkey(id, title, type),
+        chapter:chapters!memories_chapter_id_fkey(id, title, type),
         media(*)
       `)
       .eq('user_id', targetUserId)
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       title: memory.title,
       textContent: memory.text_content,
       userId: memory.user_id,
-      timeZoneId: memory.timezone_id,
+      timeZoneId: memory.chapter_id, // Keep timeZoneId for backward compatibility
       datePrecision: memory.date_precision,
       approximateDate: memory.approximate_date,
       createdAt: memory.created_at,
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
     let finalTimeZoneId = timeZoneId
     if (!timeZoneId) {
       const { data: defaultTimeZone, error: defaultError } = await supabase
-        .from('timezones')
+        .from('chapters')
         .select('id')
         .eq('creator_id', user.userId)
         .eq('type', 'PRIVATE')
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
       
       // Verify timezone exists and user has access
       const { data: timeZoneExists, error: timeZoneError } = await supabase
-        .from('timezones')
+        .from('chapters')
         .select('id, creator_id')
         .eq('id', finalTimeZoneId)
         .maybeSingle()
@@ -201,9 +201,9 @@ export async function POST(request: NextRequest) {
       // Check if user is the creator or a member of the time zone
       if (timeZoneExists.creator_id !== user.userId) {
         const { data: membership, error: memberError } = await supabase
-          .from('timezone_members')
+          .from('chapter_members')
           .select('id')
-          .eq('timezone_id', finalTimeZoneId)
+          .eq('chapter_id', finalTimeZoneId)
           .eq('user_id', user.userId)
           .maybeSingle()
 
@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
         title: title?.trim() || null,
         text_content: textContent?.trim() || null,
         user_id: user.userId,
-        timezone_id: finalTimeZoneId || null,
+        chapter_id: finalTimeZoneId || null,
         date_precision: datePrecision || null,
         approximate_date: approximateDate || null,
         created_at: memoryDate.toISOString(),
@@ -358,7 +358,7 @@ export async function POST(request: NextRequest) {
       .select(`
         *,
         user:users!memories_user_id_fkey(id, email),
-        timezone:timezones!memories_timezone_id_fkey(id, title, type),
+        chapter:chapters!memories_chapter_id_fkey(id, title, type),
         media(*)
       `)
       .eq('id', memory.id)
@@ -379,7 +379,7 @@ export async function POST(request: NextRequest) {
       title: completeMemory.title,
       textContent: completeMemory.text_content,
       userId: completeMemory.user_id,
-      timeZoneId: completeMemory.timezone_id,
+      timeZoneId: completeMemory.chapter_id, // Keep timeZoneId for backward compatibility
       datePrecision: completeMemory.date_precision,
       approximateDate: completeMemory.approximate_date,
       createdAt: completeMemory.created_at,

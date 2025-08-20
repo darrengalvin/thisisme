@@ -163,9 +163,9 @@ async function getUserContextForTool(parameters, call, urlUserId = null) {
       return "I couldn't find your user profile. Please make sure you're logged in."
     }
 
-    // Get chapters (from timezones table)
+    // Get chapters (from chapters table)
     const { data: chapters, error: chaptersError } = await supabase
-      .from('timezones')
+      .from('chapters')
       .select('*')
       .eq('creator_id', userId)
       .order('start_date', { ascending: true })
@@ -295,7 +295,7 @@ async function createChapterForTool(parameters, call, urlUserId = null) {
   }
 
   try {
-    // Insert chapter into database (using 'timezones' table with correct column names)
+    // Insert chapter into database (using 'chapters' table with correct column names)
     const insertData = {
       creator_id: userId,  // correct column name
       title: title,
@@ -310,7 +310,7 @@ async function createChapterForTool(parameters, call, urlUserId = null) {
     }
     
     const { data: chapter, error } = await supabase
-      .from('timezones')
+      .from('chapters')
       .insert([insertData])
       .select()
       .single()

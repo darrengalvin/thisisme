@@ -379,30 +379,37 @@ async function saveMemory(parameters: any, call: any, authenticatedUserId: strin
       console.log('💾 SAVE MEMORY - Looking for chapter:', chapter)
       console.log('💾 SAVE MEMORY - User ID for chapter search:', userId)
       
-      // First, let's see ALL chapters for this user
+      // Get ALL chapters for this user
       const { data: allChapters } = await supabaseAdmin
-        .from('timezones')
+        .from('chapters')
         .select('id, title, creator_id')
         .eq('creator_id', userId)
       
       console.log('💾 SAVE MEMORY - All user chapters:', allChapters?.map(c => ({ id: c.id, title: c.title })) || [])
       
-      // Now search for the specific chapter
-      const { data: chapters } = await supabaseAdmin
-        .from('timezones')
-        .select('id, title')
-        .eq('creator_id', userId)
-        .ilike('title', `%${chapter}%`)
-        .limit(1)
-      
-      console.log('💾 SAVE MEMORY - Chapter search results:', chapters)
-      
-      if (chapters && chapters.length > 0) {
-        chapterTimeZoneId = chapters[0].id
-        console.log('💾 SAVE MEMORY - ✅ Found chapter:', chapters[0].title, 'ID:', chapterTimeZoneId)
+      if (allChapters && allChapters.length > 0) {
+        // Try exact match first (case-insensitive)
+        let matchedChapter = allChapters.find(c => 
+          c.title.toLowerCase().trim() === chapter.toLowerCase().trim()
+        )
+        
+        // If no exact match, try partial match
+        if (!matchedChapter) {
+          matchedChapter = allChapters.find(c => 
+            c.title.toLowerCase().includes(chapter.toLowerCase().trim()) ||
+            chapter.toLowerCase().includes(c.title.toLowerCase().trim())
+          )
+        }
+        
+        if (matchedChapter) {
+          chapterTimeZoneId = matchedChapter.id
+          console.log('💾 SAVE MEMORY - ✅ Found chapter:', matchedChapter.title, 'ID:', chapterTimeZoneId)
+        } else {
+          console.log('💾 SAVE MEMORY - ❌ Chapter not found for search term:', chapter)
+          console.log('💾 SAVE MEMORY - Available chapters:', allChapters.map(c => c.title))
+        }
       } else {
-        console.log('💾 SAVE MEMORY - ❌ Chapter not found for search term:', chapter)
-        console.log('💾 SAVE MEMORY - Available chapters:', allChapters?.map(c => c.title) || [])
+        console.log('💾 SAVE MEMORY - ❌ User has no chapters')
       }
     } else {
       console.log('💾 SAVE MEMORY - ⚠️ No chapter parameter provided')
@@ -415,7 +422,7 @@ async function saveMemory(parameters: any, call: any, authenticatedUserId: strin
         title: title || 'Voice Memory',
         text_content: fullContent,
         user_id: userId,
-        timezone_id: chapterTimeZoneId, // 🔥 FIX: Link to chapter!
+        chapter_id: chapterTimeZoneId, // 🔥 FIX: Link to chapter!
         approximate_date: approximateDate,
         date_precision: year ? 'exact' : 'approximate',
         created_at: new Date().toISOString(),
@@ -434,8 +441,8 @@ async function saveMemory(parameters: any, call: any, authenticatedUserId: strin
       title: memory.title,
       userId: userId,
       approximateDate: approximateDate,
-      timezone_id: memory.timezone_id,
-      chapterLinked: !!memory.timezone_id,
+      chapter_id: memory.chapter_id,
+      chapterLinked: !!memory.chapter_id,
       requestedChapter: chapter,
       foundChapterId: chapterTimeZoneId
     })
@@ -625,9 +632,9 @@ async function getUserContext(parameters: any, call: any, authenticatedUserId: s
     // Get user's name for personalization
     const userName = userProfile?.email?.split('@')[0] || 'there'
     
-    // Get user's chapters (timezones)
+    // Get user's chapters
     const { data: chapters, error: chaptersError } = await supabaseAdmin
-      .from('timezones')
+      .from('chapters')
       .select('id, title, description, start_date, end_date, location')
       .eq('creator_id', userId)
       .order('created_at', { ascending: false })
@@ -827,7 +834,7 @@ async function handleCallEnd(body: any) {
   return NextResponse.json({ success: true })
 }
 
-// Create a new chapter (timezone) for organizing memories
+// Create a new chapter for organizing memories
 async function createChapter(parameters: any, call: any, authenticatedUserId: string | null = null) {
   const { title, description, timeframe, start_year, end_year, location } = parameters
   
@@ -907,7 +914,7 @@ async function createChapter(parameters: any, call: any, authenticatedUserId: st
     
     // Create chapter using Supabase
     const { data: chapter, error } = await supabaseAdmin
-      .from('timezones')
+      .from('chapters')
       .insert({
         title: title.trim(),
         description: description || `Chapter covering ${timeframe || `${start_year}${end_year ? ` to ${end_year}` : ''}`}`,
@@ -924,9 +931,9 @@ async function createChapter(parameters: any, call: any, authenticatedUserId: st
     
     // Add creator as member
     await supabaseAdmin
-      .from('timezone_members')
+      .from('chapter_members')
       .insert({
-        timezone_id: chapter.id,
+        chapter_id: chapter.id,
         user_id: userId,
         role: 'CREATOR'
       })
@@ -1233,9 +1240,9 @@ async function getUserContextForTool(parameters: any, call: any, authenticatedUs
     // Get user's name for personalization
     const userName = userProfile?.email?.split('@')[0] || 'there'
     
-    // Get user's chapters (timezones)
+    // Get user's chapters
     const { data: chapters, error: chaptersError } = await supabaseAdmin
-      .from('timezones')
+      .from('chapters')
       .select('id, title, description, start_date, end_date, location')
       .eq('creator_id', userId)
       .order('created_at', { ascending: false })
@@ -1276,11 +1283,20 @@ async function getUserContextForTool(parameters: any, call: any, authenticatedUs
     if (chapters && chapters.length > 0) {
       contextResponse += `📚 **Your Chapters (${chapters.length}):**\n`
       chapters.forEach((chapter, index) => {
-        contextResponse += `${index + 1}. ${chapter.title}`
+        contextResponse += `${index + 1}. "${chapter.title}"`
         if (chapter.description) contextResponse += ` - ${chapter.description}`
+        if (chapter.start_date) {
+          const startYear = new Date(chapter.start_date).getFullYear()
+          contextResponse += ` (${startYear}`
+          if (chapter.end_date) {
+            const endYear = new Date(chapter.end_date).getFullYear()
+            contextResponse += `-${endYear}`
+          }
+          contextResponse += `)`
+        }
         contextResponse += `\n`
       })
-      contextResponse += `\n`
+      contextResponse += `\n**IMPORTANT:** Use the exact chapter titles in quotes when saving memories.\n\n`
     } else {
       contextResponse += `📚 **Chapters:** You don't have any chapters yet. I can help you create some!\n\n`
     }
@@ -1298,7 +1314,7 @@ async function getUserContextForTool(parameters: any, call: any, authenticatedUs
 
 // Save memory tool for VAPI tools format
 async function saveMemoryForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
-  const { title, content, text_content, year, age, location, userId: paramUserId } = parameters
+  const { title, content, text_content, year, age, location, chapter, people, sensory_details, userId: paramUserId } = parameters
   
   // Handle both 'content' and 'text_content' parameter names
   const actualContent = text_content || content
@@ -1307,7 +1323,9 @@ async function saveMemoryForTool(parameters: any, call: any, authenticatedUserId
   console.log('💭 Title:', title)
   console.log('💭 Content:', content)
   console.log('💭 Year:', year)
+  console.log('💭 Age:', age)
   console.log('💭 Location:', location)
+  console.log('💭 Chapter:', chapter)
   
   // Get userId - prioritize parameter, then fallback
   let userId = paramUserId
@@ -1326,30 +1344,77 @@ async function saveMemoryForTool(parameters: any, call: any, authenticatedUserId
   }
 
   try {
+    // Get user's birth year for age calculations
+    const { data: userProfile } = await supabaseAdmin
+      .from('users')
+      .select('birth_year')
+      .eq('id', userId)
+      .single()
+    
+    const userBirthYear = userProfile?.birth_year
+    
     // Build content with additional details (like the working version does)
     let fullContent = actualContent
     if (location) {
       fullContent += `\n\nLocation: ${location}`
+    }
+    if (people && people.length > 0) {
+      fullContent += `\n\nPeople: ${people.join(', ')}`
+    }
+    if (sensory_details) {
+      fullContent += `\n\nDetails: ${sensory_details}`
     }
     
     // Calculate approximate date from year or age
     let approximateDate = null
     if (year) {
       approximateDate = year.toString()
+    } else if (age && userBirthYear) {
+      const calculatedYear = userBirthYear + parseInt(age)
+      approximateDate = `Age ${age} (${calculatedYear})`
     } else if (age) {
-      // Get user's birth year for age calculations
-      const { data: userProfile } = await supabaseAdmin
-        .from('users')
-        .select('birth_year')
-        .eq('id', userId)
-        .single()
+      approximateDate = `Age ${age}`
+    }
+
+    // Find chapter ID if chapter name is provided
+    let chapterTimeZoneId = null
+    if (chapter) {
+      console.log('💭 SAVE MEMORY TOOL - Looking for chapter:', chapter)
       
-      if (userProfile?.birth_year) {
-        const calculatedYear = userProfile.birth_year + parseInt(age)
-        approximateDate = `Age ${age} (${calculatedYear})`
+      // Get ALL chapters for this user
+      const { data: allChapters } = await supabaseAdmin
+        .from('chapters')
+        .select('id, title, creator_id')
+        .eq('creator_id', userId)
+      
+      console.log('💭 SAVE MEMORY TOOL - All user chapters:', allChapters?.map(c => ({ id: c.id, title: c.title })) || [])
+      
+      if (allChapters && allChapters.length > 0) {
+        // Try exact match first (case-insensitive)
+        let matchedChapter = allChapters.find(c => 
+          c.title.toLowerCase().trim() === chapter.toLowerCase().trim()
+        )
+        
+        // If no exact match, try partial match
+        if (!matchedChapter) {
+          matchedChapter = allChapters.find(c => 
+            c.title.toLowerCase().includes(chapter.toLowerCase().trim()) ||
+            chapter.toLowerCase().includes(c.title.toLowerCase().trim())
+          )
+        }
+        
+        if (matchedChapter) {
+          chapterTimeZoneId = matchedChapter.id
+          console.log('💭 SAVE MEMORY TOOL - ✅ Found chapter:', matchedChapter.title, 'ID:', chapterTimeZoneId)
+        } else {
+          console.log('💭 SAVE MEMORY TOOL - ❌ Chapter not found for search term:', chapter)
+          console.log('💭 SAVE MEMORY TOOL - Available chapters:', allChapters.map(c => c.title))
+        }
       } else {
-        approximateDate = `Age ${age}`
+        console.log('💭 SAVE MEMORY TOOL - ❌ User has no chapters')
       }
+    } else {
+      console.log('💭 SAVE MEMORY TOOL - ⚠️ No chapter parameter provided')
     }
 
     // Insert memory into database using the correct structure
@@ -1357,6 +1422,7 @@ async function saveMemoryForTool(parameters: any, call: any, authenticatedUserId
       user_id: userId,
       title: title,
       text_content: fullContent,
+      chapter_id: chapterTimeZoneId, // 🔥 FIX: Link to chapter!
       approximate_date: approximateDate,
       date_precision: year ? 'exact' : 'approximate',
       created_at: new Date().toISOString(),
@@ -1374,8 +1440,33 @@ async function saveMemoryForTool(parameters: any, call: any, authenticatedUserId
       return `❌ Failed to save memory: ${error.message}`
     }
 
-    console.log('💭 ✅ Memory saved successfully:', memory.id)
-    return `✅ Perfect! I've saved your "${title}" memory. Feel free to add any pictures or videos to it, or you can do this later. What other memories would you like to share?`
+    console.log('💭 ✅ MEMORY SAVED SUCCESSFULLY:', {
+      memoryId: memory.id,
+      title: memory.title,
+      userId: userId,
+      approximateDate: approximateDate,
+      chapter_id: memory.chapter_id,
+      chapterLinked: !!memory.chapter_id,
+      requestedChapter: chapter,
+      foundChapterId: chapterTimeZoneId
+    })
+
+    // Create response based on what was saved
+    let response = `Perfect! I've saved "${title}" to your timeline.`
+    
+    if (approximateDate) {
+      response += ` I've placed it around ${approximateDate}.`
+    }
+    
+    if (chapter && chapterTimeZoneId) {
+      response += ` It's been saved to your "${chapter}" chapter.`
+    } else if (chapter && !chapterTimeZoneId) {
+      response += ` I couldn't find your "${chapter}" chapter, so I saved it to your general timeline. You can organize it later.`
+    }
+    
+    response += ' What else would you like to share?'
+    
+    return response
 
   } catch (error) {
     console.error('💭 💥 Memory creation error:', error)
@@ -1475,9 +1566,9 @@ async function createChapterForTool(parameters: any, call: any, authenticatedUse
   }
   
   try {
-    // Create chapter in the database (using timezones table)
+    // Create chapter in the database (using chapters table)
     const { data: chapter, error } = await supabaseAdmin
-      .from('timezones')
+      .from('chapters')
       .insert({
         creator_id: userId,
         title: title,

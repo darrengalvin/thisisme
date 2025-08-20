@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Save, Loader2, Upload, Crop, Trash2 } from 'lucide-react'
-import { MemoryWithRelations } from '@/lib/types'
+import { X, Save, Loader2, Upload, Crop, Trash2, ChevronDown } from 'lucide-react'
+import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import toast from 'react-hot-toast'
 import ImageCropper from '@/components/ImageCropper'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
@@ -20,6 +20,9 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
   const { user } = useAuth()
   const [title, setTitle] = useState('')
   const [textContent, setTextContent] = useState('')
+  const [selectedChapterId, setSelectedChapterId] = useState<string>('')
+  const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
+  const [isLoadingChapters, setIsLoadingChapters] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [existingMediaToDelete, setExistingMediaToDelete] = useState<string[]>([])
@@ -32,10 +35,64 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
     if (memory) {
       setTitle(memory.title || '')
       setTextContent(memory.textContent || '')
+      setSelectedChapterId(memory.timeZoneId || '')
       setMediaFiles([])
       setExistingMediaToDelete([])
     }
   }, [memory])
+
+  // Fetch chapters when modal opens
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchChapters()
+    }
+  }, [isOpen, user])
+
+  const fetchChapters = async () => {
+    if (!user) return
+    
+    setIsLoadingChapters(true)
+    try {
+      console.log('🔑 EDIT MEMORY MODAL: Getting auth token for user:', user.id)
+
+      // Get custom JWT token for API
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      })
+
+      if (!tokenResponse.ok) {
+        console.error('❌ EDIT MEMORY MODAL: Failed to get auth token:', tokenResponse.status)
+        return
+      }
+
+      const { token } = await tokenResponse.json()
+      console.log('✅ EDIT MEMORY MODAL: Got auth token')
+
+      console.log('📡 EDIT MEMORY MODAL: Calling /api/timezones (chapters)')
+      const response = await fetch('/api/timezones', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('📡 EDIT MEMORY MODAL: Response status:', response.status)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ EDIT MEMORY MODAL: Chapters fetched:', data.timeZones?.length || 0)
+        setChapters(data.timeZones || [])
+      } else {
+        console.error('❌ EDIT MEMORY MODAL: Failed to fetch chapters:', response.status)
+      }
+    } catch (error) {
+      console.error('❌ EDIT MEMORY MODAL: Error fetching chapters:', error)
+    } finally {
+      setIsLoadingChapters(false)
+    }
+  }
 
   const handleSave = async () => {
     if (!memory) return
@@ -77,6 +134,7 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
       const formData = new FormData()
       formData.append('title', title.trim() || '')
       formData.append('textContent', textContent.trim() || '')
+      formData.append('timeZoneId', selectedChapterId || '')
       
       // Add new media files
       console.log('📁 EDIT MEMORY: Adding media files...', mediaFiles.map(f => ({ name: f.name, size: f.size, type: f.type })))
@@ -358,7 +416,7 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-slate-200">
           <h2 className="text-xl font-bold text-slate-900">Edit Memory</h2>
@@ -521,6 +579,42 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
               className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none transition-colors resize-none"
               disabled={isLoading}
             />
+          </div>
+
+          {/* Chapter Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-900 mb-2">
+              Chapter (optional)
+            </label>
+            {isLoadingChapters ? (
+              <div className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 flex items-center justify-center">
+                <Loader2 size={16} className="animate-spin text-slate-500 mr-2" />
+                <span className="text-slate-500 text-sm">Loading chapters...</span>
+              </div>
+            ) : (
+              <div className="relative">
+                <select
+                  value={selectedChapterId}
+                  onChange={(e) => setSelectedChapterId(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none transition-colors appearance-none bg-white pr-10"
+                  disabled={isLoading}
+                >
+                  <option value="">No chapter (unorganized)</option>
+                  {chapters.map((chapter) => (
+                    <option key={chapter.id} value={chapter.id}>
+                      {chapter.title}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={20} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+            )}
+            <p className="text-xs text-slate-500 mt-1">
+              {selectedChapterId 
+                ? `Memory will be organized under "${chapters.find(c => c.id === selectedChapterId)?.title || 'Selected Chapter'}"` 
+                : 'Memory will remain unorganized'
+              }
+            </p>
           </div>
 
           {/* Additional Images Section - Only show if there's a primary image or new files */}

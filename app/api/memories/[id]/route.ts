@@ -73,6 +73,7 @@ export async function PUT(
     const formData = await request.formData()
     const title = formData.get('title') as string
     const textContent = formData.get('textContent') as string
+    const chapterId = formData.get('timeZoneId') as string // Keep timeZoneId for backward compatibility
     const mediaToDelete = formData.getAll('deleteMedia') as string[]
     const newMediaFiles = formData.getAll('media') as File[]
 
@@ -205,6 +206,7 @@ export async function PUT(
       .update({
         title: title || null,
         text_content: textContent || null,
+        chapter_id: chapterId || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', memoryId)
@@ -223,7 +225,7 @@ export async function PUT(
       .select(`
         *,
         user:users!memories_user_id_fkey(id, email),
-        timezone:timezones!memories_timezone_id_fkey(id, title, type),
+        chapter:chapters!memories_chapter_id_fkey(id, title, type),
         media(*)
       `)
       .eq('id', memoryId)
@@ -244,13 +246,13 @@ export async function PUT(
       title: updatedMemory.title,
       textContent: updatedMemory.text_content,
       userId: updatedMemory.user_id,
-      timeZoneId: updatedMemory.timezone_id,
+      timeZoneId: updatedMemory.chapter_id, // Keep timeZoneId for backward compatibility
       datePrecision: updatedMemory.date_precision,
       approximateDate: updatedMemory.approximate_date,
       createdAt: updatedMemory.created_at,
       updatedAt: updatedMemory.updated_at,
       user: updatedMemory.user,
-      timeZone: updatedMemory.timezone,
+      timeZone: updatedMemory.chapter, // Keep timeZone for backward compatibility
       media: updatedMemory.media || []
     }
 

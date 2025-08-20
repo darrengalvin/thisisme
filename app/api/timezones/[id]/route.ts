@@ -38,14 +38,14 @@ export async function PUT(
       }
     )
 
-    // Check if timezone exists and user has permission
-    const { data: existingTimezone, error: fetchError } = await supabase
-      .from('timezones')
+    // Check if chapter exists and user has permission
+    const { data: existingChapter, error: fetchError } = await supabase
+      .from('chapters')
       .select('id, creator_id, header_image_url')
       .eq('id', timezoneId)
       .single()
 
-    if (fetchError || !existingTimezone) {
+    if (fetchError || !existingChapter) {
       return NextResponse.json(
         { success: false, error: 'Chapter not found' },
         { status: 404 }
@@ -53,7 +53,7 @@ export async function PUT(
     }
 
     // Check if user is the creator
-    if (existingTimezone.creator_id !== user.userId) {
+    if (existingChapter.creator_id !== user.userId) {
       return NextResponse.json(
         { success: false, error: 'Permission denied' },
         { status: 403 }
@@ -86,14 +86,14 @@ export async function PUT(
     }
 
     // Handle header image update
-    let headerImageUrl = existingTimezone.header_image_url
+    let headerImageUrl = existingChapter.header_image_url
     
     if (removeHeaderImage) {
       // Remove the existing image from Supabase Storage
-      if (existingTimezone.header_image_url) {
+      if (existingChapter.header_image_url) {
         try {
           // Extract file path from Supabase URL
-          const urlParts = existingTimezone.header_image_url.split('/files/')
+          const urlParts = existingChapter.header_image_url.split('/files/')
           if (urlParts.length > 1) {
             const filePath = urlParts[1]
             const { error: deleteError } = await supabase.storage
@@ -116,9 +116,9 @@ export async function PUT(
         console.log('🖼️ CHAPTER UPDATE: Processing new header image upload')
         
         // Remove old image from Supabase Storage if it exists
-        if (existingTimezone.header_image_url) {
+        if (existingChapter.header_image_url) {
           try {
-            const urlParts = existingTimezone.header_image_url.split('/files/')
+            const urlParts = existingChapter.header_image_url.split('/files/')
             if (urlParts.length > 1) {
               const oldFilePath = urlParts[1]
               const { error: deleteError } = await supabase.storage
@@ -177,9 +177,9 @@ export async function PUT(
       }
     }
 
-    // Update timezone in Supabase
-    const { data: updatedTimezone, error: updateError } = await supabase
-      .from('timezones')
+    // Update chapter in Supabase
+    const { data: updatedChapter, error: updateError } = await supabase
+      .from('chapters')
       .update({
         title: title.trim(),
         description: description?.trim() || null,
@@ -203,14 +203,14 @@ export async function PUT(
 
     // Transform response to match expected format
     const transformedTimezone = {
-      ...updatedTimezone,
-      startDate: updatedTimezone.start_date,
-      endDate: updatedTimezone.end_date,
-      headerImageUrl: updatedTimezone.header_image_url,
-      inviteCode: updatedTimezone.invite_code,
-      createdById: updatedTimezone.creator_id,
-      createdAt: updatedTimezone.created_at,
-      updatedAt: updatedTimezone.updated_at
+      ...updatedChapter,
+      startDate: updatedChapter.start_date,
+      endDate: updatedChapter.end_date,
+      headerImageUrl: updatedChapter.header_image_url,
+      inviteCode: updatedChapter.invite_code,
+      createdById: updatedChapter.creator_id,
+      createdAt: updatedChapter.created_at,
+      updatedAt: updatedChapter.updated_at
     }
 
     console.log('✅ CHAPTER UPDATE: Successfully updated')
@@ -265,13 +265,13 @@ export async function DELETE(
     )
 
     // Check if timezone exists and user has permission
-    const { data: existingTimezone, error: fetchError } = await supabase
-      .from('timezones')
+    const { data: existingChapter, error: fetchError } = await supabase
+      .from('chapters')
       .select('id, creator_id, header_image_url, title')
       .eq('id', timezoneId)
       .single()
 
-    if (fetchError || !existingTimezone) {
+    if (fetchError || !existingChapter) {
       return NextResponse.json(
         { success: false, error: 'Chapter not found' },
         { status: 404 }
@@ -279,7 +279,7 @@ export async function DELETE(
     }
 
     // Check if user is the creator
-    if (existingTimezone.creator_id !== user.userId) {
+    if (existingChapter.creator_id !== user.userId) {
       return NextResponse.json(
         { success: false, error: 'Permission denied' },
         { status: 403 }
@@ -288,7 +288,7 @@ export async function DELETE(
 
     console.log('🗑️ CHAPTER DELETE: Deleting chapter:', { 
       timezoneId, 
-      title: existingTimezone.title,
+      title: existingChapter.title,
       userId: user.userId 
     })
 
@@ -296,7 +296,7 @@ export async function DELETE(
     const { error: memoriesDeleteError } = await supabase
       .from('memories')
       .delete()
-      .eq('timezone_id', timezoneId)
+      .eq('chapter_id', timezoneId)
 
     if (memoriesDeleteError) {
       console.error('❌ CHAPTER DELETE: Failed to delete memories:', memoriesDeleteError)
@@ -306,9 +306,9 @@ export async function DELETE(
 
     // Delete timezone members
     const { error: membersDeleteError } = await supabase
-      .from('timezone_members')
+      .from('chapter_members')
       .delete()
-      .eq('timezone_id', timezoneId)
+      .eq('chapter_id', timezoneId)
 
     if (membersDeleteError) {
       console.error('❌ CHAPTER DELETE: Failed to delete members:', membersDeleteError)
@@ -318,7 +318,7 @@ export async function DELETE(
 
     // Delete the timezone
     const { error: deleteError } = await supabase
-      .from('timezones')
+      .from('chapters')
       .delete()
       .eq('id', timezoneId)
 
@@ -331,10 +331,10 @@ export async function DELETE(
     }
 
     // Delete header image from Supabase Storage if it exists
-    if (existingTimezone.header_image_url) {
+    if (existingChapter.header_image_url) {
       try {
         // Extract file path from Supabase URL
-        const urlParts = existingTimezone.header_image_url.split('/files/')
+        const urlParts = existingChapter.header_image_url.split('/files/')
         if (urlParts.length > 1) {
           const filePath = urlParts[1]
           const { error: deleteError } = await supabase.storage
