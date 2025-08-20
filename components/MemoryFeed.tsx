@@ -203,21 +203,21 @@ export default function MemoryFeed({
                               <img 
                                 src={media.storage_url} 
                                 alt="" 
-                                className="w-full max-w-md h-auto mx-auto rounded-xl object-contain"
+                                className="w-full max-w-sm h-auto mx-auto rounded-xl object-contain"
                               />
                             )}
                             {media.type === 'VIDEO' && (
                               <video 
                                 src={media.storage_url} 
                                 controls 
-                                className="w-full max-w-md mx-auto rounded-xl"
+                                className="w-full max-w-sm mx-auto rounded-xl"
                               />
                             )}
                             {media.type === 'AUDIO' && (
                               <audio 
                                 src={media.storage_url} 
                                 controls 
-                                className="w-full max-w-md mx-auto"
+                                className="w-full max-w-sm mx-auto"
                               />
                             )}
                           </div>
