@@ -301,7 +301,7 @@ export default function ImageCropper({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <h3 className="text-xl font-bold text-slate-900">{title}</h3>
@@ -314,7 +314,7 @@ export default function ImageCropper({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-4">
+        <div className="flex-1 p-6 space-y-4 overflow-y-auto">
           {/* Instructions */}
           {showInstructions && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start space-x-2">
