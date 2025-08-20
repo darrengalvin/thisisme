@@ -216,7 +216,7 @@ async function getUserContextForTool(parameters, call, urlUserId = null) {
     if (chapters && chapters.length > 0) {
       response += `\n📚 **Your Chapters (${chapters.length}):**\n`
       chapters.forEach((chapter, index) => {
-        response += `${index + 1}. ${chapter.title}`
+        response += `${index + 1}. "${chapter.title}"`
         
         // Add date information for temporal reasoning
         if (chapter.start_date || chapter.end_date) {
@@ -235,6 +235,8 @@ async function getUserContextForTool(parameters, call, urlUserId = null) {
         }
         response += `\n`
       })
+      
+      response += `\n**IMPORTANT:** Use the exact chapter titles in quotes when saving memories.\n`
     }
 
     response += `\n💭 **Your Memories:** You have ${memoriesCount || 0} memories saved\n`
