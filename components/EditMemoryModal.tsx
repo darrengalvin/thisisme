@@ -438,8 +438,45 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
             
             {/* Primary Image Area */}
             <div className="mb-4">
-              {/* Show existing primary image if not marked for deletion */}
-              {memory.media && memory.media.length > 0 && memory.media[0] && !existingMediaToDelete.includes(memory.media[0].id) ? (
+              {/* Show new uploaded image as primary if available */}
+              {mediaFiles.length > 0 && mediaFiles[0].type.startsWith('image/') ? (
+                <div className="relative">
+                  <div className="relative w-full h-64 rounded-lg overflow-hidden border-2 border-slate-200">
+                    <img
+                      src={URL.createObjectURL(mediaFiles[0])}
+                      alt="Primary memory"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                      Primary Image (New)
+                    </div>
+                    <div className="absolute top-2 right-2 flex space-x-2">
+                      <button
+                        onClick={async () => {
+                          const aspectRatio = await getImageAspectRatio(mediaFiles[0])
+                          setTempImageForCrop({ file: mediaFiles[0], index: 0, aspectRatio })
+                          setShowImageCropper(true)
+                        }}
+                        className="flex items-center space-x-1 bg-sky-600 hover:bg-sky-700 text-white px-2 py-1 rounded text-xs transition-colors"
+                        type="button"
+                      >
+                        <Crop size={12} />
+                        <span>Adjust Position</span>
+                      </button>
+                      <button
+                        onClick={() => removeNewFile(0)}
+                        className="flex items-center space-x-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs transition-colors"
+                        type="button"
+                      >
+                        <Trash2 size={12} />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Show existing primary image if not marked for deletion and no new files */
+                memory.media && memory.media.length > 0 && memory.media[0] && !existingMediaToDelete.includes(memory.media[0].id) ? (
                 <div className="relative">
                   <div className="relative w-full h-64 rounded-lg overflow-hidden border-2 border-slate-200">
                     <img
@@ -622,12 +659,14 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
             <div>
               <label className="block text-sm font-semibold text-slate-900 mb-3">Additional Images</label>
               
-              {/* New Media Preview */}
-              {mediaFiles.length > 0 && (
+              {/* New Media Preview - Skip first image if it's shown as primary */}
+              {mediaFiles.length > 1 && (
                 <div className="mb-4">
-                  <h4 className="text-sm font-medium text-slate-700 mb-2">New images to add</h4>
+                  <h4 className="text-sm font-medium text-slate-700 mb-2">Additional new images</h4>
                   <div className="grid grid-cols-3 gap-3">
-                    {mediaFiles.map((file, index) => (
+                    {mediaFiles.slice(1).map((file, index) => {
+                      const actualIndex = index + 1; // Adjust index since we're slicing
+                      return (
                       <div key={index} className="relative group">
                         <div className="aspect-square rounded-lg overflow-hidden border border-slate-200">
                           {file.type.startsWith('image/') ? (
@@ -651,7 +690,7 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                             <button
                               onClick={async () => {
                                 const aspectRatio = await getImageAspectRatio(file)
-                                setTempImageForCrop({ file, index, aspectRatio })
+                                setTempImageForCrop({ file, index: actualIndex, aspectRatio })
                                 setShowImageCropper(true)
                               }}
                               className="p-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg transition-colors"
@@ -662,7 +701,7 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                             </button>
                           )}
                           <button
-                            onClick={() => removeNewFile(index)}
+                            onClick={() => removeNewFile(actualIndex)}
                             className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
                             title="Remove image"
                             type="button"
@@ -671,7 +710,8 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                           </button>
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
