@@ -351,7 +351,7 @@ async function createChapterForTool(parameters, call, urlUserId = null) {
 
 // Save memory tool  
 async function saveMemoryForTool(parameters, call, urlUserId = null) {
-  const { title, content, text_content, year, age, location, userId: paramUserId } = parameters
+  const { title, content, text_content, year, age, location, chapter, userId: paramUserId } = parameters
   
   // Handle both 'content' and 'text_content' parameter names
   const actualContent = text_content || content
@@ -379,11 +379,53 @@ async function saveMemoryForTool(parameters, call, urlUserId = null) {
   }
 
   try {
+    // Find chapter ID if chapter name is provided
+    let chapterId = null
+    if (chapter) {
+      console.log('💭 SAVE MEMORY - Looking for chapter:', chapter)
+      
+      // Get ALL chapters for this user
+      const { data: allChapters } = await supabase
+        .from('chapters')
+        .select('id, title, creator_id')
+        .eq('creator_id', userId)
+      
+      console.log('💭 SAVE MEMORY - All user chapters:', allChapters?.map(c => ({ id: c.id, title: c.title })) || [])
+      
+      if (allChapters && allChapters.length > 0) {
+        // Try exact match first (case-insensitive)
+        let matchedChapter = allChapters.find(c => 
+          c.title.toLowerCase().trim() === chapter.toLowerCase().trim()
+        )
+        
+        // If no exact match, try partial match
+        if (!matchedChapter) {
+          matchedChapter = allChapters.find(c => 
+            c.title.toLowerCase().includes(chapter.toLowerCase().trim()) ||
+            chapter.toLowerCase().includes(c.title.toLowerCase().trim())
+          )
+        }
+        
+        if (matchedChapter) {
+          chapterId = matchedChapter.id
+          console.log('💭 SAVE MEMORY - ✅ Found chapter:', matchedChapter.title, 'ID:', chapterId)
+        } else {
+          console.log('💭 SAVE MEMORY - ❌ Chapter not found for search term:', chapter)
+          console.log('💭 SAVE MEMORY - Available chapters:', allChapters.map(c => c.title))
+        }
+      } else {
+        console.log('💭 SAVE MEMORY - ❌ User has no chapters')
+      }
+    } else {
+      console.log('💭 SAVE MEMORY - ⚠️ No chapter parameter provided')
+    }
+
     // Insert memory into database
     const insertData = {
       user_id: userId,
       title: title,
       text_content: actualContent,
+      chapter_id: chapterId, // 🔥 CRITICAL: Link to chapter!
       year: year ? parseInt(year) : null,
       approximate_date: year ? year.toString() : null,
       date_precision: year ? 'exact' : 'approximate'
