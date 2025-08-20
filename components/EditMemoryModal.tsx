@@ -510,26 +510,27 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                     </button>
                   </div>
                 </div>
-              ) : (
-                /* Show upload placeholder when no primary image or primary image is deleted */
-                <div className="relative w-full h-64 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center">
-                  <Upload size={48} className="text-slate-400 mb-4" />
-                  <p className="text-slate-600 font-medium mb-2">Add Primary Image</p>
-                  <p className="text-slate-500 text-sm text-center mb-4">
-                    Upload an image to be the main photo for this memory
-                  </p>
-                  <label className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg cursor-pointer transition-colors font-medium">
-                    <Upload size={16} />
-                    <span>Choose Image</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      disabled={isLoading}
-                    />
-                  </label>
-                </div>
+                ) : (
+                  /* Show upload placeholder when no primary image or primary image is deleted */
+                  <div className="relative w-full h-64 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center">
+                    <Upload size={48} className="text-slate-400 mb-4" />
+                    <p className="text-slate-600 font-medium mb-2">Add Primary Image</p>
+                    <p className="text-slate-500 text-sm text-center mb-4">
+                      Upload an image to be the main photo for this memory
+                    </p>
+                    <label className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg cursor-pointer transition-colors font-medium">
+                      <Upload size={16} />
+                      <span>Choose Image</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        disabled={isLoading}
+                      />
+                    </label>
+                  </div>
+                )
               )}
             </div>
 
