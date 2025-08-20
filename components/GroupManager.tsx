@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Settings, Calendar, MapPin, Edit, Camera, Trash2, Users, Upload, X, Save, Info } from 'lucide-react'
+import { Plus, Settings, Calendar, MapPin, Edit, Camera, Trash2, Users, Upload, X, Save, Info, Move } from 'lucide-react'
 import { TimeZoneWithRelations, MemoryWithRelations } from '@/lib/types'
 import { useAuth } from './AuthProvider'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
+import ImageCropper from './ImageCropper'
 import toast from 'react-hot-toast'
 
 interface GroupManagerProps {
@@ -60,6 +61,10 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [chapterToDelete, setChapterToDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeletingChapter, setIsDeletingChapter] = useState(false)
+  
+  // Image cropping state
+  const [showImageCropper, setShowImageCropper] = useState(false)
+  const [tempImageUrl, setTempImageUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -213,15 +218,43 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      setSelectedHeaderImage(file)
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast.error('Image must be smaller than 10MB')
+        return
+      }
       
-      // Create preview URL
+      // Show cropper immediately
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setTempImageUrl(e.target?.result as string)
+        setShowImageCropper(true)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Handle crop complete
+  const handleCropComplete = (croppedFile: File | null) => {
+    if (croppedFile) {
+      console.log('🎨 CROP: Setting new cropped image', { 
+        fileSize: croppedFile.size,
+        fileName: croppedFile.name 
+      })
+      
+      setSelectedHeaderImage(croppedFile)
+      
+      // Clean up old preview URL
       if (previewImageUrl) {
         URL.revokeObjectURL(previewImageUrl)
       }
-      const newPreviewUrl = URL.createObjectURL(file)
+      
+      // Create new preview URL from cropped image
+      const newPreviewUrl = URL.createObjectURL(croppedFile)
+      console.log('🎨 CROP: Created new preview URL', newPreviewUrl)
       setPreviewImageUrl(newPreviewUrl)
     }
+    setShowImageCropper(false)
+    setTempImageUrl(null)
   }
 
   const removeHeaderImage = () => {
@@ -392,7 +425,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                 className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-visible border border-slate-200/50 group"
               >
                 {/* Chapter Image/Header */}
-                <div className="relative h-48 bg-gradient-to-br from-slate-100 to-slate-200">
+                <div className="relative h-64 bg-gradient-to-br from-slate-100 to-slate-200">
                   {chapter.headerImageUrl ? (
                     <img
                       src={chapter.headerImageUrl}
@@ -626,7 +659,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-2xl font-bold text-slate-900">Edit Chapter</h2>
+              <h2 className="text-2xl font-bold text-slate-900">Edit Chapter </h2>
               <button
                 onClick={() => setEditingChapter(null)}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
@@ -643,19 +676,58 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                 <div className="space-y-4">
                   {/* Current/Preview Image */}
                   {(previewImageUrl || editingChapter.headerImageUrl) && (
-                    <div className="relative">
-                      <img
-                        src={previewImageUrl || editingChapter.headerImageUrl || ''}
-                        alt="Header preview"
-                        className="w-full h-48 object-cover rounded-xl"
-                      />
-                      <button
-                        onClick={removeHeaderImage}
-                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1 rounded-lg shadow-lg"
-                        title="Remove image"
-                      >
-                        <X size={16} />
-                      </button>
+                    <div className="space-y-4">
+                      <div className="relative max-w-md mx-auto">
+                        <img
+                          key={previewImageUrl || editingChapter.headerImageUrl || 'no-image'}
+                          src={previewImageUrl || editingChapter.headerImageUrl || ''}
+                          alt="Header preview"
+                          className="w-full h-48 object-cover rounded-xl"
+                        />
+                        <button
+                          onClick={removeHeaderImage}
+                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1 rounded-lg shadow-lg"
+                          title="Remove image"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      
+                      {/* Crop & Position Button */}
+                      <div className="flex items-center justify-center">
+                        <button
+                          onClick={async () => {
+                            const imageUrl = previewImageUrl || editingChapter.headerImageUrl
+                            if (imageUrl) {
+                              if (imageUrl.startsWith('blob:')) {
+                                // Already a blob URL, use directly
+                                setTempImageUrl(imageUrl)
+                                setShowImageCropper(true)
+                              } else {
+                                // External URL - need to fetch and convert to blob for cropping
+                                try {
+                                  const response = await fetch(imageUrl)
+                                  const blob = await response.blob()
+                                  const blobUrl = URL.createObjectURL(blob)
+                                  setTempImageUrl(blobUrl)
+                                  setShowImageCropper(true)
+                                } catch (error) {
+                                  console.error('Error loading image for cropping:', error)
+                                  toast.error('Failed to load image for cropping')
+                                }
+                              }
+                            }
+                          }}
+                          className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg transition-colors"
+                        >
+                          <Move size={16} />
+                          <span>Crop & Position</span>
+                        </button>
+                      </div>
+                      
+                      <p className="text-xs text-slate-500 text-center">
+                        {selectedHeaderImage ? 'Image has been cropped and positioned' : 'Current chapter image'}
+                      </p>
                     </div>
                   )}
                   
@@ -782,6 +854,22 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
         onCancel={cancelDeleteChapter}
         isLoading={isDeletingChapter}
       />
+
+      {/* Image Cropper Modal */}
+      {showImageCropper && tempImageUrl && (
+        <ImageCropper
+          imageUrl={tempImageUrl}
+          onCropComplete={handleCropComplete}
+          onCancel={() => {
+            setShowImageCropper(false)
+            setTempImageUrl(null)
+          }}
+          title="Position your chapter image"
+          aspectRatio={16 / 9}
+          outputWidth={480}
+          outputHeight={270}
+        />
+      )}
     </div>
   )
 } 

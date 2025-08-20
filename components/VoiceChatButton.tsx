@@ -13,6 +13,33 @@ export default function VoiceChatButton() {
   const [showConversation, setShowConversation] = useState(false)
   const [showUploadWidget, setShowUploadWidget] = useState(false)
   const [lastCreatedItem, setLastCreatedItem] = useState<{type: 'chapter' | 'memory', title: string, id?: string} | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const [conversationHistory, setConversationHistory] = useState<any[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  // Load conversation history
+  const loadConversationHistory = async () => {
+    if (!user || !session) return
+    
+    setLoadingHistory(true)
+    try {
+      const response = await fetch('/api/conversations', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setConversationHistory(data.conversations || [])
+      }
+    } catch (error) {
+      console.error('Failed to load conversation history:', error)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
 
   // Load VAPI SDK
   useEffect(() => {
@@ -193,170 +220,290 @@ export default function VoiceChatButton() {
 
   if (!user) {
     return (
-      <div className="p-4 border rounded-lg bg-yellow-50">
-        <p className="text-yellow-800">Please log in to chat with Maya</p>
+      <div className="card p-6 bg-amber-50 border-amber-200">
+        <p className="text-amber-800">Please log in to chat with Maya</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 shadow-2xl text-white min-h-[400px] flex flex-col">
+    <div className={`card-elevated flex flex-col bg-gradient-to-br from-white via-emerald-50/30 to-green-50/20 transition-all duration-300 ${
+      isCollapsed ? 'min-h-0' : 'min-h-[500px]'
+    }`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-teal-400 to-teal-500 flex items-center justify-center">
-            {isCallActive && (
-              <div className="flex items-center gap-1">
-                <div className="w-1 h-3 bg-white rounded-full animate-pulse"></div>
-                <div className="w-1 h-4 bg-white rounded-full animate-pulse" style={{animationDelay: '0.1s'}}></div>
-                <div className="w-1 h-2 bg-white rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-              </div>
-            )}
-            {!isCallActive && !isLoading && (
-              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-              </svg>
-            )}
-            {isLoading && (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            )}
+      <div className={`p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white transition-all duration-300 ${
+        isCollapsed ? 'rounded-2xl' : 'rounded-t-2xl'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
+              {isCallActive && (
+                <div className="flex items-center gap-1">
+                  <div className="w-1 h-3 bg-white rounded-full animate-pulse"></div>
+                  <div className="w-1 h-4 bg-white rounded-full animate-pulse" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-1 h-2 bg-white rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                </div>
+              )}
+              {!isCallActive && !isLoading && (
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 715 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                </svg>
+              )}
+              {isLoading && (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              )}
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-white">
+                Talk with Maya
+              </h3>
+              <p className="text-sm text-blue-100">
+                {isCallActive ? 'Listening to your memories...' : vapiLoaded ? 'Your AI memory assistant' : 'Loading voice system...'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white">
-              Talk with Maya
-            </h3>
-            <p className="text-sm text-gray-300">
-              {isCallActive ? 'Listening...' : vapiLoaded ? 'Click the microphone to start' : 'Loading voice system...'}
-            </p>
+          
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {/* History Button */}
+            {!isCallActive && (
+              <button
+                onClick={() => {
+                  setShowHistory(!showHistory)
+                  if (!showHistory) {
+                    loadConversationHistory()
+                  }
+                }}
+                className="text-white/80 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+                title="View conversation history"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
+              </button>
+            )}
+            
+            {/* Collapse Button */}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="text-white/80 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+              title={isCollapsed ? "Expand Maya" : "Minimize Maya"}
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" style={{ transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col items-center justify-center">
+      {!isCollapsed && (
+        <>
+        <div className="flex-1 p-6">
         {!isCallActive ? (
-          <div className="text-center">
-            <div className="w-20 h-20 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center mb-6 mx-auto transition-all duration-200 cursor-pointer" 
-                 onClick={startVoiceChat}>
-              <svg className="w-8 h-8 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-              </svg>
+          <div className="flex flex-col h-full">
+            {/* Conversation History */}
+            {showHistory && (
+              <div className="mb-6 bg-blue-50 rounded-xl p-4 border border-blue-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-blue-800">Recent Conversations</h4>
+                  <button
+                    onClick={() => setShowHistory(false)}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                {loadingHistory ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
+                    <p className="text-sm text-blue-600 mt-2">Loading conversations...</p>
+                  </div>
+                ) : conversationHistory.length > 0 ? (
+                  <div className="space-y-3 max-h-40 overflow-y-auto">
+                    {conversationHistory.slice(0, 5).map((conversation) => (
+                      <div
+                        key={conversation.id}
+                        className="bg-white rounded-lg p-3 border border-blue-200"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-blue-600 font-medium">
+                            {new Date(conversation.startedAt).toLocaleDateString()} {new Date(conversation.startedAt).toLocaleTimeString()}
+                          </span>
+                          {conversation.duration && (
+                            <span className="text-xs text-gray-500">
+                              {Math.round(conversation.duration / 60)}m
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-700 line-clamp-2">
+                          {conversation.messages.length > 0 
+                            ? conversation.messages[0].content.substring(0, 100) + '...'
+                            : 'No messages recorded'
+                          }
+                        </p>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {conversation.messages.length} messages
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-blue-600 text-center py-4">
+                    No conversations yet. Start your first chat with Maya!
+                  </p>
+                )}
+              </div>
+            )}
+            
+            {/* Sample conversation starters */}
+            {!showHistory && (
+              <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">💬 Try saying:</h4>
+              <div className="space-y-2">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800">
+                  "Tell me about my childhood memories"
+                </div>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-sm text-indigo-800">
+                  "I want to save a memory from last summer"
+                </div>
+                <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 text-sm text-cyan-800">
+                  "Create a new chapter for my college years"
+                </div>
+                <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 text-sm text-sky-800">
+                  "What memories do I have from 2020?"
+                </div>
+              </div>
+              </div>
+            )}
+            
+            {/* Start button */}
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 flex items-center justify-center mb-4 mx-auto transition-all duration-200 cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-105" 
+                   onClick={startVoiceChat}>
+                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 715 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <p className="text-gray-600 text-center text-sm">
+                Click to start your conversation with Maya
+              </p>
             </div>
-            <p className="text-gray-300 text-center mb-6">
-              Click the microphone to begin a conversation
-            </p>
           </div>
         ) : (
-          <div className="text-center">
-            <div className="w-20 h-20 rounded-full bg-teal-500 flex items-center justify-center mb-6 mx-auto relative">
-              <div className="absolute inset-0 rounded-full bg-teal-400 animate-ping opacity-75"></div>
-              <svg className="w-8 h-8 text-white relative z-10" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 715 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-              </svg>
+          <div className="flex flex-col h-full">
+            {/* Active conversation area */}
+            <div className="flex-1 flex flex-col items-center justify-center mb-6">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center mb-4 relative">
+                <div className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-75"></div>
+                <svg className="w-8 h-8 text-white relative z-10" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 715 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                </svg>
+              </div>
+              
+              <div className="text-center">
+                <p className="text-blue-700 font-semibold mb-2">
+                  Maya is listening...
+                </p>
+                <p className="text-gray-600 text-sm">
+                  Share your memories naturally
+                </p>
+              </div>
             </div>
-            <p className="text-teal-300 text-center mb-6">
-              Maya is listening...
-            </p>
+            
+            {/* Live conversation display */}
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-blue-200 p-4 h-[150px] overflow-y-auto">
+              {conversationLog.length > 0 ? (
+                <div className="space-y-3">
+                  {conversationLog.slice(-3).map((entry, index) => (
+                    <div key={index} className={`text-sm p-3 rounded-lg ${
+                      entry.role === 'user' 
+                        ? 'bg-blue-100 text-blue-800 ml-6' 
+                        : 'bg-indigo-100 text-indigo-800 mr-6'
+                    }`}>
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-semibold text-xs">
+                          {entry.role === 'user' ? '👤 You' : '🤖 Maya'}:
+                        </span>
+                        <span className="text-xs opacity-60">{entry.timestamp}</span>
+                      </div>
+                      <div>{entry.message}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 text-sm">
+                  Your conversation will appear here...
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
       {/* Bottom Action Area */}
-      <div className="mt-auto">
+      <div className="p-6 pt-0">
         {!isCallActive ? (
           <button
             onClick={startVoiceChat}
             disabled={isLoading || !vapiLoaded}
-            className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white py-4 rounded-xl hover:from-teal-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all duration-200 text-lg font-medium"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-xl hover:from-blue-700 hover:to-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all duration-200 text-lg font-semibold shadow-lg hover:shadow-xl"
           >
             {isLoading ? (
               <>
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-3"></div>
                 Starting...
               </>
             ) : !vapiLoaded ? (
               <>
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-3"></div>
                 Loading...
               </>
             ) : (
               <>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 715 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
                 </svg>
-                Start
+                Start Conversation
               </>
             )}
           </button>
         ) : (
           <button
             onClick={stopVoiceChat}
-            className="w-full bg-red-600 text-white py-4 rounded-xl hover:bg-red-700 flex items-center justify-center gap-3 transition-all duration-200 text-lg font-medium"
+            className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-4 rounded-xl hover:from-red-600 hover:to-red-700 flex items-center justify-center gap-3 transition-all duration-200 text-lg font-semibold shadow-lg hover:shadow-xl"
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
             </svg>
-            End Call
+            End Conversation
           </button>
         )}
       </div>
 
-      {/* Conversation Display */}
-      {conversationLog.length > 0 && (
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-semibold">💬 Conversation</h4>
-            <button
-              onClick={() => setShowConversation(!showConversation)}
-              className="text-xs text-blue-600 hover:text-blue-800"
-            >
-              {showConversation ? 'Hide' : 'Show'} ({conversationLog.length})
-            </button>
-          </div>
-          
-          {showConversation && (
-            <div className="max-h-40 overflow-y-auto bg-gray-50 rounded p-2 space-y-1">
-              {conversationLog.map((entry, index) => (
-                <div key={index} className={`text-xs p-2 rounded ${
-                  entry.role === 'user' 
-                    ? 'bg-blue-100 text-blue-800 ml-4' 
-                    : 'bg-gray-100 text-gray-800 mr-4'
-                }`}>
-                  <div className="flex justify-between items-start">
-                    <span className="font-semibold">
-                      {entry.role === 'user' ? '👤 You' : '🤖 Maya'}:
-                    </span>
-                    <span className="text-gray-500 text-xs">{entry.timestamp}</span>
-                  </div>
-                  <div className="mt-1">{entry.message}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Upload Media Widget */}
       {showUploadWidget && lastCreatedItem && (
-        <div className="mt-4 bg-gradient-to-r from-gray-800 to-gray-700 rounded-xl p-4 border border-gray-600">
+        <div className="m-6 mt-0 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-teal-500 flex items-center justify-center">
+              <div className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center">
                 <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                 </svg>
               </div>
-              <h4 className="font-medium text-white">Add Media to {lastCreatedItem.title}</h4>
+              <h4 className="font-medium text-blue-800">Add Media to {lastCreatedItem.title}</h4>
             </div>
             <button
               onClick={() => setShowUploadWidget(false)}
-              className="text-gray-400 hover:text-white text-lg transition-colors"
+              className="text-blue-600 hover:text-blue-800 text-lg transition-colors"
             >
               ×
             </button>
           </div>
           
-          <p className="text-sm text-gray-300 mb-3">
+          <p className="text-sm text-blue-700 mb-3">
             Enhance your {lastCreatedItem.type} with photos and videos
           </p>
           
@@ -382,7 +529,7 @@ export default function VoiceChatButton() {
             <div className="grid grid-cols-2 gap-3">
               <label
                 htmlFor="media-upload"
-                className="flex items-center justify-center gap-2 bg-teal-600 text-white px-4 py-3 rounded-lg hover:bg-teal-700 cursor-pointer text-sm transition-colors font-medium"
+                className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 cursor-pointer text-sm transition-colors font-medium"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
@@ -401,15 +548,23 @@ export default function VoiceChatButton() {
               </button>
             </div>
             
-            <p className="text-xs text-gray-400 text-center">
+            <p className="text-xs text-blue-600 text-center">
               Supports: JPG, PNG, GIF, MP4, MOV
             </p>
           </div>
         </div>
       )}
-
-      {!vapiLoaded && (
-        <div className="mt-4 p-3 bg-gray-800 border border-gray-600 rounded-lg text-xs text-gray-300">
+      
+        {!vapiLoaded && (
+          <div className="m-6 mt-0 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+            <strong>Note:</strong> Voice chat requires API configuration. Contact support if you're having issues.
+          </div>
+        )}
+        </>
+      )}
+      
+      {!vapiLoaded && isCollapsed && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
           <strong>Note:</strong> Voice chat requires API configuration. Contact support if you're having issues.
         </div>
       )}

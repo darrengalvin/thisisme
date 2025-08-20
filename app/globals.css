@@ -6,7 +6,7 @@
 
 @layer base {
   * {
-    @apply border-emerald-200;
+    @apply border-blue-200;
   }
   
   html {
@@ -14,7 +14,7 @@
   }
   
   body {
-    @apply bg-gradient-to-br from-green-50 via-amber-50 to-emerald-50 text-gray-900 min-h-screen;
+    @apply bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 text-gray-900 min-h-screen;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -25,7 +25,7 @@
   }
   
   .btn-primary {
-    @apply btn bg-gradient-to-r from-emerald-600 to-green-700 text-white hover:from-emerald-700 hover:to-green-800 focus-visible:ring-emerald-500 px-6 py-3;
+    @apply btn bg-gradient-to-r from-blue-600 to-indigo-700 text-white hover:from-blue-700 hover:to-indigo-800 focus-visible:ring-blue-500 px-6 py-3;
   }
   
   .btn-secondary {
@@ -33,19 +33,19 @@
   }
   
   .btn-accent {
-    @apply btn bg-gradient-to-r from-teal-600 to-emerald-600 text-white hover:from-teal-700 hover:to-emerald-700 focus-visible:ring-teal-500 px-6 py-3;
+    @apply btn bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-700 hover:to-blue-700 focus-visible:ring-cyan-500 px-6 py-3;
   }
   
   .btn-outline {
-    @apply btn border-2 border-emerald-200 bg-white/80 backdrop-blur-sm text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 focus-visible:ring-emerald-500 px-6 py-3;
+    @apply btn border-2 border-blue-200 bg-white/80 backdrop-blur-sm text-blue-700 hover:bg-blue-50 hover:border-blue-300 focus-visible:ring-blue-500 px-6 py-3;
   }
   
   .btn-ghost {
-    @apply btn bg-transparent hover:bg-emerald-100 text-gray-700 hover:text-emerald-800 px-4 py-2 shadow-none hover:shadow-sm;
+    @apply btn bg-transparent hover:bg-blue-100 text-gray-700 hover:text-blue-800 px-4 py-2 shadow-none hover:shadow-sm;
   }
   
   .input {
-    @apply flex h-12 w-full rounded-xl border-2 border-emerald-200 bg-white/80 backdrop-blur-sm px-4 py-3 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200;
+    @apply flex h-12 w-full rounded-xl border-2 border-blue-200 bg-white/80 backdrop-blur-sm px-4 py-3 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:border-blue-400 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200;
   }
   
   .textarea {
@@ -53,7 +53,7 @@
   }
   
   .card {
-    @apply rounded-2xl border border-emerald-200/50 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden;
+    @apply rounded-2xl border border-blue-200/50 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden;
   }
   
   .card-elevated {
@@ -61,7 +61,7 @@
   }
   
   .glass {
-    @apply bg-white/20 backdrop-blur-md border border-emerald-200/30;
+    @apply bg-white/20 backdrop-blur-md border border-blue-200/30;
   }
   
   .container-responsive {
@@ -73,20 +73,20 @@
   }
   
   .nav-item-active {
-    @apply nav-item text-emerald-600 bg-gradient-to-br from-emerald-50 to-green-100 shadow-md;
+    @apply nav-item text-blue-600 bg-gradient-to-br from-blue-50 to-indigo-100 shadow-md;
   }
   
   .nav-item-inactive {
-    @apply nav-item text-gray-500 hover:text-emerald-600 hover:bg-emerald-50;
+    @apply nav-item text-gray-500 hover:text-blue-600 hover:bg-blue-50;
   }
 
   /* Memory Tree specific navigation styles */
   .nav-item-active-tree {
-    @apply nav-item text-emerald-600 bg-gradient-to-br from-emerald-50 to-green-100 shadow-md border border-emerald-200;
+    @apply nav-item text-blue-600 bg-gradient-to-br from-blue-50 to-indigo-100 shadow-md border border-blue-200;
   }
   
   .nav-item-inactive-tree {
-    @apply nav-item text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 border border-transparent;
+    @apply nav-item text-gray-500 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 border border-transparent;
   }
   
   .media-container {
@@ -99,7 +99,7 @@
 
   /* Memory Tree theme overrides */
   .primary-gradient {
-    @apply bg-gradient-to-r from-emerald-600 to-green-700;
+    @apply bg-gradient-to-r from-blue-600 to-indigo-700;
   }
 
   .secondary-gradient {
@@ -107,7 +107,7 @@
   }
 
   .accent-gradient {
-    @apply bg-gradient-to-r from-teal-600 to-emerald-600;
+    @apply bg-gradient-to-r from-cyan-600 to-blue-600;
   }
 
   /* Animations */
@@ -150,20 +150,20 @@
 
   /* Memory Tree specific components */
   .memory-branch {
-    @apply relative before:absolute before:left-0 before:top-0 before:bottom-0 before:w-0.5 before:bg-emerald-300 before:content-[''];
+    @apply relative before:absolute before:left-0 before:top-0 before:bottom-0 before:w-0.5 before:bg-blue-300 before:content-[''];
   }
 
   .memory-leaf {
-    @apply relative pl-6 before:absolute before:left-0 before:top-1/2 before:w-4 before:h-0.5 before:bg-emerald-300 before:content-[''] before:-translate-y-1/2;
+    @apply relative pl-6 before:absolute before:left-0 before:top-1/2 before:w-4 before:h-0.5 before:bg-blue-300 before:content-[''] before:-translate-y-1/2;
   }
 
   /* Additional tree-themed styles */
   .tree-shadow {
-    @apply shadow-lg shadow-emerald-200/50;
+    @apply shadow-lg shadow-blue-200/50;
   }
 
   .tree-glow {
-    @apply ring-emerald-200 ring-2 ring-opacity-50;
+    @apply ring-blue-200 ring-2 ring-opacity-50;
   }
 
   /* Beautiful Timeline Animations */

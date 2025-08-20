@@ -880,9 +880,28 @@ ${!approved ? '⚠️ ATTENTION: AI flagged potential issues - please review car
                   <p>Automated PRs with full documentation for review</p>
                 </div>
               </div>
-              <p className="text-blue-700 mt-4">
-                Powered by Claude 3.5 Sonnet - Superior code understanding and generation compared to GPT models
-              </p>
+              <div className="text-blue-700 mt-4 space-y-2">
+                <p>
+                  <strong>AI Models Available:</strong>
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs bg-white/50 rounded-lg p-3">
+                  <div className="flex flex-col">
+                    <span className="font-medium text-blue-800">Claude 3.5 Sonnet</span>
+                    <span className="text-blue-600">Primary analysis & code generation</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-green-800">GPT-5 Chat ✨</span>
+                    <span className="text-green-600">Advanced conversation & streaming</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-purple-800">GPT-5 Responses ⚡</span>
+                    <span className="text-purple-600">Enhanced reasoning capabilities</span>
+                  </div>
+                </div>
+                <p className="text-xs">
+                  Multi-model AI approach ensures optimal results for different task types
+                </p>
+              </div>
             </div>
           </div>
         </div>

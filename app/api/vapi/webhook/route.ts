@@ -1254,62 +1254,163 @@ async function getUserContextForTool(parameters: any, call: any, authenticatedUs
   }
 }
 
-// Placeholder functions for other tools
+// Save memory tool for VAPI tools format
 async function saveMemoryForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
-  return "Save memory tool not yet implemented for new VAPI format"
+  const { title, content, text_content, year, age, location, userId: paramUserId } = parameters
+  
+  // Handle both 'content' and 'text_content' parameter names
+  const actualContent = text_content || content
+  
+  console.log('💭 🚀 MEMORY SAVE STARTING (TOOL)')
+  console.log('💭 Title:', title)
+  console.log('💭 Content:', content)
+  console.log('💭 Year:', year)
+  console.log('💭 Location:', location)
+  
+  // Get userId - prioritize parameter, then fallback
+  let userId = paramUserId
+  if (!userId) {
+    userId = extractUserIdFromCall(call, authenticatedUserId)
+  }
+  
+  console.log('💭 👤 Final userId for memory:', userId)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "❌ I need to know who you are to save a memory. Please make sure you're logged in."
+  }
+  
+  if (!title || !actualContent) {
+    return "❌ I need at least a title and some content to save your memory."
+  }
+
+  try {
+    // Build content with additional details (like the working version does)
+    let fullContent = actualContent
+    if (location) {
+      fullContent += `\n\nLocation: ${location}`
+    }
+    
+    // Calculate approximate date from year or age
+    let approximateDate = null
+    if (year) {
+      approximateDate = year.toString()
+    } else if (age) {
+      // Get user's birth year for age calculations
+      const { data: userProfile } = await supabaseAdmin
+        .from('users')
+        .select('birth_year')
+        .eq('id', userId)
+        .single()
+      
+      if (userProfile?.birth_year) {
+        const calculatedYear = userProfile.birth_year + parseInt(age)
+        approximateDate = `Age ${age} (${calculatedYear})`
+      } else {
+        approximateDate = `Age ${age}`
+      }
+    }
+
+    // Insert memory into database using the correct structure
+    const insertData = {
+      user_id: userId,
+      title: title,
+      text_content: fullContent,
+      approximate_date: approximateDate,
+      date_precision: year ? 'exact' : 'approximate',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+    
+    const { data: memory, error } = await supabaseAdmin
+      .from('memories')
+      .insert([insertData])
+      .select()
+      .single()
+
+    if (error) {
+      console.error('💭 ❌ Memory creation failed:', error)
+      return `❌ Failed to save memory: ${error.message}`
+    }
+
+    console.log('💭 ✅ Memory saved successfully:', memory.id)
+    return `✅ Perfect! I've saved your "${title}" memory. Feel free to add any pictures or videos to it, or you can do this later. What other memories would you like to share?`
+
+  } catch (error) {
+    console.error('💭 💥 Memory creation error:', error)
+    return `❌ Sorry, I had trouble saving that memory: ${error instanceof Error ? error.message : 'Unknown error'}`
+  }
 }
 
 async function searchMemoriesForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
-  const { query, timeframe, age, year, chapter_name } = parameters
+  const { query, year, location, userId: paramUserId } = parameters
   
-  // Use authenticated user ID or extract from call object
-  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  console.log('🔍 🚀 MEMORY SEARCH STARTING (TOOL)')
+  console.log('🔍 Query:', query)
+  console.log('🔍 Year filter:', year)
+  console.log('🔍 Location filter:', location)
   
-  console.log('🔍 SEARCHING MEMORIES (TOOL) for:', userId, { query, timeframe, age, year, chapter_name })
-  
-  // Validate user ID
-  if (!userId || userId === 'NOT_FOUND') {
-    console.log('🔍 ERROR: No valid user identification from VAPI')
-    return "I need to know who you are to search your memories. Please configure user identification in VAPI."
+  // Get userId - prioritize parameter, then fallback
+  let userId = paramUserId
+  if (!userId) {
+    userId = extractUserIdFromCall(call, authenticatedUserId)
   }
   
+  console.log('🔍 👤 Final userId for search:', userId)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "❌ I need to know who you are to search your memories. Please make sure you're logged in."
+  }
+
   try {
-    // Search memories in the database
-    const { data: memories, error } = await supabaseAdmin
+    // Build search query
+    let searchQuery = supabaseAdmin
       .from('memories')
-      .select('id, title, content, approximate_date, created_at')
+      .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(10)
     
-    if (error) throw error
-    
-    const memoryCount = memories?.length || 0
-    
-    if (memoryCount === 0) {
-      return "You don't have any memories saved yet. Would you like to tell me about a memory to capture?"
+    // Add filters if provided
+    if (query) {
+      searchQuery = searchQuery.or(`title.ilike.%${query}%,text_content.ilike.%${query}%`)
     }
     
-    let searchResults = `I found ${memoryCount} memories in your timeline:\n\n`
+    if (year) {
+      searchQuery = searchQuery.ilike('approximate_date', `%${year}%`)
+    }
     
-    memories?.forEach((memory, index) => {
-      searchResults += `${index + 1}. **${memory.title}**\n`
-      if (memory.content) {
-        searchResults += `   ${memory.content.substring(0, 100)}...\n`
-      }
-      if (memory.approximate_date) {
-        searchResults += `   Date: ${memory.approximate_date}\n`
-      }
-      searchResults += `\n`
+    if (location) {
+      searchQuery = searchQuery.ilike('text_content', `%${location}%`)
+    }
+    
+    // Order by most recent first
+    searchQuery = searchQuery.order('created_at', { ascending: false })
+    
+    const { data: memories, error } = await searchQuery.limit(10)
+
+    if (error) {
+      console.error('🔍 ❌ Memory search failed:', error)
+      return `❌ Failed to search memories: ${error.message}`
+    }
+
+    console.log('🔍 ✅ Found', memories?.length || 0, 'memories')
+    
+    if (!memories || memories.length === 0) {
+      return `🔍 No memories found${query ? ` for "${query}"` : ''}${year ? ` from ${year}` : ''}${location ? ` in ${location}` : ''}. Try a different search or add some memories first!`
+    }
+
+    let response = `🔍 Found ${memories.length} memor${memories.length === 1 ? 'y' : 'ies'}${query ? ` matching "${query}"` : ''}:\n\n`
+    
+    memories.forEach((memory, index) => {
+      response += `${index + 1}. **${memory.title}**`
+      if (memory.approximate_date) response += ` (${memory.approximate_date})`
+      response += `\n   ${memory.text_content.substring(0, 100)}${memory.text_content.length > 100 ? '...' : ''}\n\n`
     })
     
-    searchResults += `Would you like me to tell you more about any of these memories, or help you add a new one?`
-    
-    return searchResults
-    
+    response += `Would you like me to tell you more about any of these memories?`
+    return response
+
   } catch (error) {
-    console.error('🔍 ERROR searching memories:', error)
-    return `Sorry, I encountered an error searching your memories: ${error instanceof Error ? error.message : 'Unknown error'}`
+    console.error('🔍 💥 Memory search error:', error)
+    return `❌ Sorry, I had trouble searching your memories: ${error instanceof Error ? error.message : 'Unknown error'}`
   }
 }
 

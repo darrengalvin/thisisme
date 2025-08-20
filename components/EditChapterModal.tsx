@@ -310,14 +310,32 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
                 {/* Actions */}
                 <div className="flex items-center justify-center space-x-3">
                   <button
-                    onClick={() => {
-                      setTempImageUrl(previewImageUrl || editingChapter.headerImageUrl)
-                      setShowImageCropper(true)
+                    onClick={async () => {
+                      const imageUrl = previewImageUrl || editingChapter.headerImageUrl
+                      if (imageUrl) {
+                        if (imageUrl.startsWith('blob:')) {
+                          // Already a blob URL, use directly
+                          setTempImageUrl(imageUrl)
+                          setShowImageCropper(true)
+                        } else {
+                          // External URL - need to fetch and convert to blob for cropping
+                          try {
+                            const response = await fetch(imageUrl)
+                            const blob = await response.blob()
+                            const blobUrl = URL.createObjectURL(blob)
+                            setTempImageUrl(blobUrl)
+                            setShowImageCropper(true)
+                          } catch (error) {
+                            console.error('Error loading image for cropping:', error)
+                            toast.error('Failed to load image for cropping')
+                          }
+                        }
+                      }
                     }}
-                    className="inline-flex items-center space-x-2 bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg transition-colors"
                   >
                     <Move size={16} />
-                    <span>Adjust Position</span>
+                    <span>Crop & Position</span>
                   </button>
                 </div>
                 

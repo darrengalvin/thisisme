@@ -176,6 +176,30 @@ async function getUserContextForTool(parameters, call, urlUserId = null) {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
 
+    // Get recent conversations if requested
+    let recentConversations = []
+    if (context_type === 'conversation_history') {
+      const { data: conversations, error: conversationError } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          started_at,
+          ended_at,
+          conversation_messages (
+            role,
+            content,
+            timestamp
+          )
+        `)
+        .eq('user_id', userId)
+        .order('started_at', { ascending: false })
+        .limit(3)
+
+      if (!conversationError && conversations) {
+        recentConversations = conversations
+      }
+    }
+
     const userName = user.email?.split('@')[0] || 'there'
     const currentYear = new Date().getFullYear()
     const currentAge = user.birth_year ? currentYear - user.birth_year : null
@@ -214,6 +238,26 @@ async function getUserContextForTool(parameters, call, urlUserId = null) {
     }
 
     response += `\n💭 **Your Memories:** You have ${memoriesCount || 0} memories saved\n`
+    
+    // Include conversation history if requested
+    if (context_type === 'conversation_history' && recentConversations.length > 0) {
+      response += `\n💬 **Recent Conversations (${recentConversations.length}):**\n`
+      recentConversations.forEach((conv, index) => {
+        const date = new Date(conv.started_at).toLocaleDateString()
+        const messageCount = conv.conversation_messages?.length || 0
+        response += `${index + 1}. ${date} - ${messageCount} messages`
+        
+        // Show a preview of the conversation
+        if (conv.conversation_messages && conv.conversation_messages.length > 0) {
+          const firstMessage = conv.conversation_messages[0]
+          const preview = firstMessage.content.substring(0, 50)
+          response += ` ("${preview}...")` 
+        }
+        response += `\n`
+      })
+      response += `\nI can reference our previous conversations to provide better context and continuity!\n`
+    }
+    
     response += `\nI'm ready to help you capture new memories, search existing ones, or organize your timeline!`
 
     return response
@@ -398,11 +442,11 @@ async function searchMemoriesForTool(parameters, call, urlUserId = null) {
     
     // Add filters if provided
     if (query) {
-      searchQuery = searchQuery.or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+      searchQuery = searchQuery.or(`title.ilike.%${query}%,text_content.ilike.%${query}%`)
     }
     
     if (year) {
-      searchQuery = searchQuery.eq('year', parseInt(year))
+      searchQuery = searchQuery.ilike('approximate_date', `%${year}%`)
     }
     
     if (location) {
@@ -429,9 +473,10 @@ async function searchMemoriesForTool(parameters, call, urlUserId = null) {
     
     memories.forEach((memory, index) => {
       response += `${index + 1}. **${memory.title}**`
-      if (memory.year) response += ` (${memory.year})`
+      if (memory.approximate_date) response += ` (${memory.approximate_date})`
       if (memory.location) response += ` - ${memory.location}`
-      response += `\n   ${memory.content.substring(0, 100)}${memory.content.length > 100 ? '...' : ''}\n\n`
+      const textContent = memory.text_content || ''
+      response += `\n   ${textContent.substring(0, 100)}${textContent.length > 100 ? '...' : ''}\n\n`
     })
     
     response += `Would you like me to tell you more about any of these memories?`
@@ -440,6 +485,92 @@ async function searchMemoriesForTool(parameters, call, urlUserId = null) {
   } catch (error) {
     console.error('🔍 💥 Memory search error:', error)
     return `❌ Sorry, I had trouble searching your memories: ${error.message}`
+  }
+}
+
+// Conversation tracking functions
+async function startConversation(callId, userId) {
+  if (!callId || !userId) return null
+  
+  try {
+    const { data: conversation, error } = await supabase
+      .from('conversations')
+      .insert({
+        call_id: callId,
+        user_id: userId,
+        started_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('💬 Failed to start conversation:', error)
+      return null
+    }
+    
+    console.log('💬 ✅ Conversation started:', conversation.id)
+    return conversation
+  } catch (error) {
+    console.error('💬 Error starting conversation:', error)
+    return null
+  }
+}
+
+async function endConversation(callId, duration = null) {
+  if (!callId) return
+  
+  try {
+    const { error } = await supabase
+      .from('conversations')
+      .update({
+        ended_at: new Date().toISOString(),
+        duration_seconds: duration
+      })
+      .eq('call_id', callId)
+    
+    if (error) {
+      console.error('💬 Failed to end conversation:', error)
+    } else {
+      console.log('💬 ✅ Conversation ended for call:', callId)
+    }
+  } catch (error) {
+    console.error('💬 Error ending conversation:', error)
+  }
+}
+
+async function saveConversationMessage(callId, role, content, toolCalls = null) {
+  if (!callId || !role || !content) return
+  
+  try {
+    // Find the conversation
+    const { data: conversation } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('call_id', callId)
+      .single()
+    
+    if (!conversation) {
+      console.log('💬 No conversation found for call:', callId)
+      return
+    }
+    
+    const { error } = await supabase
+      .from('conversation_messages')
+      .insert({
+        conversation_id: conversation.id,
+        role: role,
+        content: content,
+        tool_calls: toolCalls,
+        timestamp: new Date().toISOString()
+      })
+    
+    if (error) {
+      console.error('💬 Failed to save message:', error)
+    } else {
+      console.log('💬 ✅ Message saved:', role, content.substring(0, 50) + '...')
+    }
+  } catch (error) {
+    console.error('💬 Error saving message:', error)
   }
 }
 
@@ -517,6 +648,15 @@ app.post('/vapi/webhook', async (req, res) => {
           toolCallId: toolCallId,
           result: result
         })
+        
+        // Save tool response as assistant message
+        if (call?.id && result) {
+          await saveConversationMessage(call.id, 'assistant', result, {
+            toolCallId: toolCallId,
+            functionName: functionName,
+            functionArgs: functionArgs
+          })
+        }
       }
 
       // Return results to VAPI
@@ -525,6 +665,45 @@ app.post('/vapi/webhook', async (req, res) => {
 
     // Handle other message types
     console.log('🎤 Non-tool message type:', message?.type)
+    
+    // Handle conversation events
+    const callId = call?.id
+    const userId = await extractUserIdFromCall(call, null, urlUserId)
+    
+    switch (message?.type) {
+      case 'conversation-started':
+      case 'call-started':
+        console.log('💬 📞 CALL STARTED:', callId)
+        if (callId && userId) {
+          await startConversation(callId, userId)
+        }
+        break
+        
+      case 'conversation-ended':
+      case 'call-ended':
+        console.log('💬 📞 CALL ENDED:', callId)
+        if (callId) {
+          await endConversation(callId, call?.duration)
+        }
+        break
+        
+      case 'transcript':
+        console.log('💬 📝 TRANSCRIPT:', message?.transcript?.text?.substring(0, 50))
+        if (callId && message?.transcript?.text) {
+          const role = message.transcript.role === 'assistant' ? 'assistant' : 'user'
+          await saveConversationMessage(callId, role, message.transcript.text)
+        }
+        break
+        
+      case 'message':
+        console.log('💬 💬 MESSAGE:', message?.content?.substring(0, 50))
+        if (callId && message?.content) {
+          const role = message.role === 'assistant' ? 'assistant' : 'user'
+          await saveConversationMessage(callId, role, message.content)
+        }
+        break
+    }
+    
     return res.json({ success: true, message: 'Webhook received' })
 
   } catch (error) {

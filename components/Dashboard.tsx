@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { Plus, User, LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, UserCheck, AlertTriangle, Search, Brain } from 'lucide-react'
+import { Plus, User, LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, UserCheck, AlertTriangle, Search } from 'lucide-react'
 import MemoryViews from './MemoryViews'
 import GroupManager from './GroupManager'
 import CreateMemory from './CreateMemory'
@@ -16,7 +16,7 @@ import EditMemoryModal from './EditMemoryModal'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
 import { useAuth } from '@/components/AuthProvider'
 import TicketNotifications from '@/components/TicketNotifications'
-import AIChatInterface from './AIChatInterface'
+
 import VoiceChatButton from './VoiceChatButton'
 import { MemoryWithRelations } from '@/lib/types'
 
@@ -76,7 +76,7 @@ export default function Dashboard() {
   const [showUserSwitcher, setShowUserSwitcher] = useState(false)
   const [availableUsers, setAvailableUsers] = useState<any[]>([])
   const [userSearchTerm, setUserSearchTerm] = useState('')
-  const [showAIChat, setShowAIChat] = useState(false)
+
   const [highlightedMemories, setHighlightedMemories] = useState<Set<string>>(new Set())
   const [voiceAddedMemories, setVoiceAddedMemories] = useState<Set<string>>(new Set())
   
@@ -1427,53 +1427,7 @@ export default function Dashboard() {
         <VoiceChatButton />
       </div>
 
-      {/* AI Chat Floating Button - Secondary option */}
-      {!showAIChat && (
-        <button 
-          onClick={() => setShowAIChat(true)}
-          className="fixed bottom-6 left-6 p-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all transform hover:scale-105 z-40"
-          title="AI Memory Assistant (Text)"
-        >
-          <Brain className="w-5 h-5" />
-        </button>
-      )}
 
-      {/* AI Chat Interface */}
-      {showAIChat && (
-        <>
-          <div className="fixed bottom-6 right-6 z-50">
-            <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-96 h-[500px] flex flex-col">
-              <div className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-lg">
-                <div className="flex items-center gap-2">
-                  <Brain className="w-5 h-5" />
-                  <span className="font-medium">AI Memory Assistant</span>
-                </div>
-                <button
-                  onClick={() => setShowAIChat(false)}
-                  className="text-white/80 hover:text-white text-xl leading-none"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <AIChatInterface 
-                  onMemoryCreated={(memory) => {
-                    // Refresh memories list
-                    fetchUserAndMemories()
-                    toast.success('New memory created through AI chat!')
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Backdrop for mobile */}
-          <div 
-            className="fixed inset-0 bg-black/20 z-40 md:hidden"
-            onClick={() => setShowAIChat(false)}
-          />
-        </>
-      )}
     </div>
   )
 } 

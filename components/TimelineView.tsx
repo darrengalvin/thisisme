@@ -377,7 +377,7 @@ export default function TimelineView({
                         >
                           {/* Chapter Header Image */}
                           {chapter.headerImageUrl && (
-                            <div className="relative h-20 bg-slate-100 rounded-lg mb-3 overflow-hidden">
+                            <div className="relative h-32 bg-slate-100 rounded-lg mb-3 overflow-hidden">
                               <img 
                                 src={chapter.headerImageUrl} 
                                 alt={chapter.title}
@@ -471,7 +471,7 @@ export default function TimelineView({
                                 setShowEditModal(true)
                               }}
                               className="w-6 h-6 bg-white/80 hover:bg-white rounded-md flex items-center justify-center transition-colors"
-                              title="Edit Chapter"
+                              title="Edit Chapter joa"
                             >
                               <Edit size={12} className="text-slate-600" />
                             </button>

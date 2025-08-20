@@ -287,6 +287,98 @@ export default function DebugVAPIPage() {
     }
   }
 
+  // Test conversation history functionality
+  const testConversationHistory = async () => {
+    if (!user) {
+      alert('Please log in first')
+      return
+    }
+    
+    setIsLoading(true)
+    setTestResult(null)
+    
+    try {
+      const response = await fetch('/api/conversations')
+      const data = await response.json()
+      
+      setTestResult({
+        status: 'success',
+        message: `Found ${data.conversations?.length || 0} conversations`,
+        data: data.conversations?.slice(0, 3) // Show first 3 for debugging
+      })
+    } catch (error) {
+      setTestResult({
+        status: 'error',
+        message: `Failed to fetch conversations: ${error instanceof Error ? error.message : 'Unknown error'}`
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Test if Maya has conversation context
+  const testMayaConversationContext = async () => {
+    if (!user) {
+      alert('Please log in first')
+      return
+    }
+    
+    setIsLoading(true)
+    setTestResult(null)
+    
+    try {
+      // First, get user's recent conversations
+      const conversationsResponse = await fetch('/api/conversations?limit=1')
+      const conversationsData = await conversationsResponse.json()
+      
+      if (!conversationsData.conversations || conversationsData.conversations.length === 0) {
+        setTestResult({
+          status: 'warning',
+          message: 'No conversation history found. Have a conversation with Maya first!'
+        })
+        setIsLoading(false)
+        return
+      }
+      
+      const lastConversation = conversationsData.conversations[0]
+      
+      // Test if Maya can access this conversation via get-user-context tool
+      const testResponse = await fetch('/api/debug/test-vapi-tools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tool: 'get-user-context',
+          parameters: { context_type: 'conversation_history' }
+        })
+      })
+      
+      const testResult = await testResponse.json()
+      
+      setTestResult({
+        status: testResponse.ok ? 'success' : 'error',
+        message: testResponse.ok 
+          ? `Maya can access conversation context! Last conversation: ${lastConversation.messages?.length || 0} messages`
+          : `Maya cannot access conversation context: ${testResult.error}`,
+        data: {
+          lastConversation: {
+            id: lastConversation.id,
+            startedAt: lastConversation.startedAt,
+            messageCount: lastConversation.messages?.length || 0,
+            lastMessage: lastConversation.messages?.[lastConversation.messages.length - 1]?.content?.substring(0, 100)
+          },
+          mayaResponse: testResult.result
+        }
+      })
+    } catch (error) {
+      setTestResult({
+        status: 'error',
+        message: `Failed to test Maya's conversation context: ${error instanceof Error ? error.message : 'Unknown error'}`
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString()
   }
@@ -908,6 +1000,27 @@ export default function DebugVAPIPage() {
                   className="w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
                 >
                   {isLoading ? 'Testing...' : 'Test create-chapter'}
+                </button>
+              </div>
+
+              {/* Conversation History Tests */}
+              <div className="border-t pt-3">
+                <h3 className="text-sm font-semibold text-gray-600 mb-2">💬 Conversation History Tests</h3>
+                
+                <button
+                  onClick={testConversationHistory}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 disabled:opacity-50 mb-2"
+                >
+                  {isLoading ? 'Testing...' : '📋 Test Conversation History API'}
+                </button>
+                
+                <button
+                  onClick={testMayaConversationContext}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isLoading ? 'Testing...' : '🤖 Test Maya\'s Conversation Context'}
                 </button>
               </div>
             </div>

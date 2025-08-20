@@ -308,11 +308,11 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                 <div className="space-y-4">
                   {/* Image Preview */}
                   <div className="relative">
-                    <div className="relative w-80 mx-auto rounded-lg overflow-hidden border-2 border-slate-200">
+                    <div className="relative max-w-md mx-auto rounded-lg overflow-hidden border-2 border-slate-200">
                       <img
                         src={headerImagePreview}
                         alt="Chapter preview"
-                        className="w-full h-52 object-cover"
+                        className="w-full h-48 object-cover"
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Preview
@@ -512,9 +512,9 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
             setTempImageUrl(null)
           }}
           title="Position your chapter image"
-          aspectRatio={280 / 192}
-          outputWidth={280}
-          outputHeight={192}
+          aspectRatio={16 / 9}
+          outputWidth={480}
+          outputHeight={270}
         />
       )}
     </div>

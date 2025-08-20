@@ -47,15 +47,31 @@ export default function ImageCropper({
       const containerWidth = 400 // Fixed container size
       const containerHeight = containerWidth / aspectRatio
       
+      // Determine if image is portrait or landscape
+      const imageAspectRatio = img.naturalWidth / img.naturalHeight
+      const isPortrait = imageAspectRatio < 1
+      const isLandscape = imageAspectRatio > 1.5
+      
       // Calculate what zoom level is needed to fit the entire image in the container
       const scaleToFitWidth = containerWidth / img.naturalWidth
       const scaleToFitHeight = containerHeight / img.naturalHeight
       
-      // Use the smaller scale to ensure the entire image fits with generous padding
-      const initialZoom = Math.min(scaleToFitWidth, scaleToFitHeight) * 0.75 // 75% to add more padding
+      let initialZoom
+      
+      if (isPortrait) {
+        // For portrait images, use a more generous zoom to show more of the image
+        // This helps with portrait photos where you want to see the full person
+        initialZoom = Math.min(scaleToFitWidth, scaleToFitHeight) * 0.9
+      } else if (isLandscape) {
+        // For landscape images, use standard zoom
+        initialZoom = Math.min(scaleToFitWidth, scaleToFitHeight) * 0.75
+      } else {
+        // For square-ish images, use moderate zoom
+        initialZoom = Math.min(scaleToFitWidth, scaleToFitHeight) * 0.8
+      }
       
       // Ensure reasonable zoom range
-      setZoom(Math.max(0.1, Math.min(1.0, initialZoom)))
+      setZoom(Math.max(0.1, Math.min(2.0, initialZoom)))
       
       // Initialize crop area to be centered and reasonably sized
       const cropWidth = Math.min(300, containerWidth * 0.8)
@@ -188,7 +204,7 @@ export default function ImageCropper({
       const container = containerRef.current
       if (!container) return
 
-      // IMPROVED APPROACH: Preserve more of the original image with smart cropping
+      // SMART CROPPING: Better handling for different image orientations
       const containerWidth = container.offsetWidth
       const containerHeight = container.offsetHeight
       
@@ -200,8 +216,10 @@ export default function ImageCropper({
       const imageX = (containerWidth - imageDisplayWidth) / 2 + position.x
       const imageY = (containerHeight - imageDisplayHeight) / 2 + position.y
       
-      // More conservative approach: if image fits entirely in container, use the whole image
-      // Otherwise, use what's visible with some padding
+      // Determine image orientation for smart cropping
+      const imageAspectRatio = imageSize.width / imageSize.height
+      const isPortrait = imageAspectRatio < 1
+      
       let sourceX, sourceY, sourceWidth, sourceHeight
       
       if (imageDisplayWidth <= containerWidth && imageDisplayHeight <= containerHeight) {
@@ -211,8 +229,14 @@ export default function ImageCropper({
         sourceWidth = imageSize.width
         sourceHeight = imageSize.height
       } else {
-        // Image is larger than container - crop to visible area with padding
-        const padding = 20 // pixels of padding
+        // Image is larger than container - crop to visible area with smart padding
+        let padding = 20 // base padding in pixels
+        
+        // For portrait images, use more generous padding to preserve more of the subject
+        if (isPortrait) {
+          padding = Math.min(40, imageDisplayWidth * 0.1) // Up to 10% of image width
+        }
+        
         const visibleLeft = Math.max(0, -imageX - padding)
         const visibleTop = Math.max(0, -imageY - padding)
         const visibleRight = Math.min(imageDisplayWidth, containerWidth - imageX + padding)
@@ -226,6 +250,14 @@ export default function ImageCropper({
         sourceY = Math.max(0, (visibleTop / zoom))
         sourceWidth = Math.min(imageSize.width - sourceX, (visibleWidth / zoom))
         sourceHeight = Math.min(imageSize.height - sourceY, (visibleHeight / zoom))
+        
+        // For portrait images, ensure we don't crop too aggressively from the sides
+        if (isPortrait && sourceWidth < imageSize.width * 0.8) {
+          const centerX = imageSize.width / 2
+          const halfWidth = (imageSize.width * 0.8) / 2
+          sourceX = Math.max(0, centerX - halfWidth)
+          sourceWidth = Math.min(imageSize.width - sourceX, imageSize.width * 0.8)
+        }
       }
 
       // Calculate the actual aspect ratio of the cropped area
@@ -287,9 +319,12 @@ export default function ImageCropper({
           {showInstructions && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start space-x-2">
               <Info size={16} className="text-green-600 mt-0.5" />
-              <p className="text-sm text-green-800">
-                <strong>Simple Mode:</strong> Just drag to move and zoom the image - whatever you see will be saved. Pure Instagram-style positioning!
-              </p>
+              <div className="text-sm text-green-800">
+                <p className="font-semibold mb-1">Perfect for Portrait Photos!</p>
+                <p>• Drag to move and position your image</p>
+                <p>• Use mouse wheel or zoom controls to get the perfect size</p>
+                <p>• Whatever you see in the preview will be saved - Instagram-style!</p>
+              </div>
             </div>
           )}
 
@@ -395,8 +430,8 @@ export default function ImageCropper({
 
             {/* Tips */}
             <div className="text-xs text-green-600 text-center space-y-1">
-              <p>• Drag image to move • Mouse wheel to zoom</p>
-              <p>• Instagram-style: whatever you see gets saved!</p>
+              <p>💡 <strong>Portrait Tip:</strong> Position the main subject (face/person) in the center</p>
+              <p>• Drag image to move • Mouse wheel to zoom • Smart cropping preserves important details</p>
             </div>
           </div>
         </div>
