@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     const responseContent = completion?.content || 'No response generated'
     
     // Extract reasoning trace if available (GPT-5 specific feature)
-    const reasoningTrace = completion?.reasoning || null
+    const reasoningTrace = (completion as any)?.reasoning || null
     
     return NextResponse.json({
       success: true,
