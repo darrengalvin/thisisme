@@ -373,6 +373,25 @@ async function saveMemory(parameters: any, call: any, authenticatedUserId: strin
       fullContent += `\n\nDetails: ${sensory_details}`
     }
 
+    // Find chapter ID if chapter name is provided
+    let chapterTimeZoneId = null
+    if (chapter) {
+      console.log('💾 SAVE MEMORY - Looking for chapter:', chapter)
+      const { data: chapters } = await supabaseAdmin
+        .from('timezones')
+        .select('id, title')
+        .eq('creator_id', userId)
+        .ilike('title', `%${chapter}%`)
+        .limit(1)
+      
+      if (chapters && chapters.length > 0) {
+        chapterTimeZoneId = chapters[0].id
+        console.log('💾 SAVE MEMORY - Found chapter:', chapters[0].title, 'ID:', chapterTimeZoneId)
+      } else {
+        console.log('💾 SAVE MEMORY - Chapter not found:', chapter)
+      }
+    }
+
     // Create memory using Supabase
     const { data: memory, error } = await supabaseAdmin
       .from('memories')
@@ -380,6 +399,7 @@ async function saveMemory(parameters: any, call: any, authenticatedUserId: strin
         title: title || 'Voice Memory',
         text_content: fullContent,
         user_id: userId,
+        timezone_id: chapterTimeZoneId, // 🔥 FIX: Link to chapter!
         approximate_date: approximateDate,
         date_precision: year ? 'exact' : 'approximate',
         created_at: new Date().toISOString(),
@@ -407,8 +427,10 @@ async function saveMemory(parameters: any, call: any, authenticatedUserId: strin
       response += ` I've placed it around ${approximateDate}.`
     }
     
-    if (chapter) {
-      response += ` It's in your ${chapter} chapter.`
+    if (chapter && chapterTimeZoneId) {
+      response += ` It's been saved to your ${chapter} chapter.`
+    } else if (chapter && !chapterTimeZoneId) {
+      response += ` I couldn't find your ${chapter} chapter, so I saved it to your general timeline. You can organize it later.`
     }
     
     response += ' What else would you like to share?'

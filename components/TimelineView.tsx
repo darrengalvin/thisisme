@@ -16,6 +16,7 @@ interface TimelineViewProps {
   onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
   highlightedMemories?: Set<string>
   voiceAddedMemories?: Set<string>
+  highlightedChapters?: Set<string>
 }
 
 interface TimelineGroup {
@@ -33,7 +34,8 @@ export default function TimelineView({
   onDelete, 
   onStartCreating,
   highlightedMemories = new Set(),
-  voiceAddedMemories = new Set()
+  voiceAddedMemories = new Set(),
+  highlightedChapters = new Set()
 }: TimelineViewProps) {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
@@ -298,15 +300,15 @@ export default function TimelineView({
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Desktop Left Sidebar - Chapter Filters */}
           <div className="hidden lg:block lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 sticky top-32">
-              <div className="p-6 border-b border-slate-100">
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 sticky top-32 max-h-[calc(100vh-10rem)] flex flex-col">
+              <div className="p-6 border-b border-slate-100 flex-shrink-0">
                 <h2 className="text-xl font-bold text-slate-900">Filter by Chapter</h2>
                 <p className="text-sm text-slate-600 mt-1">
                   {selectedChapterId ? `${filteredMemories.length} filtered memories` : `${memories.length} total memories`}
                 </p>
               </div>
 
-              <div className="p-4 space-y-3">
+              <div className="p-4 space-y-3 overflow-y-auto flex-1 min-h-0">
                 {/* All Memories Filter */}
                 <button
                   onClick={() => setSelectedChapterId(null)}
@@ -364,14 +366,18 @@ export default function TimelineView({
                       const startYear = chapter.startDate ? new Date(chapter.startDate).getFullYear() : null
                       const endYear = chapter.endDate ? new Date(chapter.endDate).getFullYear() : null
                       const isSelected = selectedChapterId === chapter.id
+                      const isHighlighted = highlightedChapters.has(chapter.title || '')
                       
                       return (
                         <button
                           key={chapter.id}
                           onClick={() => setSelectedChapterId(chapter.id)}
+                          data-chapter-name={chapter.title}
                           className={`w-full text-left p-4 rounded-xl border transition-all duration-200 ${
                             isSelected
                               ? 'bg-sky-50 border-sky-200 text-sky-900 shadow-sm ring-1 ring-sky-200'
+                              : isHighlighted
+                              ? 'bg-green-50 border-green-300 text-green-900 shadow-md ring-2 ring-green-200 animate-pulse'
                               : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm'
                           }`}
                         >

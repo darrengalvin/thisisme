@@ -19,6 +19,7 @@ import TicketNotifications from '@/components/TicketNotifications'
 
 import VoiceChatButton from './VoiceChatButton'
 import { MemoryWithRelations } from '@/lib/types'
+import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates'
 
 type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support'
 
@@ -79,6 +80,7 @@ export default function Dashboard() {
 
   const [highlightedMemories, setHighlightedMemories] = useState<Set<string>>(new Set())
   const [voiceAddedMemories, setVoiceAddedMemories] = useState<Set<string>>(new Set())
+  const [highlightedChapters, setHighlightedChapters] = useState<Set<string>>(new Set())
   
   const router = useRouter()
 
@@ -128,6 +130,22 @@ export default function Dashboard() {
   const fetchUserAndMemories = async () => {
     await Promise.all([fetchUser(), fetchMemories()])
   }
+
+  // Setup real-time updates
+  const { refreshAll } = useRealtimeUpdates({
+    onMemoryChange: () => {
+      console.log('🔄 REALTIME: Memory changed - refreshing memories')
+      fetchMemories()
+    },
+    onChapterChange: () => {
+      console.log('🔄 REALTIME: Chapter changed - refreshing data')
+      fetchUserAndMemories()
+    },
+    onNotificationChange: () => {
+      console.log('🔄 REALTIME: Notification changed - could refresh notifications here')
+      // Could add notification refresh logic here if needed
+    }
+  })
 
   const fetchMemories = async () => {
     try {
@@ -764,6 +782,53 @@ export default function Dashboard() {
     }
   }
 
+  const handleMayaChapterUpdate = (chapterName: string) => {
+    console.log('🎯 DASHBOARD: Maya updated chapter:', chapterName)
+    
+    // Add chapter to highlighted set
+    setHighlightedChapters(prev => new Set([...Array.from(prev), chapterName]))
+    
+    // Remove highlight after 10 seconds
+    setTimeout(() => {
+      setHighlightedChapters(prev => {
+        const updated = new Set(prev)
+        updated.delete(chapterName)
+        return updated
+      })
+    }, 10000)
+    
+    // Auto-scroll to chapter in sidebar if in feed view
+    if (activeTab === 'home') {
+      setTimeout(() => {
+        const chapterButton = document.querySelector(`[data-chapter-name="${chapterName}"]`)
+        if (chapterButton) {
+          chapterButton.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 500) // Wait for data refresh
+    }
+  }
+
+  const handleMayaMemoryUpdate = (memoryTitle: string, chapterName?: string) => {
+    console.log('🎯 DASHBOARD: Maya updated memory:', memoryTitle, 'in chapter:', chapterName)
+    
+    // If chapter specified, highlight it too
+    if (chapterName) {
+      handleMayaChapterUpdate(chapterName)
+    }
+    
+    // Auto-scroll to chapter in sidebar if in feed view and chapter specified
+    if (activeTab === 'home' && chapterName) {
+      setTimeout(() => {
+        const chapterButton = document.querySelector(`[data-chapter-name="${chapterName}"]`)
+        if (chapterButton) {
+          chapterButton.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          // Also click the chapter to filter to it
+          ;(chapterButton as HTMLElement).click()
+        }
+      }, 500) // Wait for data refresh
+    }
+  }
+
   const getViewName = () => {
     switch (activeTab) {
       case 'home': return 'Feed View'
@@ -830,6 +895,7 @@ export default function Dashboard() {
               onStartCreating={handleCreateMemory}
               highlightedMemories={highlightedMemories}
               voiceAddedMemories={voiceAddedMemories}
+              highlightedChapters={highlightedChapters}
             />
             
             {/* Debug Panel for Force Delete */}
@@ -1424,7 +1490,11 @@ export default function Dashboard() {
 
       {/* Voice Chat with Maya */}
       <div className="fixed bottom-4 right-4 z-50">
-        <VoiceChatButton />
+        <VoiceChatButton 
+          onDataChange={refreshAll}
+          onChapterUpdate={handleMayaChapterUpdate}
+          onMemoryUpdate={handleMayaMemoryUpdate}
+        />
       </div>
 
 

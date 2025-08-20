@@ -3,20 +3,66 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 
-export default function VoiceChatButton() {
+interface VoiceChatButtonProps {
+  onDataChange?: () => void
+  onChapterUpdate?: (chapterName: string) => void
+  onMemoryUpdate?: (memoryId: string, chapterName?: string) => void
+}
+
+export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemoryUpdate }: VoiceChatButtonProps = {}) {
   const { user, session } = useAuth()
   const [isCallActive, setIsCallActive] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [vapi, setVapi] = useState<any>(null)
   const [vapiLoaded, setVapiLoaded] = useState(false)
-  const [conversationLog, setConversationLog] = useState<Array<{role: string, message: string, timestamp: string}>>([])
-  const [showConversation, setShowConversation] = useState(false)
+  const [conversationLog, setConversationLog] = useState<Array<{role: string, message: string, timestamp: string}>>(() => {
+    // Load conversation log from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('maya-conversation-log')
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch (error) {
+          console.error('Failed to parse saved conversation log:', error)
+        }
+      }
+    }
+    return []
+  })
+  const [showConversation, setShowConversation] = useState(() => {
+    // Load conversation visibility from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('maya-show-conversation')
+      return saved === 'true'
+    }
+    return false
+  })
   const [showUploadWidget, setShowUploadWidget] = useState(false)
   const [lastCreatedItem, setLastCreatedItem] = useState<{type: 'chapter' | 'memory', title: string, id?: string} | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [conversationHistory, setConversationHistory] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    // Load collapsed state from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('maya-collapsed')
+      return saved === 'true'
+    }
+    return false
+  })
+
+  // Save state to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('maya-collapsed', isCollapsed.toString())
+  }, [isCollapsed])
+
+  useEffect(() => {
+    localStorage.setItem('maya-conversation-log', JSON.stringify(conversationLog))
+  }, [conversationLog])
+
+  useEffect(() => {
+    localStorage.setItem('maya-show-conversation', showConversation.toString())
+  }, [showConversation])
 
   // Load conversation history
   const loadConversationHistory = async () => {
@@ -93,12 +139,24 @@ export default function VoiceChatButton() {
                   const title = titleMatch ? titleMatch[1] : 'your chapter'
                   setLastCreatedItem({type: 'chapter', title})
                   setShowUploadWidget(true)
+                  // Trigger data refresh when Maya creates a chapter
+                  console.log('🔄 Maya created chapter - triggering refresh')
+                  onDataChange?.()
+                  // Trigger chapter visual feedback
+                  onChapterUpdate?.(title)
                 } else if (transcript.toLowerCase().includes("memory") || transcript.toLowerCase().includes("memor")) {
                   // Extract memory title from response  
                   const titleMatch = transcript.match(/created.*?"([^"]+)"/i) || transcript.match(/created.*?(\w+[\w\s]*)/i)
                   const title = titleMatch ? titleMatch[1] : 'your memory'
                   setLastCreatedItem({type: 'memory', title})
                   setShowUploadWidget(true)
+                  // Trigger data refresh when Maya creates a memory
+                  console.log('🔄 Maya created memory - triggering refresh')
+                  onDataChange?.()
+                  // Trigger memory visual feedback - extract chapter if mentioned
+                  const chapterMatch = transcript.match(/(?:to your|in your|saved to)\s+([^.]+?)\s+chapter/i)
+                  const chapterName = chapterMatch ? chapterMatch[1].trim() : undefined
+                  onMemoryUpdate?.(title, chapterName)
                 }
               }
               
