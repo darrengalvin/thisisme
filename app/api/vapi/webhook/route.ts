@@ -377,6 +377,17 @@ async function saveMemory(parameters: any, call: any, authenticatedUserId: strin
     let chapterTimeZoneId = null
     if (chapter) {
       console.log('💾 SAVE MEMORY - Looking for chapter:', chapter)
+      console.log('💾 SAVE MEMORY - User ID for chapter search:', userId)
+      
+      // First, let's see ALL chapters for this user
+      const { data: allChapters } = await supabaseAdmin
+        .from('timezones')
+        .select('id, title, creator_id')
+        .eq('creator_id', userId)
+      
+      console.log('💾 SAVE MEMORY - All user chapters:', allChapters?.map(c => ({ id: c.id, title: c.title })) || [])
+      
+      // Now search for the specific chapter
       const { data: chapters } = await supabaseAdmin
         .from('timezones')
         .select('id, title')
@@ -384,12 +395,17 @@ async function saveMemory(parameters: any, call: any, authenticatedUserId: strin
         .ilike('title', `%${chapter}%`)
         .limit(1)
       
+      console.log('💾 SAVE MEMORY - Chapter search results:', chapters)
+      
       if (chapters && chapters.length > 0) {
         chapterTimeZoneId = chapters[0].id
-        console.log('💾 SAVE MEMORY - Found chapter:', chapters[0].title, 'ID:', chapterTimeZoneId)
+        console.log('💾 SAVE MEMORY - ✅ Found chapter:', chapters[0].title, 'ID:', chapterTimeZoneId)
       } else {
-        console.log('💾 SAVE MEMORY - Chapter not found:', chapter)
+        console.log('💾 SAVE MEMORY - ❌ Chapter not found for search term:', chapter)
+        console.log('💾 SAVE MEMORY - Available chapters:', allChapters?.map(c => c.title) || [])
       }
+    } else {
+      console.log('💾 SAVE MEMORY - ⚠️ No chapter parameter provided')
     }
 
     // Create memory using Supabase
@@ -417,7 +433,11 @@ async function saveMemory(parameters: any, call: any, authenticatedUserId: strin
       memoryId: memory.id,
       title: memory.title,
       userId: userId,
-      approximateDate: approximateDate
+      approximateDate: approximateDate,
+      timezone_id: memory.timezone_id,
+      chapterLinked: !!memory.timezone_id,
+      requestedChapter: chapter,
+      foundChapterId: chapterTimeZoneId
     })
     
     // Create response based on what was saved
