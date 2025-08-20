@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Brain, Zap, Shield, TrendingUp, AlertTriangle, CheckCircle, Github, ExternalLink, GitBranch, GitPullRequest } from 'lucide-react'
 import AIPRSuccessModal from '@/components/AIPRSuccessModal'
-import CustomAlertModal from '@/components/CustomAlertModal'
+
 
 interface GitHubConnection {
   connected: boolean
