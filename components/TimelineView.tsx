@@ -662,7 +662,7 @@ export default function TimelineView({
                                       <img 
                                         src={media.storage_url} 
                                         alt={memory.title || ''} 
-                                        className="w-full max-w-md h-auto mx-auto object-contain cursor-pointer hover:scale-105 transition-transform duration-300"
+                                        className="w-full max-w-[480px] h-auto mx-auto object-contain cursor-pointer hover:scale-105 transition-transform duration-300"
                                         onClick={() => handleMemoryClick(memory.id)}
                                       />
                                     )}
@@ -670,7 +670,7 @@ export default function TimelineView({
                                       <video 
                                         src={media.storage_url} 
                                         controls 
-                                        className="w-full max-w-md max-h-96 mx-auto rounded-xl"
+                                        className="w-full max-w-[480px] max-h-96 mx-auto rounded-xl"
                                         poster={media.thumbnail_url || undefined}
                                       />
                                     )}
