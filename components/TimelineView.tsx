@@ -506,14 +506,6 @@ export default function TimelineView({
                   </div>
                   <div className="flex items-center space-x-3">
                     <button
-                      onClick={() => onStartCreating?.(selectedChapterId, selectedChapter?.title)}
-                      className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
-                      title={`Add new memory to ${selectedChapter.title}`}
-                    >
-                      <span className="text-base">+</span>
-                      <span>Add Memory</span>
-                    </button>
-                    <button
                       onClick={() => setSelectedChapterId(null)}
                       className="text-sky-600 hover:text-sky-800 text-sm font-medium"
                     >
