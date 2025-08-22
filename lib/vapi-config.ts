@@ -273,8 +273,8 @@ Maya: "Got it! I'll save your park visit with Sarah." *saves immediately*
       }
     ],
 
-    // First message when call starts
-    firstMessage: "Hi there! I'm ready to help you capture some memories. What's on your mind today?",
+    // First message when call starts - context-aware greeting
+    firstMessage: "Let me check what we talked about before...", // Maya will immediately call get-user-context and give proper greeting
 
     // Advanced settings
     endCallMessage: "Thank you for sharing your memories with me today. They're safely stored in your timeline. Take care!",

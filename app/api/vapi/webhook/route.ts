@@ -1312,6 +1312,40 @@ async function getUserContextForTool(parameters: any, call: any, authenticatedUs
     }
     
     contextResponse += `💭 **Your Memories:** You have ${memoryCount} memories saved\n\n`
+    
+    // Get conversation history for context-aware greetings
+    if (context_type === 'conversation_history') {
+      const { data: conversations, error: conversationError } = await supabaseAdmin
+        .from('conversations')
+        .select('summary, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(3)
+      
+      if (!conversationError && conversations && conversations.length > 0) {
+        const lastConversation = conversations[0]
+        const timeSince = new Date().getTime() - new Date(lastConversation.created_at).getTime()
+        const daysAgo = Math.floor(timeSince / (1000 * 60 * 60 * 24))
+        
+        contextResponse += `💬 **Previous Conversations:**\n`
+        contextResponse += `- Last chat: "${lastConversation.summary}"`
+        if (daysAgo === 0) {
+          contextResponse += ` (today)\n`
+        } else if (daysAgo === 1) {
+          contextResponse += ` (yesterday)\n`
+        } else {
+          contextResponse += ` (${daysAgo} days ago)\n`
+        }
+        
+        if (conversations.length > 1) {
+          contextResponse += `- You have ${conversations.length} recent conversations\n`
+        }
+        contextResponse += `\n**GREETING INSTRUCTION:** Reference the last conversation naturally in your greeting.\n\n`
+      } else {
+        contextResponse += `💬 **Previous Conversations:** This is our first chat!\n\n`
+      }
+    }
+    
     contextResponse += `I'm ready to help you capture new memories, search existing ones, or organize your timeline!`
     
     return contextResponse
