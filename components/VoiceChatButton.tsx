@@ -70,31 +70,33 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
   }, [showConversation])
 
   // Check premium status
-  useEffect(() => {
-    const checkPremiumStatus = async () => {
-      if (!user) {
-        setPremiumLoading(false)
-        return
-      }
-
-      try {
-        const response = await fetch('/api/user/premium-status', {
-          headers: {
-            'Authorization': `Bearer ${session?.access_token}` 
-          }
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setIsPremiumUser(data.isPremium)
-        }
-      } catch (error) {
-        console.error('Failed to check premium status:', error)
-      } finally {
-        setPremiumLoading(false)
-      }
+  const checkPremiumStatus = async () => {
+    if (!user) {
+      setPremiumLoading(false)
+      return
     }
-    
+
+    setPremiumLoading(true)
+    try {
+      const response = await fetch('/api/user/premium-status', {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}` 
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setIsPremiumUser(data.isPremium)
+        console.log('🔄 MAYA: Premium status updated:', data.isPremium)
+      }
+    } catch (error) {
+      console.error('Failed to check premium status:', error)
+    } finally {
+      setPremiumLoading(false)
+    }
+  }
+
+  useEffect(() => {
     checkPremiumStatus()
   }, [user, session])
 
@@ -357,6 +359,10 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
         <UpgradeModal
           isOpen={showUpgradeModal}
           onClose={() => setShowUpgradeModal(false)}
+          onUpgradeSuccess={() => {
+            console.log('🎉 MAYA: Premium upgrade successful, refreshing status...')
+            checkPremiumStatus()
+          }}
         />
       </>
     )

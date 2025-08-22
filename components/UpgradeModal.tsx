@@ -7,9 +7,10 @@ import { useAuth } from './AuthProvider'
 interface UpgradeModalProps {
   isOpen: boolean
   onClose: () => void
+  onUpgradeSuccess?: () => void
 }
 
-export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
+export default function UpgradeModal({ isOpen, onClose, onUpgradeSuccess }: UpgradeModalProps) {
   const { user } = useAuth()
   const [showCodeEntry, setShowCodeEntry] = useState(false)
   const [showEmailEntry, setShowEmailEntry] = useState(false)
@@ -81,10 +82,14 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
           console.log('✅ UPGRADE: Premium upgrade successful!')
           setMessage('🎉 Successfully upgraded to Pro! Premium features are now unlocked.')
           setMessageType('success')
+          
+          // Call the refresh callback to update premium status
+          if (onUpgradeSuccess) {
+            onUpgradeSuccess()
+          }
+          
           setTimeout(() => {
             onClose()
-            // Refresh the page to update premium status
-            window.location.reload()
           }, 2000)
         } else {
           console.error('❌ UPGRADE: Premium upgrade failed:', responseData)
