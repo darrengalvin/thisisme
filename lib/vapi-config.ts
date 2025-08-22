@@ -294,10 +294,26 @@ Maya: "Got it! I'll save your park visit with Sarah." *saves immediately*
     maxDurationSeconds: 1800, // 30 minutes max
     silenceTimeoutSeconds: 30,
     
-    // Webhook configuration
-    serverUrl: process.env.NODE_ENV === 'production' 
-      ? "https://thisisme-three.vercel.app/api/vapi/webhook"
-      : process.env.NEXT_PUBLIC_WEBHOOK_URL || `http://localhost:${process.env.PORT || 3000}/api/vapi/webhook`, // Dynamic local URL
+    // Webhook configuration - auto-detects local port
+    serverUrl: (() => {
+      if (process.env.NODE_ENV === 'production') {
+        return "https://thisisme-three.vercel.app/api/vapi/webhook"
+      }
+      
+      // For local development, use environment variable or auto-detect port
+      if (process.env.NEXT_PUBLIC_WEBHOOK_URL) {
+        return process.env.NEXT_PUBLIC_WEBHOOK_URL
+      }
+      
+      // Auto-detect port from current window location (browser) or use common dev ports
+      if (typeof window !== 'undefined') {
+        return `${window.location.protocol}//${window.location.hostname}:${window.location.port}/api/vapi/webhook`
+      }
+      
+      // Fallback to common development ports
+      const port = process.env.PORT || '3000' // Will use whatever port the dev server is on
+      return `http://localhost:${port}/api/vapi/webhook`
+    })(),
     serverUrlSecret: process.env.VAPI_WEBHOOK_SECRET || "your-webhook-secret"
   }
 }
