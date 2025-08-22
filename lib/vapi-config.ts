@@ -251,6 +251,25 @@ Maya: "Got it! I'll save your park visit with Sarah." *saves immediately*
           },
           required: ["title", "start_year"]
         }
+      },
+      
+      {
+        name: "save-conversation",
+        description: "Save the current conversation for future reference and continuity",
+        parameters: {
+          type: "object",
+          properties: {
+            conversation_summary: {
+              type: "string",
+              description: "A brief summary of what was discussed in the conversation"
+            },
+            userId: {
+              type: "string",
+              description: "The user ID (automatically provided)"
+            }
+          },
+          required: ["conversation_summary", "userId"]
+        }
       }
     ],
 
