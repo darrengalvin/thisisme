@@ -80,13 +80,19 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const steps = [
     {
       id: 1,
-      title: `Adding memory to "${chapterTitle}"`,
+      title: chapterTitle 
+        ? `Adding memory to "${chapterTitle}"`
+        : "Adding a new memory",
       subtitle: "Tell us about this memory"
     },
     {
       id: 2,
-      title: "When in this chapter did it happen?",
-      subtitle: "Help us place it within your chapter timeline"
+      title: chapterTitle 
+        ? "When in this chapter did it happen?"
+        : "When did this happen?",
+      subtitle: chapterTitle 
+        ? "Help us place it within your chapter timeline"
+        : "Help us place it on your timeline"
     },
     {
       id: 3,
@@ -268,10 +274,17 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
 
 
           {/* Chapter Context */}
-          {chapterTitle && (
+          {chapterTitle ? (
             <div className="bg-slate-50 rounded-xl p-3 mb-4">
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Adding to chapter</div>
               <div className="text-sm font-medium text-slate-900">{chapterTitle}</div>
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+              <div className="text-xs font-semibold text-amber-700 uppercase tracking-wider">📁 Standalone Memory</div>
+              <div className="text-sm text-amber-800 mt-1">
+                This memory will be saved to your "Memories to Organize" collection. You can move it to a chapter later!
+              </div>
             </div>
           )}
 

@@ -893,6 +893,7 @@ export default function Dashboard() {
               onEdit={handleEditMemory}
               onDelete={handleDeleteMemory}
               onStartCreating={handleCreateMemory}
+              onCreateChapter={() => setActiveTab('create-timezone')}
               highlightedMemories={highlightedMemories}
               voiceAddedMemories={voiceAddedMemories}
               highlightedChapters={highlightedChapters}

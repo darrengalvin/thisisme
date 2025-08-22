@@ -14,6 +14,7 @@ interface TimelineViewProps {
   onEdit?: (memory: MemoryWithRelations) => void
   onDelete?: (memory: MemoryWithRelations) => void
   onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
+  onCreateChapter?: () => void
   highlightedMemories?: Set<string>
   voiceAddedMemories?: Set<string>
   highlightedChapters?: Set<string>
@@ -33,6 +34,7 @@ export default function TimelineView({
   onEdit, 
   onDelete, 
   onStartCreating,
+  onCreateChapter,
   highlightedMemories = new Set(),
   voiceAddedMemories = new Set(),
   highlightedChapters = new Set()
@@ -540,19 +542,81 @@ export default function TimelineView({
                     </button>
                   </div>
                 </div>
+              ) : chapters.length === 0 ? (
+                // Empty state for when user has no chapters at all
+                <div className="text-center py-12 max-w-2xl mx-auto">
+                  <div className="w-20 h-20 bg-sky-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                    <span className="text-sky-600 text-3xl">📖</span>
+                  </div>
+                  <h3 className="text-3xl font-bold text-slate-900 mb-4">Let's Create Your First Chapter</h3>
+                  <p className="text-slate-600 mb-8 text-lg leading-relaxed">
+                    Think of chapters as different periods or phases of your life. They help organize your memories chronologically and make your story easier to explore.
+                  </p>
+                  
+                  <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-2xl p-6 mb-8 border border-sky-100">
+                    <h4 className="font-semibold text-sky-900 mb-4">💡 Chapter inspiration:</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">🏫</span>
+                        <span className="text-sky-800">School or university years</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">🏢</span>
+                        <span className="text-sky-800">Your first job or career</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">🏠</span>
+                        <span className="text-sky-800">Living in a particular city</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">❤️</span>
+                        <span className="text-sky-800">A relationship or marriage</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">✈️</span>
+                        <span className="text-sky-800">Travel adventures</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">👶</span>
+                        <span className="text-sky-800">Childhood or teen years</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <button
+                      onClick={() => onCreateChapter?.()}
+                      className="bg-sky-600 hover:bg-sky-700 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-colors flex items-center space-x-3 shadow-lg hover:shadow-xl"
+                    >
+                      <span className="text-xl">📖</span>
+                      <span>Create Your First Chapter</span>
+                    </button>
+                    <button
+                      onClick={() => onStartCreating?.()}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl font-medium transition-colors flex items-center space-x-2"
+                    >
+                      <span>💭</span>
+                      <span>Add Memory Without Chapter</span>
+                    </button>
+                  </div>
+                  
+                  <div className="mt-6 text-sm text-slate-500">
+                    <p>💡 <strong>Tip:</strong> You can always add memories to chapters later, but starting with chapters makes your timeline more organized!</p>
+                  </div>
+                </div>
               ) : (
                 // Empty state for when we have chapters but no memories
                 <div className="text-center py-12">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Ready to Fill Your Feed</h3>
+                  <h3 className="text-2xl font-bold text-slate-900 mb-4">Your Chapters Are Ready!</h3>
                   <p className="text-slate-600 mb-6">
-                    Your chapters are ready for memories! Start adding photos, videos, and stories to bring your memory feed to life.
+                    You have {chapters.length} chapter{chapters.length !== 1 ? 's' : ''} set up. Now let's fill them with your precious memories!
                   </p>
                   <div className="bg-slate-50 rounded-xl p-6 mb-6">
-                    <h4 className="font-semibold text-slate-800 mb-3">💡 Get started:</h4>
+                    <h4 className="font-semibold text-slate-800 mb-3">💡 Start adding memories:</h4>
                     <div className="text-left space-y-2">
-                      <p>• 📸 Upload photos and videos to your chapters</p>
-                      <p>• ✍️ Add stories and descriptions to your memories</p>
-                      <p>• 📖 Create life chapters for different time periods</p>
+                      <p>• 📸 Click on a chapter to add photos and videos</p>
+                      <p>• ✍️ Share stories and descriptions of your experiences</p>
+                      <p>• 🎤 Use voice chat with Maya for hands-free memory creation</p>
                     </div>
                   </div>
                 </div>
