@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Calendar, Clock, Users, Lock, ChevronDown, ChevronUp, Plus, Camera, Heart, MessageCircle, Share, MapPin, Edit, Info } from 'lucide-react'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import { formatDate, formatRelativeTime } from './utils'
@@ -15,6 +15,7 @@ interface TimelineViewProps {
   onDelete?: (memory: MemoryWithRelations) => void
   onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
   onCreateChapter?: () => void
+  onChapterSelected?: (chapterId: string, chapterTitle: string) => void
   highlightedMemories?: Set<string>
   voiceAddedMemories?: Set<string>
   highlightedChapters?: Set<string>
@@ -35,6 +36,7 @@ export default function TimelineView({
   onDelete, 
   onStartCreating,
   onCreateChapter,
+  onChapterSelected,
   highlightedMemories = new Set(),
   voiceAddedMemories = new Set(),
   highlightedChapters = new Set()
@@ -101,6 +103,42 @@ export default function TimelineView({
   // Add filter state
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null)
   const [showChapterSidebar, setShowChapterSidebar] = useState(true)
+
+  // Exposed function to programmatically select a chapter
+  const selectChapterByName = useCallback((chapterName: string) => {
+    console.log('🎯 TIMELINE: Looking for chapter to select:', chapterName)
+    const chapter = chapters.find(c => 
+      c.title?.toLowerCase() === chapterName.toLowerCase() ||
+      c.title?.toLowerCase().includes(chapterName.toLowerCase()) ||
+      chapterName.toLowerCase().includes(c.title?.toLowerCase() || '')
+    )
+    
+    if (chapter) {
+      console.log('🎯 TIMELINE: Found and selecting chapter:', chapter.title, chapter.id)
+      setSelectedChapterId(chapter.id)
+      onChapterSelected?.(chapter.id, chapter.title || '')
+      
+      // Scroll to the chapter button in sidebar
+      setTimeout(() => {
+        const chapterButton = document.querySelector(`[data-chapter-name="${chapter.title}"]`)
+        if (chapterButton) {
+          chapterButton.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 100)
+      
+      return true
+    } else {
+      console.log('🎯 TIMELINE: Chapter not found:', chapterName, 'Available:', chapters.map(c => c.title))
+      return false
+    }
+  }, [chapters, onChapterSelected])
+
+  // Expose selectChapterByName via ref or custom hook if needed
+  useEffect(() => {
+    if (window) {
+      (window as any).selectChapterByName = selectChapterByName
+    }
+  }, [selectChapterByName])
 
   // Filter memories based on selected chapter
   const filteredMemories = selectedChapterId 

@@ -275,8 +275,29 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
                   console.log('🔄 Maya created memory - triggering refresh')
                   onDataChange?.()
                   // Trigger memory visual feedback - extract chapter if mentioned
-                  const chapterMatch = transcript.match(/(?:to your|in your|saved to)\s+([^.]+?)\s+chapter/i)
-                  const chapterName = chapterMatch ? chapterMatch[1].trim() : undefined
+                  let chapterName: string | undefined = undefined
+                  
+                  // Try multiple patterns to extract chapter name
+                  const chapterPatterns = [
+                    /(?:to your|in your|saved to|added to)\s+"?([^".,!]+?)"?\s+chapter/i,
+                    /(?:to|in)\s+(?:the\s+)?([^.,!]+?)\s+(?:chapter|timeline)/i,
+                    /(?:chapter|timeline)(?:\s+called)?\s+"?([^".,!]+?)[".,!]/i,
+                    /(?:put|placed|saved)\s+(?:it\s+)?(?:in|to)\s+"?([^".,!]+?)[".,!]/i
+                  ]
+                  
+                  for (const pattern of chapterPatterns) {
+                    const match = transcript.match(pattern)
+                    if (match && match[1]) {
+                      chapterName = match[1].trim()
+                      console.log('🎯 MAYA: Extracted chapter name:', chapterName, 'using pattern:', pattern.source)
+                      break
+                    }
+                  }
+                  
+                  if (!chapterName) {
+                    console.log('🎯 MAYA: No chapter found in transcript:', transcript)
+                  }
+                  
                   onMemoryUpdate?.(title, chapterName)
                 }
               }

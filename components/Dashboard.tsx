@@ -816,16 +816,31 @@ export default function Dashboard() {
       handleMayaChapterUpdate(chapterName)
     }
     
-    // Auto-scroll to chapter in sidebar if in feed view and chapter specified
+    // Auto-switch to chapter view if in timeline view and chapter specified
     if (activeTab === 'home' && chapterName) {
+      console.log('🎯 DASHBOARD: Switching to chapter view for:', chapterName)
+      
+      // Wait for data refresh then switch to chapter
       setTimeout(() => {
+        // Try using the global function first
+        if ((window as any).selectChapterByName) {
+          const success = (window as any).selectChapterByName(chapterName)
+          if (success) {
+            console.log('🎯 DASHBOARD: Successfully switched to chapter:', chapterName)
+            return
+          }
+        }
+        
+        // Fallback to DOM manipulation
         const chapterButton = document.querySelector(`[data-chapter-name="${chapterName}"]`)
         if (chapterButton) {
+          console.log('🎯 DASHBOARD: Found chapter button, clicking it')
           chapterButton.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          // Also click the chapter to filter to it
           ;(chapterButton as HTMLElement).click()
+        } else {
+          console.log('🎯 DASHBOARD: Chapter button not found for:', chapterName)
         }
-      }, 500) // Wait for data refresh
+      }, 1500) // Wait longer for data refresh
     }
   }
 
@@ -894,6 +909,9 @@ export default function Dashboard() {
               onDelete={handleDeleteMemory}
               onStartCreating={handleCreateMemory}
               onCreateChapter={() => setActiveTab('create-timezone')}
+              onChapterSelected={(chapterId, chapterTitle) => {
+                console.log('🎯 DASHBOARD: Chapter selected:', chapterTitle, chapterId)
+              }}
               highlightedMemories={highlightedMemories}
               voiceAddedMemories={voiceAddedMemories}
               highlightedChapters={highlightedChapters}
