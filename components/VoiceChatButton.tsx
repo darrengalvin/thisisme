@@ -575,9 +575,14 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
               onClick={(e) => {
                 e.stopPropagation()
                 if (isCallActive) {
-                  endCall()
+                  // End call
+                  if (vapi) {
+                    vapi.stop()
+                    console.log('🎤 VAPI call stopped')
+                  }
                 } else {
-                  startCall()
+                  // Start call
+                  startVoiceChat()
                 }
               }}
               disabled={!vapiLoaded || isLoading}
