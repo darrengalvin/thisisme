@@ -1489,8 +1489,8 @@ export default function Dashboard() {
           onForceDelete={forceDeleteMemory}
         />
 
-      {/* Voice Chat with Maya - Repositioned to not block content */}
-      <div className="fixed top-20 right-4 max-w-sm z-40">
+      {/* Maya Toggle Button - Small, unobtrusive */}
+      <div className="fixed bottom-6 left-6 z-40">
         <VoiceChatButton 
           onDataChange={refreshAll}
           onChapterUpdate={handleMayaChapterUpdate}
