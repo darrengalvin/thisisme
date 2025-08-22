@@ -36,10 +36,16 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 UPGRADE API: Auth successful for user:', userId, userEmail)
 
-    // Create Supabase client (using anon key like other endpoints)
+    // Create Supabase client with service role key to bypass RLS for admin operations
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     )
 
     console.log('🔄 UPGRADE API: Processing upgrade for user:', userId, userEmail)
