@@ -55,6 +55,22 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
     }
     return false
   })
+  const [position, setPosition] = useState(() => {
+    // Load position from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('maya-position')
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch (error) {
+          console.error('Failed to parse saved Maya position:', error)
+        }
+      }
+    }
+    return { x: typeof window !== 'undefined' ? window.innerWidth - 400 : 100, y: 80 } // Default: top-right
+  })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
   // Save state to localStorage when it changes
   useEffect(() => {
@@ -68,6 +84,43 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
   useEffect(() => {
     localStorage.setItem('maya-show-conversation', showConversation.toString())
   }, [showConversation])
+
+  useEffect(() => {
+    localStorage.setItem('maya-position', JSON.stringify(position))
+  }, [position])
+
+  // Drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragOffset({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    })
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return
+    
+    const newX = Math.max(0, Math.min(window.innerWidth - 300, e.clientX - dragOffset.x))
+    const newY = Math.max(0, Math.min(window.innerHeight - 100, e.clientY - dragOffset.y))
+    
+    setPosition({ x: newX, y: newY })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, dragOffset])
 
   // Check premium status
   const checkPremiumStatus = async () => {
@@ -422,28 +475,54 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
         </svg>
       </button>
 
-      {/* Maya Interface Side Panel */}
+      {/* Maya Interface - Draggable Floating Panel */}
       {showMayaInterface && (
         <>
           {/* Subtle backdrop - click to close */}
           <div 
-            className="fixed inset-0 bg-black/10 z-30" 
+            className="fixed inset-0 bg-black/5 z-30" 
             onClick={() => setShowMayaInterface(false)}
           />
           
-          {/* Side Panel */}
-          <div className="fixed top-20 right-4 z-40 w-96 max-h-[calc(100vh-6rem)] shadow-2xl animate-in slide-in-from-right duration-300">
-            <div className="bg-white rounded-2xl shadow-2xl w-full h-full overflow-hidden border border-gray-200">
+          {/* Draggable Floating Panel */}
+          <div 
+            className={`fixed z-40 shadow-2xl transition-all duration-200 ${
+              isDragging ? 'cursor-grabbing' : 'cursor-auto'
+            } ${isCollapsed ? 'w-80' : 'w-96'}`}
+            style={{
+              left: position.x,
+              top: position.y,
+              maxHeight: isCollapsed ? '120px' : 'calc(100vh - 100px)',
+            }}
+          >
+            <div className="bg-white rounded-xl shadow-2xl w-full h-full overflow-hidden border border-gray-200/50 backdrop-blur-sm">
             <div className={`card-elevated flex flex-col bg-gradient-to-br from-white via-emerald-50/30 to-green-50/20 transition-all duration-300 ${
               isCollapsed ? 'min-h-0' : 'min-h-[500px]'
             }`}>
-      {/* Header */}
-      <div className={`p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white transition-all duration-300 ${
-        isCollapsed ? 'rounded-2xl' : 'rounded-t-2xl'
-      }`}>
+      {/* Draggable Header */}
+      <div 
+        className={`${isCollapsed ? 'p-3' : 'p-4'} bg-gradient-to-r from-blue-600 to-indigo-700 text-white transition-all duration-300 ${
+          isCollapsed ? 'rounded-xl' : 'rounded-t-xl'
+        } cursor-grab active:cursor-grabbing select-none`}
+        onMouseDown={handleMouseDown}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (isCallActive) {
+                  endCall()
+                } else {
+                  startCall()
+                }
+              }}
+              disabled={!vapiLoaded || isLoading}
+              className={`${isCollapsed ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 transition-all duration-200 ${
+                vapiLoaded && !isLoading ? 'hover:bg-white/30 hover:scale-105 cursor-pointer' : 'opacity-50 cursor-not-allowed'
+              }`}
+              title={isCallActive ? "End conversation" : "Start talking to Maya"}
+            >
               {isCallActive && (
                 <div className="flex items-center gap-1">
                   <div className="w-1 h-3 bg-white rounded-full animate-pulse"></div>
@@ -459,55 +538,49 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
               {isLoading && (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               )}
-            </div>
-            <div>
-              <h3 className="text-xl font-semibold text-white">
-                Talk with Maya
+            </button>
+            <div className="min-w-0 flex-1">
+              <h3 className={`font-semibold text-white truncate ${isCollapsed ? 'text-sm' : 'text-lg'}`}>
+                {isCollapsed ? 'Maya' : 'Talk with Maya'}
               </h3>
-              <p className="text-sm text-blue-100">
-                {isCallActive ? 'Listening to your memories...' : vapiLoaded ? 'Your AI memory assistant' : 'Loading voice system...'}
-              </p>
+              {!isCollapsed && (
+                <p className="text-xs text-blue-100 truncate">
+                  {isCallActive ? 'Listening...' : vapiLoaded ? 'Ready to chat' : 'Loading...'}
+                </p>
+              )}
             </div>
           </div>
           
-          {/* Close Button */}
-          <button
-            onClick={() => setShowMayaInterface(false)}
-            className="w-8 h-8 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-colors"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-          
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            {/* History Button */}
-            {!isCallActive && (
-              <button
-                onClick={() => {
-                  setShowHistory(!showHistory)
-                  if (!showHistory) {
-                    loadConversationHistory()
-                  }
-                }}
-                className="text-white/80 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
-                title="View conversation history"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                </svg>
-              </button>
-            )}
-            
-            {/* Collapse Button */}
+          {/* Control Buttons */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Collapse/Expand Button */}
             <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="text-white/80 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+              onClick={(e) => {
+                e.stopPropagation()
+                setIsCollapsed(!isCollapsed)
+              }}
+              className={`${isCollapsed ? 'w-6 h-6' : 'w-7 h-7'} flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-all`}
               title={isCollapsed ? "Expand Maya" : "Minimize Maya"}
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" style={{ transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+              <svg className={`${isCollapsed ? 'w-3 h-3' : 'w-4 h-4'}`} fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d={isCollapsed 
+                  ? "M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                  : "M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                } clipRule="evenodd" />
+              </svg>
+            </button>
+            
+            {/* Close Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowMayaInterface(false)
+              }}
+              className={`${isCollapsed ? 'w-6 h-6' : 'w-7 h-7'} flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-all`}
+              title="Close Maya"
+            >
+              <svg className={`${isCollapsed ? 'w-3 h-3' : 'w-4 h-4'}`} fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             </button>
           </div>
