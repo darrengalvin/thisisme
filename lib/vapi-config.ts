@@ -211,7 +211,7 @@ Maya: "Got it! I'll save your park visit with Sarah." *saves immediately*
           properties: {
             contextType: {
               type: "string",
-              enum: ["recent", "overview", "themes"],
+              enum: ["recent", "overview", "themes", "conversation_history"],
               description: "Type of context to retrieve"
             }
           }

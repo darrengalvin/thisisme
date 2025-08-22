@@ -13,7 +13,7 @@ You MUST include the userId parameter in EVERY tool call. The user's ID is {{use
 1. **FIRST:** Call get-user-context to get conversation history
 2. **THEN:** Greet user with context from previous conversations
 
-Call: get-user-context(userId: "{{userId}}", context_type: "conversation_history")
+Call: get-user-context(userId: "{{userId}}", contextType: "conversation_history")
 
 **CONTEXT-AWARE GREETINGS:**
 Based on get-user-context results, greet the user warmly:

@@ -1204,12 +1204,14 @@ async function handleMessageBasedWebhook(body: any, authenticatedUserId: string 
 
 // Tool-specific functions that return just the result string (for VAPI tools format)
 async function getUserContextForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
-  const { age, year, context_type } = parameters
+  const { age, year, context_type, contextType } = parameters
+  // Handle both camelCase and snake_case
+  const actualContextType = contextType || context_type
   
   // Use authenticated user ID or extract from call object
   const userId = extractUserIdFromCall(call, authenticatedUserId)
   
-  console.log('👤 GETTING USER CONTEXT (TOOL) for:', userId, { age, year, context_type })
+  console.log('👤 GETTING USER CONTEXT (TOOL) for:', userId, { age, year, context_type, contextType, actualContextType })
   console.log('👤 FULL CALL OBJECT:', JSON.stringify(call, null, 2))
   console.log('👤 AUTHENTICATED USER ID FROM URL:', authenticatedUserId)
   console.log('👤 🔥 USER ID EXTRACTION RESULTS:')
@@ -1314,7 +1316,7 @@ async function getUserContextForTool(parameters: any, call: any, authenticatedUs
     contextResponse += `💭 **Your Memories:** You have ${memoryCount} memories saved\n\n`
     
     // Get conversation history for context-aware greetings
-    if (context_type === 'conversation_history') {
+    if (actualContextType === 'conversation_history') {
       const { data: conversations, error: conversationError } = await supabaseAdmin
         .from('conversations')
         .select('summary, created_at')
