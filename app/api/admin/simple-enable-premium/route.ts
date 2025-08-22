@@ -44,9 +44,9 @@ export async function POST(request: NextRequest) {
 
     console.log('🔄 UPGRADE API: Processing upgrade for user:', userId, userEmail)
     
-    // Update the user's profile to be premium
+    // Update the user's profile to be premium (using 'users' table, not 'profiles')
     const { error: updateError } = await supabase
-      .from('profiles')
+      .from('users')
       .upsert({
         id: userId,
         email: userEmail,
@@ -59,9 +59,16 @@ export async function POST(request: NextRequest) {
       })
 
     if (updateError) {
-      console.error('Error updating profile:', updateError)
+      console.error('❌ UPGRADE API: Database update failed:', updateError)
+      console.error('❌ UPGRADE API: Error details:', JSON.stringify(updateError, null, 2))
+      console.error('❌ UPGRADE API: User data attempted:', { userId, userEmail })
       return NextResponse.json(
-        { error: 'Failed to update premium status', details: updateError },
+        { 
+          error: 'Failed to update premium status', 
+          details: updateError,
+          userId: userId,
+          userEmail: userEmail 
+        },
         { status: 500 }
       )
     }

@@ -30,19 +30,19 @@ export async function GET(request: NextRequest) {
     // Remove hardcoded email restrictions - RODINVITE code should work for anyone
     // Premium status is now determined purely by database records
 
-    // Check user's premium status in the database
+    // Check user's premium status in the database (using 'users' table, not 'profiles')
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
+      .from('users')
       .select('is_premium, subscription_tier, subscription_expires_at')
       .eq('id', user.id)
       .single()
 
     if (profileError) {
-      console.error('Error fetching profile:', profileError)
-      // If profile doesn't exist, create a basic one and assume non-premium
+      console.error('Error fetching user profile:', profileError)
+      // If user doesn't have premium fields, create a basic record
       // This ensures the upgrade process can work later
       const { error: createError } = await supabase
-        .from('profiles')
+        .from('users')
         .upsert({
           id: user.id,
           email: user.email,
