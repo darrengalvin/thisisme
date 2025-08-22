@@ -422,10 +422,18 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
         </svg>
       </button>
 
-      {/* Maya Interface Modal */}
+      {/* Maya Interface Side Panel */}
       {showMayaInterface && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden">
+        <>
+          {/* Subtle backdrop - click to close */}
+          <div 
+            className="fixed inset-0 bg-black/10 z-30" 
+            onClick={() => setShowMayaInterface(false)}
+          />
+          
+          {/* Side Panel */}
+          <div className="fixed top-20 right-4 z-40 w-96 max-h-[calc(100vh-6rem)] shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="bg-white rounded-2xl shadow-2xl w-full h-full overflow-hidden border border-gray-200">
             <div className={`card-elevated flex flex-col bg-gradient-to-br from-white via-emerald-50/30 to-green-50/20 transition-all duration-300 ${
               isCollapsed ? 'min-h-0' : 'min-h-[500px]'
             }`}>
@@ -780,6 +788,7 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
             </div>
           </div>
         </div>
+        </>
       )}
     </>
   )
