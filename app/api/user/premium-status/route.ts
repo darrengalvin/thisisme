@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Temporary override for specific users
-    const premiumUsers = ['dgalvin@yourcaio.co.uk', 'rod7goodman60@gmail.com'];
+    const premiumUsers = ['dgalvin@yourcaio.co.uk', 'rod7goodman60@gmail.com', 'johntesty@testywesty.com'];
     if (premiumUsers.includes(user.email || '')) {
       return NextResponse.json({
         isPremium: true,
