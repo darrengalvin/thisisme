@@ -48,12 +48,14 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showMayaInterface, setShowMayaInterface] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    // Load collapsed state from localStorage
+    // Load collapsed state from localStorage, default to collapsed (compact mode)
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('maya-collapsed')
-      return saved === 'true'
+      if (saved !== null) {
+        return saved === 'true'
+      }
     }
-    return false
+    return true // Start in compact mode by default
   })
   const [position, setPosition] = useState(() => {
     // Load position from localStorage
