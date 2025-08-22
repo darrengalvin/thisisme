@@ -73,11 +73,31 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
   })
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [showDragHint, setShowDragHint] = useState(() => {
+    // Show drag hint on first visit
+    if (typeof window !== 'undefined') {
+      const hasSeenHint = localStorage.getItem('maya-drag-hint-seen')
+      return !hasSeenHint
+    }
+    return true
+  })
 
   // Save state to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('maya-collapsed', isCollapsed.toString())
   }, [isCollapsed])
+  
+  // Hide drag hint after a few seconds or after Maya is opened
+  useEffect(() => {
+    if (showMayaInterface && showDragHint) {
+      const timer = setTimeout(() => {
+        setShowDragHint(false)
+        localStorage.setItem('maya-drag-hint-seen', 'true')
+      }, 5000) // Show hint for 5 seconds
+      
+      return () => clearTimeout(timer)
+    }
+  }, [showMayaInterface, showDragHint])
 
   useEffect(() => {
     localStorage.setItem('maya-conversation-log', JSON.stringify(conversationLog))
@@ -98,6 +118,11 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
       x: e.clientX - position.x,
       y: e.clientY - position.y
     })
+    // Hide drag hint when user starts dragging
+    if (showDragHint) {
+      setShowDragHint(false)
+      localStorage.setItem('maya-drag-hint-seen', 'true')
+    }
   }
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -518,6 +543,13 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
               maxHeight: isCollapsed ? '120px' : 'calc(100vh - 100px)',
             }}
           >
+            {/* Drag Hint Tooltip */}
+            {showDragHint && (
+              <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 bg-black/90 text-white text-sm px-4 py-2 rounded-lg whitespace-nowrap z-50 animate-bounce shadow-lg">
+                💡 Drag the blue header to move me around!
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black/90"></div>
+              </div>
+            )}
             <div className="bg-white rounded-xl shadow-2xl w-full h-full overflow-hidden border border-gray-200/50 backdrop-blur-sm">
             <div className={`card-elevated flex flex-col bg-gradient-to-br from-white via-emerald-50/30 to-green-50/20 transition-all duration-300 ${
               isCollapsed ? 'min-h-0' : 'min-h-[500px]'
@@ -526,9 +558,17 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
       <div 
         className={`${isCollapsed ? 'p-3' : 'p-4'} bg-gradient-to-r from-blue-600 to-indigo-700 text-white transition-all duration-300 ${
           isCollapsed ? 'rounded-xl' : 'rounded-t-xl'
-        } cursor-grab active:cursor-grabbing select-none`}
+        } cursor-grab active:cursor-grabbing select-none relative`}
         onMouseDown={handleMouseDown}
+        title="Drag to move Maya around"
       >
+        {/* Drag Handle Visual Hint */}
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 flex space-x-1 opacity-40">
+          <div className="w-1 h-1 bg-white rounded-full"></div>
+          <div className="w-1 h-1 bg-white rounded-full"></div>
+          <div className="w-1 h-1 bg-white rounded-full"></div>
+          <div className="w-1 h-1 bg-white rounded-full"></div>
+        </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -576,21 +616,27 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
           
           {/* Control Buttons */}
           <div className="flex items-center gap-1 flex-shrink-0">
-            {/* Collapse/Expand Button */}
+            {/* Expand/Collapse Button - More Intuitive */}
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 setIsCollapsed(!isCollapsed)
               }}
-              className={`${isCollapsed ? 'w-6 h-6' : 'w-7 h-7'} flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-all`}
-              title={isCollapsed ? "Expand Maya" : "Minimize Maya"}
+              className={`${isCollapsed ? 'px-2 py-1' : 'w-8 h-8'} flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all bg-white/10`}
+              title={isCollapsed ? "Click to expand Maya's chat interface" : "Click to minimize Maya"}
             >
-              <svg className={`${isCollapsed ? 'w-3 h-3' : 'w-4 h-4'}`} fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d={isCollapsed 
-                  ? "M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  : "M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                } clipRule="evenodd" />
-              </svg>
+              {isCollapsed ? (
+                <div className="flex items-center gap-1 text-xs font-medium">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zM4 15a1 1 0 100 2h12a1 1 0 100-2H4z" clipRule="evenodd" />
+                  </svg>
+                  <span>Expand</span>
+                </div>
+              ) : (
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              )}
             </button>
             
             {/* Close Button */}
