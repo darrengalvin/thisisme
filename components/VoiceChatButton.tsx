@@ -71,26 +71,40 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
 
   // Check premium status
   const checkPremiumStatus = async () => {
+    console.log('🔄 MAYA: Starting premium status check...')
+    
     if (!user) {
+      console.log('❌ MAYA: No user found, cannot check premium status')
       setPremiumLoading(false)
       return
     }
 
+    console.log('👤 MAYA: Checking premium status for user:', user.id, user.email)
     setPremiumLoading(true)
+    
     try {
+      console.log('📡 MAYA: Calling /api/user/premium-status with cookies...')
       const response = await fetch('/api/user/premium-status', {
         credentials: 'include' // Use cookies for authentication instead of Bearer token
       })
 
+      console.log('📊 MAYA: Premium status response:', response.status, response.ok)
+
       if (response.ok) {
         const data = await response.json()
+        console.log('📊 MAYA: Premium status data:', data)
         setIsPremiumUser(data.isPremium)
         console.log('🔄 MAYA: Premium status updated:', data.isPremium)
+      } else {
+        console.error('❌ MAYA: Premium status check failed:', response.status, response.statusText)
+        const errorData = await response.json().catch(() => ({}))
+        console.error('❌ MAYA: Error details:', errorData)
       }
     } catch (error) {
-      console.error('Failed to check premium status:', error)
+      console.error('❌ MAYA: Failed to check premium status:', error)
     } finally {
       setPremiumLoading(false)
+      console.log('✅ MAYA: Premium status check completed')
     }
   }
 
