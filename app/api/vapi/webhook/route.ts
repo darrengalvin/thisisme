@@ -278,6 +278,11 @@ async function handleFunctionCall(body: any, authenticatedUserId: string | null 
         result = await saveBirthYear(parameters, call, authenticatedUserId)
         break
       
+      case 'save-conversation':
+        console.log('💬 STARTING save-conversation function')
+        result = await saveConversation(parameters, call, authenticatedUserId)
+        break
+      
       default:
         console.log('❌ UNKNOWN FUNCTION:', name)
         result = NextResponse.json({
@@ -1102,6 +1107,11 @@ async function handleToolCalls(body: any, authenticatedUserId: string | null = n
           result = await uploadMediaForTool(functionArgs, call, authenticatedUserId)
           break
         
+        case 'save-conversation':
+          console.log('💬 STARTING save-conversation tool')
+          result = await saveConversationForTool(functionArgs, call, authenticatedUserId)
+          break
+        
         default:
           console.log('❌ UNKNOWN TOOL:', functionName)
           console.log('❌ Available tool call fields:', Object.keys(toolCall))
@@ -1645,6 +1655,104 @@ async function uploadMediaForTool(parameters: any, call: any, authenticatedUserI
   } catch (error) {
     console.error('📸 ERROR handling media upload:', error)
     return `I've noted that you want to add media to this memory. You can upload it later from your timeline. Is there anything else about this memory you'd like to capture?`
+  }
+}
+
+// Save conversation function for legacy VAPI format
+async function saveConversation(parameters: any, call: any, authenticatedUserId: string | null = null) {
+  const { conversation_summary, userId: paramUserId } = parameters
+  
+  console.log('💬 🚀 CONVERSATION SAVE STARTING (LEGACY)')
+  console.log('💬 Summary:', conversation_summary)
+  
+  // Get userId - prioritize parameter, then fallback
+  let userId = paramUserId
+  if (!userId) {
+    userId = extractUserIdFromCall(call, authenticatedUserId)
+  }
+  
+  console.log('💬 👤 Final userId for conversation:', userId)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return NextResponse.json({
+      result: "❌ I need to know who you are to save our conversation. Please make sure you're logged in."
+    })
+  }
+  
+  if (!conversation_summary) {
+    return NextResponse.json({
+      result: "❌ I need a summary of our conversation to save it."
+    })
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('conversations')
+      .insert({
+        user_id: userId,
+        summary: conversation_summary,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    console.log('💬 ✅ CONVERSATION SAVED:', data.id)
+    return NextResponse.json({
+      result: `✅ Perfect! I've saved our conversation so I can reference it next time we chat.`
+    })
+    
+  } catch (error) {
+    console.error('❌ CONVERSATION SAVE ERROR:', error)
+    return NextResponse.json({
+      result: `❌ Sorry, I couldn't save our conversation right now. ${error instanceof Error ? error.message : 'Unknown error'}`
+    }, { status: 500 })
+  }
+}
+
+// Save conversation tool for VAPI tools format
+async function saveConversationForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  const { conversation_summary, userId: paramUserId } = parameters
+  
+  console.log('💬 🚀 CONVERSATION SAVE STARTING (TOOL)')
+  console.log('💬 Summary:', conversation_summary)
+  
+  // Get userId - prioritize parameter, then fallback
+  let userId = paramUserId
+  if (!userId) {
+    userId = extractUserIdFromCall(call, authenticatedUserId)
+  }
+  
+  console.log('💬 👤 Final userId for conversation:', userId)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "❌ I need to know who you are to save our conversation. Please make sure you're logged in."
+  }
+  
+  if (!conversation_summary) {
+    return "❌ I need a summary of our conversation to save it."
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('conversations')
+      .insert({
+        user_id: userId,
+        summary: conversation_summary,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    console.log('💬 ✅ CONVERSATION SAVED:', data.id)
+    return `✅ Perfect! I've saved our conversation so I can reference it next time we chat.`
+    
+  } catch (error) {
+    console.error('❌ CONVERSATION SAVE ERROR:', error)
+    return `❌ Sorry, I couldn't save our conversation right now. ${error instanceof Error ? error.message : 'Unknown error'}`
   }
 }
 
