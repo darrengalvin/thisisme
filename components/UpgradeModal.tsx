@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X, Sparkles, Lock, Mail, Check, AlertTriangle } from 'lucide-react'
+import { useAuth } from './AuthProvider'
 
 interface UpgradeModalProps {
   isOpen: boolean
@@ -9,6 +10,7 @@ interface UpgradeModalProps {
 }
 
 export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
+  const { user } = useAuth()
   const [showCodeEntry, setShowCodeEntry] = useState(false)
   const [showEmailEntry, setShowEmailEntry] = useState(false)
   const [inviteCode, setInviteCode] = useState('')
@@ -43,12 +45,32 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
       if (inviteCode.trim().toUpperCase() === 'RODINVITE') {
         console.log('🔑 UPGRADE: Starting premium upgrade with RODINVITE')
         
+        // Get auth token exactly like Timeline API does - this is the working pattern
+        if (!user) {
+          throw new Error('No user found')
+        }
+        
+        console.log('🔑 UPGRADE: Getting auth token for user:', user.id, user.email)
+        const tokenResponse = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, email: user.email }),
+        })
+
+        if (!tokenResponse.ok) {
+          console.error('❌ UPGRADE: Failed to get auth token:', tokenResponse.status)
+          throw new Error('Failed to get authentication token')
+        }
+
+        const { token } = await tokenResponse.json()
+        console.log('✅ UPGRADE: Got auth token successfully')
+        
         const response = await fetch('/api/admin/simple-enable-premium', {
           method: 'POST',
           headers: {
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          credentials: 'include', // Include cookies for Supabase auth
         })
 
         console.log('📡 UPGRADE: Response status:', response.status)
