@@ -1750,6 +1750,7 @@ async function saveConversationForTool(parameters: any, call: any, authenticated
   const { conversation_summary, userId: paramUserId } = parameters
   
   console.log('💬 🚀 CONVERSATION SAVE STARTING (TOOL)')
+  console.log('💬 Parameters received:', parameters)
   console.log('💬 Summary:', conversation_summary)
   
   // Get userId - prioritize parameter, then fallback

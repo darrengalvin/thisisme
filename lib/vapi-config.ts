@@ -318,9 +318,28 @@ Maya: "Got it! I'll save your park visit with Sarah." *saves immediately*
   }
 }
 
+// Helper function to get current webhook URL dynamically
+function getCurrentWebhookURL(): string {
+  if (process.env.NODE_ENV === 'production') {
+    return "https://thisisme-three.vercel.app/api/vapi/webhook"
+  }
+  
+  // For development, try to detect current port
+  if (typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.hostname}:${window.location.port}/api/vapi/webhook`
+  }
+  
+  // Fallback for server-side
+  return process.env.NEXT_PUBLIC_WEBHOOK_URL || `http://localhost:${process.env.PORT || 3000}/api/vapi/webhook`
+}
+
 // Helper function to create a VAPI call
 export function createVAPICall(userId?: string, customPrompt?: string) {
   const config = { ...VAPI_CONFIG.assistant }
+  
+  // Always use current webhook URL
+  config.serverUrl = getCurrentWebhookURL()
+  console.log('🔗 VAPI Webhook URL:', config.serverUrl)
   
   // Add user context to the call
   if (userId) {
