@@ -83,9 +83,27 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
     setPremiumLoading(true)
     
     try {
-      console.log('📡 MAYA: Calling /api/user/premium-status with cookies...')
+      console.log('📡 MAYA: Getting auth token for premium status check...')
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      })
+
+      if (!tokenResponse.ok) {
+        console.error('❌ MAYA: Failed to get auth token for premium check')
+        throw new Error('Failed to get auth token')
+      }
+
+      const { token } = await tokenResponse.json()
+      console.log('✅ MAYA: Got auth token for premium check')
+
+      console.log('📡 MAYA: Calling /api/user/premium-status with JWT token...')
       const response = await fetch('/api/user/premium-status', {
-        credentials: 'include' // Use cookies for authentication instead of Bearer token
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
       })
 
       console.log('📊 MAYA: Premium status response:', response.status, response.ok)
