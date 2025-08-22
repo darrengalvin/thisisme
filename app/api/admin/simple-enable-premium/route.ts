@@ -1,46 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import jwt from 'jsonwebtoken'
+import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
     console.log('🔄 UPGRADE API: Starting premium upgrade process')
     
-    // Get JWT token from Authorization header (same pattern as working APIs)
+    // Extract token from Authorization header (same pattern as working APIs)
     const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('❌ UPGRADE API: No authorization token provided')
-      return NextResponse.json(
-        { error: 'Unauthorized - no token provided' },
-        { status: 401 }
-      )
-    }
-
-    const token = authHeader.substring(7) // Remove "Bearer " prefix
+    console.log('🔐 UPGRADE API AUTH HEADER:', authHeader ? 'Present' : 'Missing')
     
-    // Verify and decode the JWT token (same as other endpoints)
-    let decoded: any
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key')
-      console.log('✅ UPGRADE API: JWT token verified successfully')
-    } catch (jwtError) {
-      console.error('❌ UPGRADE API: JWT verification failed:', jwtError)
+    const token = extractTokenFromHeader(authHeader || undefined)
+    console.log('🎟️ UPGRADE API TOKEN:', token ? 'Present' : 'Missing')
+    
+    if (!token) {
+      console.log('❌ UPGRADE API: No token found in request')
       return NextResponse.json(
-        { error: 'Invalid authentication token' },
+        { error: 'Authentication required' },
         { status: 401 }
       )
     }
 
-    const userId = decoded.id
-    const userEmail = decoded.email
-
-    if (!userId) {
-      console.error('❌ UPGRADE API: No user ID in token')
+    const user = await verifyToken(token)
+    console.log('👤 UPGRADE API USER:', user ? `Success: ${user.userId}` : 'Failed')
+    
+    if (!user) {
       return NextResponse.json(
-        { error: 'Invalid token - no user ID' },
+        { error: 'Invalid token' },
         { status: 401 }
       )
     }
+
+    const userId = user.userId
+    const userEmail = user.email
 
     console.log('🔍 UPGRADE API: Auth successful for user:', userId, userEmail)
 
