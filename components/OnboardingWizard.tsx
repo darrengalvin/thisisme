@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { ArrowRight, ArrowLeft, Sparkles, Calendar, User, Mail, Cake, Check, BookOpen, Plus, CheckCircle } from 'lucide-react'
+import SystemMessageModal from './SystemMessageModal'
 
 type OnboardingStep = 'welcome' | 'name' | 'birth-date' | 'email' | 'timeline-building' | 'timeline-ready' | 'chapter-guide' | 'chapter-creation' | 'memory-guide' | 'memory-creation' | 'complete'
 
@@ -30,6 +31,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
   const [birthYear, setBirthYear] = useState<number>(new Date().getFullYear() - 25)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const hasStartedCreation = useRef(false) // Prevent duplicate executions
+  const [showExistingUserModal, setShowExistingUserModal] = useState(false)
 
   // Timeline building effect - create account and go to main timeline
   React.useEffect(() => {
@@ -248,15 +250,10 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
 
       // Handle user already exists
       if (signUpError && signUpError.message === 'User already registered') {
-        console.log('👤 User already exists - redirecting to sign in')
+        console.log('👤 User already exists - showing nice modal')
         
-        // Show a message and redirect to login
-        alert(`Welcome back! You already have an account with ${userData.email}. 
-
-Please sign in using your existing password.`)
-        
-        // Redirect to login page
-        window.location.href = '/auth/login'
+        // Show nice modal instead of ugly alert
+        setShowExistingUserModal(true)
         return null
       }
 
@@ -880,6 +877,19 @@ Please sign in using your existing password.`)
           </div>
         )}
       </div>
+
+      {/* Existing User Modal */}
+      <SystemMessageModal
+        isOpen={showExistingUserModal}
+        type="info"
+        title="Welcome Back!"
+        message={`You already have an account with ${userData.email}. Please sign in using your existing password.`}
+        actionText="Go to Sign In"
+        onAction={() => {
+          window.location.href = '/auth/login'
+        }}
+        onClose={() => setShowExistingUserModal(false)}
+      />
 
       <style jsx>{`
         @keyframes fadeIn {

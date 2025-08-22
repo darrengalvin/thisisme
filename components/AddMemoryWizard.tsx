@@ -6,6 +6,7 @@ import { useAuth } from '@/components/AuthProvider'
 import VoiceRecorder from '@/components/VoiceRecorder'
 import ImageCropper from '@/components/ImageCropper'
 import UpgradeModal from './UpgradeModal'
+import SystemMessageModal from './SystemMessageModal'
 
 interface AddMemoryWizardProps {
   chapterId: string | null
@@ -41,6 +42,8 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [showImageCropper, setShowImageCropper] = useState(false)
   const [tempImageForCrop, setTempImageForCrop] = useState<{ file: File, index: number } | null>(null)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [showErrorModal, setShowErrorModal] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -189,7 +192,8 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       }
     } catch (error) {
       console.error('Error creating memory:', error)
-      alert('Failed to create memory. Please try again.')
+      setErrorMessage('Failed to create memory. Please try again.')
+      setShowErrorModal(true)
     } finally {
       setIsSubmitting(false)
     }
@@ -637,6 +641,15 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       <UpgradeModal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
+      />
+
+      {/* Error Modal */}
+      <SystemMessageModal
+        isOpen={showErrorModal}
+        type="error"
+        title="Error Creating Memory"
+        message={errorMessage}
+        onClose={() => setShowErrorModal(false)}
       />
     </div>
   )
