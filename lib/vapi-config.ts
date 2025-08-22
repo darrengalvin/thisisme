@@ -297,7 +297,7 @@ Maya: "Got it! I'll save your park visit with Sarah." *saves immediately*
     // Webhook configuration
     serverUrl: process.env.NODE_ENV === 'production' 
       ? "https://thisisme-three.vercel.app/api/vapi/webhook"
-      : "https://your-ngrok-url.ngrok.io/api/vapi/webhook", // Use ngrok for local testing
+      : process.env.NEXT_PUBLIC_WEBHOOK_URL || `http://localhost:${process.env.PORT || 3000}/api/vapi/webhook`, // Dynamic local URL
     serverUrlSecret: process.env.VAPI_WEBHOOK_SECRET || "your-webhook-secret"
   }
 }
