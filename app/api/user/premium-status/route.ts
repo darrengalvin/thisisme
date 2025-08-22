@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       
       if (user && !authError) {
         userId = user.id
-        userEmail = user.email
+        userEmail = user.email || null
       }
     }
     
