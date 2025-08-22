@@ -41,16 +41,36 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
 
     try {
       if (inviteCode.trim().toUpperCase() === 'RODINVITE') {
-        // TODO: Call API to upgrade user to premium
+        console.log('🔑 UPGRADE: Starting premium upgrade with RODINVITE')
+        
+        // First get a JWT token like other API calls do
+        const tokenResponse = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        })
+
+        if (!tokenResponse.ok) {
+          throw new Error('Failed to get authentication token')
+        }
+
+        const { token } = await tokenResponse.json()
+        console.log('✅ UPGRADE: Got auth token')
+        
         const response = await fetch('/api/admin/simple-enable-premium', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
-          // Add auth if needed
         })
 
+        console.log('📡 UPGRADE: Response status:', response.status)
+        const responseData = await response.json()
+        console.log('📊 UPGRADE: Response data:', responseData)
+
         if (response.ok) {
+          console.log('✅ UPGRADE: Premium upgrade successful!')
           setMessage('🎉 Successfully upgraded to Pro! Premium features are now unlocked.')
           setMessageType('success')
           setTimeout(() => {
@@ -59,7 +79,8 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
             window.location.reload()
           }, 2000)
         } else {
-          setMessage('Failed to upgrade. Please try again or contact support.')
+          console.error('❌ UPGRADE: Premium upgrade failed:', responseData)
+          setMessage(`Failed to upgrade: ${responseData.error || 'Unknown error'}. Please try again or contact support.`)
           setMessageType('error')
         }
       } else {

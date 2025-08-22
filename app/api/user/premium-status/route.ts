@@ -27,21 +27,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Temporary override for specific users
-    const premiumUsers = ['dgalvin@yourcaio.co.uk', 'rod7goodman60@gmail.com', 'johntesty@testywesty.com'];
-    if (premiumUsers.includes(user.email || '')) {
-      return NextResponse.json({
-        isPremium: true,
-        tier: 'pro',
-        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
-        features: {
-          voiceTranscription: true,
-          unlimitedMemories: true,
-          advancedSearch: true,
-          prioritySupport: true
-        }
-      })
-    }
+    // Remove hardcoded email restrictions - RODINVITE code should work for anyone
+    // Premium status is now determined purely by database records
 
     // Check user's premium status in the database
     const { data: profile, error: profileError } = await supabase
@@ -52,7 +39,25 @@ export async function GET(request: NextRequest) {
 
     if (profileError) {
       console.error('Error fetching profile:', profileError)
-      // If profile doesn't exist or error, assume non-premium
+      // If profile doesn't exist, create a basic one and assume non-premium
+      // This ensures the upgrade process can work later
+      const { error: createError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          is_premium: false,
+          subscription_tier: 'free',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        })
+      
+      if (createError) {
+        console.error('Error creating profile:', createError)
+      }
+      
       return NextResponse.json({
         isPremium: false,
         tier: 'free',
