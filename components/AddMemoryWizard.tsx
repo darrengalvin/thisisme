@@ -62,15 +62,44 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       }
       
       try {
-        const response = await fetch('/api/user/premium-status')
+        console.log('📡 MEMORY WIZARD: Getting auth token for premium status check...')
+        const tokenResponse = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, email: user.email }),
+        })
+
+        if (!tokenResponse.ok) {
+          console.error('❌ MEMORY WIZARD: Failed to get auth token for premium check')
+          throw new Error('Failed to get auth token')
+        }
+
+        const { token } = await tokenResponse.json()
+        console.log('✅ MEMORY WIZARD: Got auth token for premium check')
+
+        console.log('📡 MEMORY WIZARD: Calling /api/user/premium-status with JWT token...')
+        const response = await fetch('/api/user/premium-status', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        })
+
+        console.log('📊 MEMORY WIZARD: Premium status response:', response.status, response.ok)
+
         if (response.ok) {
           const data = await response.json()
+          console.log('📊 MEMORY WIZARD: Premium status data:', data)
           setIsPremiumUser(data.isPremium)
+          console.log('🔄 MEMORY WIZARD: Premium status updated:', data.isPremium)
+        } else {
+          console.error('❌ MEMORY WIZARD: Premium status check failed:', response.status)
         }
       } catch (error) {
-        console.error('Error checking premium status:', error)
+        console.error('❌ MEMORY WIZARD: Error checking premium status:', error)
       } finally {
         setPremiumLoading(false)
+        console.log('✅ MEMORY WIZARD: Premium status check completed')
       }
     }
     
