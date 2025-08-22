@@ -532,6 +532,99 @@ async function searchMemoriesForTool(parameters, call, urlUserId = null) {
   }
 }
 
+// Save conversation tool - Manual conversation saving
+async function saveConversationForTool(parameters, call, urlUserId = null) {
+  const { conversation_summary, messages, userId: paramUserId } = parameters
+  
+  console.log('💬 🚀 MANUAL CONVERSATION SAVE STARTING')
+  console.log('💬 Summary:', conversation_summary)
+  console.log('💬 Messages count:', messages?.length || 0)
+  
+  // Get userId - prioritize parameter, then fallback
+  let userId = paramUserId
+  if (!userId) {
+    userId = await extractUserIdFromCall(call, null, urlUserId)
+  }
+  
+  console.log('💬 👤 Final userId for conversation:', userId)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "❌ I need to know who you are to save our conversation. Please make sure you're logged in."
+  }
+  
+  if (!conversation_summary && (!messages || messages.length === 0)) {
+    return "❌ I need either a conversation summary or messages to save."
+  }
+
+  try {
+    // Create conversation record
+    const callId = `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    const { data: conversation, error: conversationError } = await supabase
+      .from('conversations')
+      .insert({
+        call_id: callId,
+        user_id: userId,
+        started_at: new Date().toISOString(),
+        ended_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (conversationError) {
+      console.error('💬 ❌ Failed to create conversation:', conversationError)
+      return `❌ Failed to save conversation: ${conversationError.message}`
+    }
+
+    console.log('💬 ✅ Conversation created:', conversation.id)
+
+    // Save messages if provided
+    if (messages && messages.length > 0) {
+      const messageInserts = messages.map(msg => ({
+        conversation_id: conversation.id,
+        role: msg.role || 'user',
+        content: msg.content || msg.message || '',
+        timestamp: new Date().toISOString()
+      }))
+
+      const { error: messagesError } = await supabase
+        .from('conversation_messages')
+        .insert(messageInserts)
+
+      if (messagesError) {
+        console.error('💬 ❌ Failed to save messages:', messagesError)
+        return `❌ Conversation saved but failed to save messages: ${messagesError.message}`
+      }
+
+      console.log('💬 ✅ Messages saved:', messages.length)
+    }
+
+    // Save summary as a system message if provided
+    if (conversation_summary) {
+      const { error: summaryError } = await supabase
+        .from('conversation_messages')
+        .insert({
+          conversation_id: conversation.id,
+          role: 'system',
+          content: `Conversation Summary: ${conversation_summary}`,
+          timestamp: new Date().toISOString()
+        })
+
+      if (summaryError) {
+        console.error('💬 ❌ Failed to save summary:', summaryError)
+      } else {
+        console.log('💬 ✅ Summary saved')
+      }
+    }
+
+    return `✅ Great! I've saved our conversation${conversation_summary ? ` with summary: "${conversation_summary}"` : ''}. I'll be able to reference this in future chats!`
+
+  } catch (error) {
+    console.error('💬 ❌ Error saving conversation:', error)
+    return `❌ Sorry, I had trouble saving our conversation: ${error.message}`
+  }
+}
+
 // Conversation tracking functions
 async function startConversation(callId, userId) {
   if (!callId || !userId) return null
@@ -682,10 +775,15 @@ app.post('/vapi/webhook', async (req, res) => {
             console.log('🔧 🔍 MEMORY SEARCH REQUESTED!')
             result = await searchMemoriesForTool(functionArgs, call, urlUserId)
             break
+            
+          case 'save-conversation':
+            console.log('🔧 💬 CONVERSATION SAVE REQUESTED!')
+            result = await saveConversationForTool(functionArgs, call, urlUserId)
+            break
           
           default:
             console.log(`🔧 ❌ UNKNOWN TOOL: ${functionName}`)
-            result = `❌ Tool "${functionName}" not yet implemented. Available tools: get-user-context, create-chapter, save-memory, search-memories`
+            result = `❌ Tool "${functionName}" not yet implemented. Available tools: get-user-context, create-chapter, save-memory, search-memories, save-conversation`
         }
 
         results.push({
