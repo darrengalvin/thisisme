@@ -85,14 +85,30 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
     setMessage('')
 
     try {
-      // TODO: Send email to request access (could be a simple contact form or email service)
-      // For now, just show a success message
-      setMessage('✅ Request submitted! We\'ll review your request and get back to you soon.')
-      setMessageType('success')
-      setTimeout(() => {
-        setShowEmailEntry(false)
-        setEmail('')
-      }, 3000)
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage('✅ Request submitted! We\'ll review your request and get back to you soon.')
+        setMessageType('success')
+        setTimeout(() => {
+          setShowEmailEntry(false)
+          setEmail('')
+        }, 3000)
+      } else if (response.status === 409) {
+        setMessage('This email is already on our waitlist.')
+        setMessageType('error')
+      } else {
+        setMessage(data.error || 'Failed to submit request. Please try again.')
+        setMessageType('error')
+      }
     } catch (error) {
       setMessage('Failed to submit request. Please try again.')
       setMessageType('error')
