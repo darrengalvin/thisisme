@@ -79,9 +79,7 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
     setPremiumLoading(true)
     try {
       const response = await fetch('/api/user/premium-status', {
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}` 
-        }
+        credentials: 'include' // Use cookies for authentication instead of Bearer token
       })
 
       if (response.ok) {
