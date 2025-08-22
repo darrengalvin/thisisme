@@ -615,7 +615,7 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
           </div>
           
           {/* Control Buttons */}
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Expand/Collapse Button - More Intuitive */}
             <button
               onClick={(e) => {
