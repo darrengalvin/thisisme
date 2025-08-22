@@ -623,19 +623,22 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
                 setIsCollapsed(!isCollapsed)
               }}
               className={`${isCollapsed ? 'px-2 py-1' : 'w-8 h-8'} flex items-center justify-center text-white/90 hover:text-white hover:bg-white/20 rounded-lg transition-all bg-white/10`}
-              title={isCollapsed ? "Click to expand Maya's chat interface" : "Click to minimize Maya"}
+              title={isCollapsed ? "Click to expand Maya's chat interface" : "Click to collapse Maya (keep her open but compact)"}
             >
               {isCollapsed ? (
                 <div className="flex items-center gap-1 text-xs font-medium">
                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zM4 15a1 1 0 100 2h12a1 1 0 100-2H4z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                   <span>Expand</span>
                 </div>
               ) : (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                <div className="flex items-center gap-1 text-xs font-medium">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                  </svg>
+                  <span>Collapse</span>
+                </div>
               )}
             </button>
             
