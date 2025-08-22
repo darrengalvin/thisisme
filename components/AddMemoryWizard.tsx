@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check, Mic, Crown, S
 import { useAuth } from '@/components/AuthProvider'
 import VoiceRecorder from '@/components/VoiceRecorder'
 import ImageCropper from '@/components/ImageCropper'
-import NotificationModal from './NotificationModal'
+import UpgradeModal from './UpgradeModal'
 
 interface AddMemoryWizardProps {
   chapterId: string | null
@@ -40,7 +40,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [premiumLoading, setPremiumLoading] = useState(true)
   const [showImageCropper, setShowImageCropper] = useState(false)
   const [tempImageForCrop, setTempImageForCrop] = useState<{ file: File, index: number } | null>(null)
-  const [showPremiumNotification, setShowPremiumNotification] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -203,7 +203,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
 
   const handleVoiceRecord = () => {
     if (!isPremiumUser) {
-      setShowPremiumNotification(true)
+      setShowUpgradeModal(true)
       return
     }
     
@@ -633,19 +633,10 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
         />
       )}
 
-      {/* Premium Feature Notification */}
-      <NotificationModal
-        isOpen={showPremiumNotification}
-        type="premium"
-        title="Premium Feature"
-        message="🎤 Voice-to-Text Transcription is a premium feature! This converts your speech directly into text in the memory form. Upgrade to Pro to unlock AI-powered voice transcription. (Note: Free voice chat with Maya is available via the floating voice button in the bottom-right corner!)"
-        actionText="Upgrade to Pro"
-        onAction={() => {
-          // TODO: Navigate to upgrade page
-          console.log('Navigate to upgrade page')
-        }}
-        onClose={() => setShowPremiumNotification(false)}
-        autoClose={false}
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
       />
     </div>
   )
