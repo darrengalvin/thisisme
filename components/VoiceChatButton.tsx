@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
+import UpgradeModal from './UpgradeModal'
 
 interface VoiceChatButtonProps {
   onDataChange?: () => void
@@ -42,6 +43,9 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
   const [showHistory, setShowHistory] = useState(false)
   const [conversationHistory, setConversationHistory] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [isPremiumUser, setIsPremiumUser] = useState(false)
+  const [premiumLoading, setPremiumLoading] = useState(true)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     // Load collapsed state from localStorage
     if (typeof window !== 'undefined') {
@@ -63,6 +67,35 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
   useEffect(() => {
     localStorage.setItem('maya-show-conversation', showConversation.toString())
   }, [showConversation])
+
+  // Check premium status
+  useEffect(() => {
+    const checkPremiumStatus = async () => {
+      if (!user) {
+        setPremiumLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch('/api/user/premium-status', {
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}` 
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setIsPremiumUser(data.isPremium)
+        }
+      } catch (error) {
+        console.error('Failed to check premium status:', error)
+      } finally {
+        setPremiumLoading(false)
+      }
+    }
+    
+    checkPremiumStatus()
+  }, [user, session])
 
   // Load conversation history
   const loadConversationHistory = async () => {
@@ -194,6 +227,11 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
       return
     }
 
+    if (!isPremiumUser) {
+      setShowUpgradeModal(true)
+      return
+    }
+
     if (!vapi || !vapiLoaded) {
       alert('VAPI SDK is still loading. Please try again in a moment.')
       return
@@ -281,6 +319,83 @@ export default function VoiceChatButton({ onDataChange, onChapterUpdate, onMemor
       <div className="card p-6 bg-amber-50 border-amber-200">
         <p className="text-amber-800">Please log in to chat with Maya</p>
       </div>
+    )
+  }
+
+  if (premiumLoading) {
+    return (
+      <div className="card p-6 bg-slate-50">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin h-5 w-5 border-2 border-slate-400 border-t-transparent rounded-full mr-3"></div>
+          <span className="text-slate-600">Loading Maya...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isPremiumUser) {
+    return (
+      <>
+        <div className="card-elevated flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 relative overflow-hidden">
+          {/* Premium Badge */}
+          <div className="absolute top-4 right-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+            PRO
+          </div>
+          
+          {/* Header */}
+          <div className="p-6 bg-gradient-to-r from-slate-400 to-slate-500 text-white rounded-t-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
+                <svg className="w-5 h-5 text-white opacity-50" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M7 4a3 3 0 616 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 715 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-white">
+                  Talk with Maya
+                </h3>
+                <p className="text-sm text-slate-200">
+                  Your AI memory assistant
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Locked Content */}
+          <div className="p-6 text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <h4 className="text-lg font-semibold text-slate-900 mb-2">Premium Feature</h4>
+            <p className="text-slate-600 mb-4 leading-relaxed">
+              Maya is your AI-powered memory assistant. She can help you capture memories through natural conversation, organize them into chapters, and bring your timeline to life.
+            </p>
+            <div className="bg-slate-50 rounded-xl p-4 mb-6">
+              <h5 className="font-semibold text-slate-800 mb-2">✨ What Maya can do:</h5>
+              <div className="text-left text-sm text-slate-600 space-y-1">
+                <p>• 🎤 Voice-powered memory capture</p>
+                <p>• 📖 Automatic chapter organization</p>
+                <p>• 💡 Smart timeline suggestions</p>
+                <p>• 🤝 Natural conversation interface</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowUpgradeModal(true)}
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white py-3 px-6 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              Upgrade to Talk with Maya
+            </button>
+          </div>
+        </div>
+
+        {/* Upgrade Modal */}
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+        />
+      </>
     )
   }
 
