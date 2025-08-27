@@ -40,7 +40,7 @@ const tabs: Tab[] = [
 
 export default function TabNavigation({ activeTab, onTabChange, className = '' }: TabNavigationProps) {
   return (
-    <div className={`bg-white/95 backdrop-blur-md border-b border-slate-200/50 shadow-sm ${className}`}>
+    <div className={`bg-white border-b border-slate-200/50 shadow-sm ${className}`}>
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         <nav className="flex space-x-1 sm:space-x-8" aria-label="Tabs">
           {tabs.map((tab) => {
