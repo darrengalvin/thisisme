@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { ArrowRight, ArrowLeft, Calendar, Clock, X, Check, Upload, Image as ImageIcon, Move } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowRight, ArrowLeft, Calendar, Clock, X, Check, Upload, Image as ImageIcon, Move, Mic, Crown, Sparkles } from 'lucide-react'
 import { useAuth } from './AuthProvider'
 import toast from 'react-hot-toast'
 import ImageCropper from './ImageCropper'
+import VoiceRecorder from './VoiceRecorder'
+import UpgradeModal from './UpgradeModal'
 
 interface CreateTimeZoneProps {
   onSuccess?: () => void
@@ -23,8 +25,73 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
   const [isLoading, setIsLoading] = useState(false)
   const [showImageCropper, setShowImageCropper] = useState(false)
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null)
+  const [isPremiumUser, setIsPremiumUser] = useState(false)
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
+  const [premiumLoading, setPremiumLoading] = useState(true)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   const totalSteps = 4
+
+  useEffect(() => {
+    const checkPremiumStatus = async () => {
+      if (!user) {
+        setPremiumLoading(false)
+        return
+      }
+      
+      // Temporary override for specific user
+      console.log('Checking premium for user:', user.email)
+      if (user.email === 'dgalvin@yourcaio.co.uk') {
+        console.log('✅ Premium enabled for dgalvin@yourcaio.co.uk')
+        setIsPremiumUser(true)
+        setPremiumLoading(false)
+        return
+      }
+      
+      try {
+        console.log('📡 CREATE CHAPTER: Getting auth token for premium status check...')
+        const tokenResponse = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, email: user.email }),
+        })
+
+        if (!tokenResponse.ok) {
+          console.error('❌ CREATE CHAPTER: Failed to get auth token for premium check')
+          throw new Error('Failed to get auth token')
+        }
+
+        const { token } = await tokenResponse.json()
+        console.log('✅ CREATE CHAPTER: Got auth token for premium check')
+
+        console.log('📡 CREATE CHAPTER: Calling /api/user/premium-status with JWT token...')
+        const response = await fetch('/api/user/premium-status', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        })
+
+        console.log('📊 CREATE CHAPTER: Premium status response:', response.status, response.ok)
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log('📊 CREATE CHAPTER: Premium status data:', data)
+          setIsPremiumUser(data.isPremium)
+          console.log('🔄 CREATE CHAPTER: Premium status updated:', data.isPremium)
+        } else {
+          console.error('❌ CREATE CHAPTER: Premium status check failed:', response.status)
+        }
+      } catch (error) {
+        console.error('❌ CREATE CHAPTER: Error checking premium status:', error)
+      } finally {
+        setPremiumLoading(false)
+        console.log('✅ CREATE CHAPTER: Premium status check completed')
+      }
+    }
+    
+    checkPremiumStatus()
+  }, [user])
 
   const getAuthToken = async () => {
     if (!user) return null
@@ -86,6 +153,20 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
     }
     setShowImageCropper(false)
     setTempImageUrl(null)
+  }
+
+  const handleVoiceRecord = () => {
+    if (!isPremiumUser) {
+      setShowUpgradeModal(true)
+      return
+    }
+    
+    setShowVoiceRecorder(true)
+  }
+
+  const handleVoiceTranscription = (transcribedText: string) => {
+    setDescription(prev => prev ? `${prev}\n\n${transcribedText}` : transcribedText)
+    setShowVoiceRecorder(false)
   }
 
   const removeImage = () => {
@@ -382,17 +463,70 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
               <span className="text-2xl">✨</span>
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Add a description? (Optional)</h2>
+              <div className="flex items-center justify-center space-x-2 mb-2">
+                <h2 className="text-2xl font-bold text-slate-900">Add a description? (Optional)</h2>
+                {isPremiumUser && (
+                  <div className="flex items-center space-x-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                    <Crown size={12} />
+                    <span className="font-medium">PRO</span>
+                  </div>
+                )}
+              </div>
               <p className="text-slate-600">Tell us a bit about what this chapter was like</p>
             </div>
             <div className="max-w-md mx-auto">
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="This was when I was studying at university, living in student accommodation, making lifelong friends..."
-                rows={4}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent resize-none"
-              />
+              <div className="relative">
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="This was when I was studying at university, living in student accommodation, making lifelong friends..."
+                  rows={4}
+                  className={`w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent resize-none ${isPremiumUser ? 'pr-16' : ''}`}
+                />
+                
+                {/* Premium Voice Button - Positioned on textarea */}
+                {isPremiumUser && (
+                  <div className="absolute bottom-3 right-3">
+                    <button
+                      type="button"
+                      onClick={handleVoiceRecord}
+                      className="p-2.5 rounded-full transition-all duration-200 shadow-lg bg-slate-700 hover:bg-slate-800 text-white hover:shadow-xl border-2 border-slate-600 hover:border-slate-500"
+                      title="Voice-to-Text Transcription (Premium Feature)"
+                    >
+                      <Mic size={18} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Premium Feature Hint for Non-Premium Users */}
+                {!isPremiumUser && (
+                  <div className="absolute bottom-3 right-3">
+                    <div className="group relative">
+                      <button
+                        type="button"
+                        onClick={handleVoiceRecord}
+                        className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition-colors opacity-60 border border-slate-200"
+                        title="Voice transcription available with Pro upgrade"
+                      >
+                        <Mic size={16} />
+                      </button>
+                      <div className="absolute -top-12 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        <div className="flex items-center space-x-1">
+                          <Sparkles size={10} />
+                          <span>Upgrade to Pro</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {isPremiumUser && (
+                <div className="mt-2 text-xs text-slate-500 flex items-center justify-center space-x-1">
+                  <Sparkles size={12} className="text-slate-600" />
+                  <span>Click the microphone to use AI voice transcription</span>
+                </div>
+              )}
             </div>
             <div className="bg-slate-50 rounded-xl p-4 max-w-md mx-auto">
               <h3 className="font-semibold text-slate-900 mb-3">Chapter Summary:</h3>
@@ -517,6 +651,21 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
           outputHeight={270}
         />
       )}
+      
+      {/* Voice Recorder Modal */}
+      {showVoiceRecorder && (
+        <VoiceRecorder
+          onTranscription={handleVoiceTranscription}
+          onClose={() => setShowVoiceRecorder(false)}
+          isPremium={isPremiumUser}
+        />
+      )}
+      
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+      />
     </div>
   )
 } 

@@ -1324,8 +1324,6 @@ async function getUserContextForTool(parameters: any, call: any, authenticatedUs
         .order('created_at', { ascending: false })
         .limit(3)
       
-      console.log('💾 CONVERSATION QUERY RESULTS:', { conversations, conversationError, count: conversations?.length })
-      
       if (!conversationError && conversations && conversations.length > 0) {
         const lastConversation = conversations[0]
         const timeSince = new Date().getTime() - new Date(lastConversation.created_at).getTime()

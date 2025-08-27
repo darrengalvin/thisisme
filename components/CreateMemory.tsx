@@ -1,7 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Calendar, MapPin, Upload, X, Image as ImageIcon, Film, Mic, Plus } from 'lucide-react'
+import { Calendar, MapPin, Upload, X, Image as ImageIcon, Film, Mic, Plus, Crown, Sparkles } from 'lucide-react'
+import VoiceRecorder from './VoiceRecorder'
+import UpgradeModal from './UpgradeModal'
+import { useAuth } from './AuthProvider'
 
 interface Memory {
   id: string
@@ -29,6 +32,7 @@ interface CreateMemoryProps {
 }
 
 export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
+  const { user } = useAuth()
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [memoryDate, setMemoryDate] = useState('')
@@ -66,6 +70,10 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
   const [groupEndYear, setGroupEndYear] = useState('')
   const [newGroupDescription, setNewGroupDescription] = useState('')
   const [newGroupImage, setNewGroupImage] = useState<File | null>(null)
+  const [isPremiumUser, setIsPremiumUser] = useState(false)
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
+  const [premiumLoading, setPremiumLoading] = useState(true)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
@@ -103,7 +111,65 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
     }
 
     fetchTimeZones()
+    checkPremiumStatus()
   }, [])
+
+  const checkPremiumStatus = async () => {
+    if (!user) {
+      setPremiumLoading(false)
+      return
+    }
+    
+    // Temporary override for specific user
+    console.log('Checking premium for user:', user.email)
+    if (user.email === 'dgalvin@yourcaio.co.uk') {
+      console.log('✅ Premium enabled for dgalvin@yourcaio.co.uk')
+      setIsPremiumUser(true)
+      setPremiumLoading(false)
+      return
+    }
+    
+    try {
+      console.log('📡 CREATE MEMORY: Getting auth token for premium status check...')
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      })
+
+      if (!tokenResponse.ok) {
+        console.error('❌ CREATE MEMORY: Failed to get auth token for premium check')
+        throw new Error('Failed to get auth token')
+      }
+
+      const { token } = await tokenResponse.json()
+      console.log('✅ CREATE MEMORY: Got auth token for premium check')
+
+      console.log('📡 CREATE MEMORY: Calling /api/user/premium-status with JWT token...')
+      const response = await fetch('/api/user/premium-status', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+
+      console.log('📊 CREATE MEMORY: Premium status response:', response.status, response.ok)
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('📊 CREATE MEMORY: Premium status data:', data)
+        setIsPremiumUser(data.isPremium)
+        console.log('🔄 CREATE MEMORY: Premium status updated:', data.isPremium)
+      } else {
+        console.error('❌ CREATE MEMORY: Premium status check failed:', response.status)
+      }
+    } catch (error) {
+      console.error('❌ CREATE MEMORY: Error checking premium status:', error)
+    } finally {
+      setPremiumLoading(false)
+      console.log('✅ CREATE MEMORY: Premium status check completed')
+    }
+  }
 
   const getAuthToken = () => {
     // First try to get from cookies (consistent with other components)
@@ -120,6 +186,20 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
     }
     
     return null
+  }
+
+  const handleVoiceRecord = () => {
+    if (!isPremiumUser) {
+      setShowUpgradeModal(true)
+      return
+    }
+    
+    setShowVoiceRecorder(true)
+  }
+
+  const handleVoiceTranscription = (transcribedText: string) => {
+    setContent(prev => prev ? `${prev}\n\n${transcribedText}` : transcribedText)
+    setShowVoiceRecorder(false)
   }
 
   const handleCreateGroup = async () => {
@@ -593,15 +673,71 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      placeholder="Tell your story..."
-                      rows={5}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
-                      required
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Description
+                      </label>
+                      {isPremiumUser && (
+                        <div className="flex items-center space-x-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                          <Crown size={12} />
+                          <span className="font-medium">PRO</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="relative">
+                      <textarea
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        placeholder="Tell your story..."
+                        rows={5}
+                        className={`w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none ${isPremiumUser ? 'pr-16' : ''}`}
+                        required
+                      />
+                      
+                      {/* Premium Voice Button - Positioned on textarea */}
+                      {isPremiumUser && (
+                        <div className="absolute bottom-3 right-3">
+                          <button
+                            type="button"
+                            onClick={handleVoiceRecord}
+                            className="p-2.5 rounded-full transition-all duration-200 shadow-lg bg-slate-700 hover:bg-slate-800 text-white hover:shadow-xl border-2 border-slate-600 hover:border-slate-500"
+                            title="Voice-to-Text Transcription (Premium Feature)"
+                          >
+                            <Mic size={18} />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Premium Feature Hint for Non-Premium Users */}
+                      {!isPremiumUser && (
+                        <div className="absolute bottom-3 right-3">
+                          <div className="group relative">
+                            <button
+                              type="button"
+                              onClick={handleVoiceRecord}
+                              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition-colors opacity-60 border border-slate-200"
+                              title="Voice transcription available with Pro upgrade"
+                            >
+                              <Mic size={16} />
+                            </button>
+                            <div className="absolute -top-12 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                              <div className="flex items-center space-x-1">
+                                <Sparkles size={10} />
+                                <span>Upgrade to Pro</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {isPremiumUser && (
+                      <div className="mt-2 text-xs text-slate-500 flex items-center space-x-1">
+                        <Sparkles size={12} className="text-slate-600" />
+                        <span>Click the microphone in the text box to use AI voice transcription</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1503,6 +1639,21 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
           </div>
         </form>
       </div>
+      
+      {/* Voice Recorder Modal */}
+      {showVoiceRecorder && (
+        <VoiceRecorder
+          onTranscription={handleVoiceTranscription}
+          onClose={() => setShowVoiceRecorder(false)}
+          isPremium={isPremiumUser}
+        />
+      )}
+      
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+      />
     </div>
   )
 } 
