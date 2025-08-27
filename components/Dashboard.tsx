@@ -1274,7 +1274,7 @@ export default function Dashboard() {
                 </button>
                 
                 {showUserSwitcher && !isImpersonating && (
-                  <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 py-2 min-w-[300px] z-50">
+                  <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 py-2 min-w-[300px] z-[60]">
                     <div className="px-4 py-2 border-b border-slate-100">
                       <div className="flex items-center space-x-2 mb-2">
                         <UserCheck size={16} className="text-blue-600" />
@@ -1344,7 +1344,7 @@ export default function Dashboard() {
               </button>
               
               {showProfileDropdown && (
-                <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 py-2 min-w-[180px] z-50">
+                <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 py-2 min-w-[180px] z-[60]">
                   <div className="px-4 py-2 border-b border-slate-100">
                     {isImpersonating ? (
                       <>
