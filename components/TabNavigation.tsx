@@ -13,7 +13,7 @@ interface TabNavigationProps {
 interface Tab {
   id: TabType
   label: string
-  icon: React.ComponentType<{ size?: number; className?: string }>
+  icon: any
   description: string
 }
 
