@@ -340,7 +340,7 @@ export default function TimelineView({
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Desktop Left Sidebar - Chapter Filters */}
           <div className="hidden lg:block lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 sticky top-32 max-h-[calc(100vh-10rem)] flex flex-col">
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 sticky top-40 max-h-[calc(100vh-12rem)] flex flex-col">
               <div className="p-6 border-b border-slate-100 flex-shrink-0">
                 <h2 className="text-xl font-bold text-slate-900">Filter by Chapter</h2>
                 <p className="text-sm text-slate-600 mt-1">

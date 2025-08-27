@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { Plus, User, LogOut, Menu, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, UserCheck, AlertTriangle, Search } from 'lucide-react'
+import { Plus, User, LogOut, Menu, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, UserCheck, AlertTriangle, Search } from 'lucide-react'
 import MemoryViews from './MemoryViews'
 import GroupManager from './GroupManager'
 import CreateMemory from './CreateMemory'
@@ -16,12 +16,14 @@ import EditMemoryModal from './EditMemoryModal'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
 import { useAuth } from '@/components/AuthProvider'
 import TicketNotifications from '@/components/TicketNotifications'
+import TabNavigation from './TabNavigation'
 
 import VoiceChatButton from './VoiceChatButton'
 import { MemoryWithRelations } from '@/lib/types'
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates'
 
 type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support'
+type MainTabType = 'home' | 'timeline' | 'timezones'
 
 interface UserType {
   id: string
@@ -41,7 +43,6 @@ export default function Dashboard() {
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null)
   const [selectedChapterTitle, setSelectedChapterTitle] = useState<string>('')
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
-  const [showViewDropdown, setShowViewDropdown] = useState(false)
   const [isLoadingUser, setIsLoadingUser] = useState(true)
   const [isNewUser, setIsNewUser] = useState(false)
   const [timelineControls, setTimelineControls] = useState<{
@@ -844,14 +845,7 @@ export default function Dashboard() {
     }
   }
 
-  const getViewName = () => {
-    switch (activeTab) {
-      case 'home': return 'Feed View'
-      case 'timeline': return 'Timeline View'
-      case 'timezones': return 'Life Chapters'
-      default: return 'Feed View'
-    }
-  }
+
 
   const renderContent = () => {
     // Don't render timeline components until we have user data to avoid birth year timing issues
@@ -1176,41 +1170,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Center - View Switcher & Timeline Controls */}
+          {/* Center - Timeline Controls */}
           <div className="flex items-center space-x-4">
-            {/* View Switcher Dropdown */}
-            <div className="relative">
-              <button 
-                onClick={() => setShowViewDropdown(!showViewDropdown)}
-                className="flex items-center space-x-2 bg-white hover:bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 transition-colors"
-              >
-                <span className="text-sm font-medium text-slate-700">{getViewName()}</span>
-                <ChevronDown size={16} className="text-slate-400" />
-              </button>
-              
-              {showViewDropdown && (
-                <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-10 min-w-[150px]">
-                  <button
-                    onClick={() => { setActiveTab('home'); setShowViewDropdown(false) }}
-                    className={`w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors ${activeTab === 'home' ? 'text-slate-900 font-medium' : 'text-slate-600'}`}
-                  >
-                    🏠 Feed View
-                  </button>
-                  <button
-                    onClick={() => { setActiveTab('timeline'); setShowViewDropdown(false) }}
-                    className={`w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors ${activeTab === 'timeline' ? 'text-slate-900 font-medium' : 'text-slate-600'}`}
-                  >
-                    📊 Timeline View
-                  </button>
-                  <button
-                    onClick={() => { setActiveTab('timezones'); setShowViewDropdown(false) }}
-                    className={`w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors ${activeTab === 'timezones' ? 'text-slate-900 font-medium' : 'text-slate-600'}`}
-                  >
-                    📖 Chapter View
-                  </button>
-                </div>
-              )}
-            </div>
 
             {/* Timeline Controls - only show when timeline is active */}
             {timelineControls && (
@@ -1455,6 +1416,13 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* Tab Navigation */}
+      <TabNavigation 
+        activeTab={activeTab as MainTabType}
+        onTabChange={(tab) => setActiveTab(tab)}
+        className="sticky top-[73px] z-50"
+      />
+
       {/* Main Content */}
       <main className="flex-1">
         {renderContent()}
@@ -1471,12 +1439,11 @@ export default function Dashboard() {
       )}
 
       {/* Click outside handlers */}
-      {(showProfileDropdown || showViewDropdown) && (
+      {showProfileDropdown && (
         <div 
           className="fixed inset-0 z-40" 
           onClick={() => {
             setShowProfileDropdown(false)
-            setShowViewDropdown(false)
           }}
         />
       )}

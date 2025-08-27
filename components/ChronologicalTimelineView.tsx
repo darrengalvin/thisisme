@@ -247,9 +247,9 @@ export default function ChronologicalTimelineView({
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
       {/* Desktop: Horizontal Zoomable Timeline */}
       {birthYear && (
-        <div className="hidden md:block fixed top-[88px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 pt-4 lg:pt-6 px-4 lg:px-6 pb-2 shadow-sm">
-          <div className="text-center mb-4 lg:mb-6 relative">
-            <h3 className="text-lg lg:text-xl font-bold text-slate-900 mb-2">
+        <div className="hidden md:block fixed top-[130px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 pt-1 px-4 lg:px-6 pb-1 shadow-sm">
+          <div className="text-center mb-1 relative">
+            <h3 className="text-lg lg:text-xl font-bold text-slate-900 mb-1">
               Your Life Timeline
             </h3>
             <p className="text-slate-600 text-sm lg:text-base">
@@ -257,7 +257,7 @@ export default function ChronologicalTimelineView({
             </p>
             
             {/* Chapter count indicator */}
-            <div className="mt-2">
+            <div className="mt-1">
               {isLoadingChapters ? (
                 <p className="text-slate-500 text-xs">Loading chapters...</p>
               ) : (
@@ -267,46 +267,11 @@ export default function ChronologicalTimelineView({
               )}
             </div>
             
-            {/* Default View Toggle - Desktop */}
-            <div className="absolute top-0 right-0 flex items-center">
-              <span className="text-xs text-slate-500 mr-3">Default View:</span>
-              <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200">
-              <button
-                  onClick={() => {
-                    console.log('🔄 GLOBAL VIEW TOGGLE: Switching to Globe mode')
-                    setIs3DMode(true)
-                  }}
-                  className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                  is3DMode 
-                      ? 'bg-blue-500 text-white shadow-sm' 
-                      : 'text-slate-600 hover:text-slate-800 hover:bg-white'
-                }`}
-                  title="Default to Globe View"
-              >
-                  <Box size={14} className="mr-1 inline" />
-                  Globe
-              </button>
-                <button
-                        onClick={() => {
-                    console.log('🔄 GLOBAL VIEW TOGGLE: Switching to List mode')
-                    setIs3DMode(false)
-                  }}
-                  className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                    !is3DMode 
-                      ? 'bg-blue-500 text-white shadow-sm' 
-                      : 'text-slate-600 hover:text-slate-800 hover:bg-white'
-                  }`}
-                  title="Default to List View"
-                >
-                  <List size={14} className="mr-1 inline" />
-                  List
-                </button>
-              </div>
-            </div>
+
           </div>
 
           {/* Timeline Visualization */}
-            <div className="relative">
+            <div className="relative pt-[20px]">
             {/* Main timeline line */}
             <div className="h-1 bg-gradient-to-r from-slate-300 via-slate-400 to-slate-500 rounded-full mb-0 relative">
             {/* Year markers */}
@@ -536,7 +501,7 @@ export default function ChronologicalTimelineView({
                           }}
                         >
                           <div 
-                            className="memory-globe-container"
+                            className="memory-globe-container relative"
                             onMouseEnter={() => {
                               console.log('🎯 GLOBE CONTAINER HOVER ENTER:', chapter.title)
                               setHoveredChapter(chapter.id)
@@ -556,6 +521,45 @@ export default function ChronologicalTimelineView({
                               }, 500) // Increased from 100ms to 500ms for globe interaction
                             }}
                           >
+                            {/* Desktop Contextual View Toggle - tab style attached to top */}
+                            <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-50 bg-white/95 backdrop-blur-sm rounded-t-lg shadow-lg border border-slate-200/50 border-b-0 p-1">
+                              <div className="flex items-center">
+                                <span className="text-xs text-slate-600 mr-2 px-2">View:</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    console.log('🔄 DESKTOP CONTEXTUAL VIEW TOGGLE: Switching to Globe mode for', chapter.title)
+                                    setIs3DMode(true)
+                                  }}
+                                  className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                                    is3DMode 
+                                      ? 'bg-blue-500 text-white shadow-sm' 
+                                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                                  }`}
+                                  title="Globe View"
+                                >
+                                  <Box size={12} className="mr-1 inline" />
+                                  Globe
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    console.log('🔄 DESKTOP CONTEXTUAL VIEW TOGGLE: Switching to List mode for', chapter.title)
+                                    setIs3DMode(false)
+                                  }}
+                                  className={`px-2 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                                    !is3DMode 
+                                      ? 'bg-blue-500 text-white shadow-sm' 
+                                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                                  }`}
+                                  title="List View"
+                                >
+                                  <List size={12} className="mr-1 inline" />
+                                  List
+                                </button>
+                              </div>
+                            </div>
+
                             <MemoryGlobe
                               memories={chapterMemories}
                               chapterTitle={chapter.title}
@@ -586,7 +590,7 @@ export default function ChronologicalTimelineView({
       {birthYear && chapters.length > 0 && (
         <div className="md:hidden">
           {/* Mobile Header */}
-          <div className="sticky top-[88px] z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 px-4 py-3 shadow-sm">
+          <div className="sticky top-[130px] z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 px-4 py-3 shadow-sm">
               <div className="text-center">
               <h3 className="text-lg font-bold text-slate-900 mb-1">Your Life Timeline</h3>
               <p className="text-slate-600 text-sm">{birthYear} - {currentYear} • {currentYear - birthYear} years</p>
@@ -603,40 +607,7 @@ export default function ChronologicalTimelineView({
                 )}
               </div>
 
-            {/* Mobile Default View Toggle */}
-            <div className="flex items-center justify-center mt-3">
-              <span className="text-xs text-slate-500 mr-3">Default:</span>
-              <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200">
-                <button
-                  onClick={() => {
-                    console.log('🔄 MOBILE GLOBAL VIEW TOGGLE: Switching to Globe mode')
-                    setIs3DMode(true)
-                  }}
-                  className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                    is3DMode 
-                      ? 'bg-blue-500 text-white shadow-sm' 
-                      : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                  title="Default to Globe View"
-                >
-                  🌍 Globe
-                </button>
-                <button
-                  onClick={() => {
-                    console.log('🔄 MOBILE GLOBAL VIEW TOGGLE: Switching to List mode')
-                    setIs3DMode(false)
-                  }}
-                  className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
-                    !is3DMode 
-                      ? 'bg-blue-500 text-white shadow-sm' 
-                      : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                  title="Default to List View"
-                >
-                  📋 List
-                </button>
-              </div>
-            </div>
+
                 </div>
 
           {/* Mobile Vertical Timeline Content */}
@@ -781,7 +752,7 @@ export default function ChronologicalTimelineView({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Globe Header */}
-            <div className="bg-gradient-to-r from-slate-50 to-white px-6 py-4 border-b border-slate-200">
+            <div className="bg-gradient-to-r from-slate-50 to-white px-6 py-4 border-b border-slate-200 relative">
                   <div className="text-center">
                 <h5 className="font-bold text-slate-900 text-lg mb-1">
                   {chapters.find(c => c.id === hoveredChapter)?.title}
@@ -790,6 +761,46 @@ export default function ChronologicalTimelineView({
                   {memories.filter(m => m.timeZoneId === hoveredChapter).length} memories
                     </p>
                   </div>
+                
+                {/* Mobile Contextual View Toggle */}
+                <div className="flex items-center justify-center mt-3">
+                  <span className="text-xs text-slate-600 mr-2">View:</span>
+                  <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        console.log('🔄 MOBILE CONTEXTUAL VIEW TOGGLE: Switching to Globe mode')
+                        setIs3DMode(true)
+                      }}
+                      className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                        is3DMode 
+                          ? 'bg-blue-500 text-white shadow-sm' 
+                          : 'text-slate-600 hover:text-slate-800 hover:bg-white'
+                      }`}
+                      title="Globe View"
+                    >
+                      <Box size={12} className="mr-1 inline" />
+                      Globe
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        console.log('🔄 MOBILE CONTEXTUAL VIEW TOGGLE: Switching to List mode')
+                        setIs3DMode(false)
+                      }}
+                      className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 ${
+                        !is3DMode 
+                          ? 'bg-blue-500 text-white shadow-sm' 
+                          : 'text-slate-600 hover:text-slate-800 hover:bg-white'
+                      }`}
+                      title="List View"
+                    >
+                      <List size={12} className="mr-1 inline" />
+                      List
+                    </button>
+                  </div>
+                </div>
+                
                 <button
                 onClick={() => setHoveredChapter(null)}
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
@@ -823,7 +834,7 @@ export default function ChronologicalTimelineView({
                         {/* Globe Footer with action hint */}
                                                                         <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-center">
                           <p className="text-xs text-slate-500">
-                Tap pictures to view memories • Use 🌍/📋 toggle for this chapter • Tap outside to close
+                Tap pictures to view memories • Tap outside to close
               </p>
             </div>
                       </div>

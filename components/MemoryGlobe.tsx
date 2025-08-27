@@ -452,39 +452,7 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
           </button>
         )}
         
-        {/* Local View Toggle */}
-        <div className="flex items-center justify-center space-x-1 relative z-20">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              console.log('🔄 LOCAL VIEW TOGGLE: Switching to globe view for', chapterTitle)
-              setLocalViewMode('globe')
-            }}
-            className={`px-2 py-1 text-xs rounded transition-all duration-200 pointer-events-auto relative z-30 ${
-              localViewMode === 'globe' 
-                ? 'bg-blue-500 text-white shadow-sm' 
-                : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
-            }`}
-            title="Switch to Globe View"
-          >
-            🌍
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              console.log('🔄 LOCAL VIEW TOGGLE: Switching to list view for', chapterTitle)
-              setLocalViewMode('list')
-            }}
-            className={`px-2 py-1 text-xs rounded transition-all duration-200 pointer-events-auto relative z-30 ${
-              localViewMode === 'list' 
-                ? 'bg-blue-500 text-white shadow-sm' 
-                : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
-            }`}
-            title="Switch to List View"
-          >
-            📋
-          </button>
-        </div>
+
       </div>
       
       {/* Enhanced CSS Animations */}
