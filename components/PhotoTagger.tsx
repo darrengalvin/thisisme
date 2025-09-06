@@ -231,9 +231,9 @@ export default function PhotoTagger({
         console.error('🏷️ PHOTO TAGGER: API Error:', response.status, errorData)
         toast.error(`Failed to save tags: ${errorData.error || 'Unknown error'}`)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('🏷️ PHOTO TAGGER: Error saving tags:', error)
-      toast.error(`Error saving tags: ${error.message}`)
+      toast.error(`Error saving tags: ${error.message || 'Unknown error'}`)
     } finally {
       setIsSaving(false)
     }
@@ -272,9 +272,7 @@ export default function PhotoTagger({
               />
 
               {/* Existing Tags */}
-              {tags.length > 0 && console.log('Rendering tags:', tags)}
               {tags.map((tag, index) => {
-                console.log('Rendering tag:', tag, 'at position:', tag.x_position, tag.y_position)
                 return (
                   <div
                     key={tag.id || `${tag.tagged_person_id}-${index}`}
