@@ -64,8 +64,8 @@ export default function MyPeopleEnhanced() {
     email: '',
     relationship: '',
     photo_url: '',
-    personType: 'living', // 'living' or 'legacy'
-    inviteMethod: 'email', // 'email' or 'sms'
+    personType: 'living' as 'living' | 'legacy',
+    inviteMethod: 'email' as 'email' | 'sms',
     customMessage: '',
     taggedMemories: [] as string[],
     permissions: {
