@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       'notifications'
     ]
     
-    const results = {}
+    const results: any = {}
     
     for (const table of tables) {
       try {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         }
         
         console.log(`✅ Table ${table}:`, results[table])
-      } catch (err) {
+      } catch (err: any) {
         results[table] = {
           exists: false,
           error: err.message,
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       success: true,
       tables: results 
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to test tables:', error)
     return NextResponse.json(
       { error: 'Failed to test tables', details: error.message },
