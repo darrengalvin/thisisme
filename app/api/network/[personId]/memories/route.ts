@@ -34,6 +34,8 @@ export async function GET(
       return NextResponse.json({ error: 'Person not found or access denied' }, { status: 404 })
     }
 
+    console.log('🔍 PERSON MEMORIES API: Fetching memories for person:', personId)
+    
     // Get memories tagged with this person
     const { data: taggedMemories, error: memoriesError } = await supabaseAdmin
       .from('memory_tags')
@@ -43,8 +45,8 @@ export async function GET(
         memories (
           id,
           title,
-          description,
-          memory_date,
+          text_content,
+          created_at,
           timezone_id,
           timezones (
             title
@@ -53,6 +55,8 @@ export async function GET(
       `)
       .eq('tagged_person_id', personId)
       .order('created_at', { ascending: false })
+      
+    console.log('🔍 PERSON MEMORIES API: Query result:', { taggedMemories, memoriesError })
 
     if (memoriesError) {
       console.error('Error fetching tagged memories:', memoriesError)
@@ -63,10 +67,10 @@ export async function GET(
     const memories = taggedMemories?.map(tag => ({
       id: tag.memories.id,
       title: tag.memories.title,
-      description: tag.memories.description,
-      memory_date: tag.memories.memory_date,
+      text_content: tag.memories.text_content,
+      memory_date: tag.memories.created_at, // Using created_at as memory_date
       tagged_at: tag.created_at,
-      chapter: tag.memories.timezones?.title || 'Unknown Chapter'
+      chapter: tag.memories.timezones?.title || 'Personal'
     })) || []
 
     return NextResponse.json({

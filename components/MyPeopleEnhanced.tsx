@@ -26,7 +26,15 @@ interface NetworkPerson {
     can_add_text: boolean
     can_add_images: boolean
     can_comment: boolean
-    chapters_access: string[]
+    chapters_access: Array<{
+      chapter_name: string
+      permissions: string[]
+    }>
+    memory_access?: Array<{
+      memory_title: string
+      count?: number
+      permissions: string[]
+    }>
   }
   collaboration_stats?: {
     contributions_made: number
@@ -56,6 +64,7 @@ export default function MyPeopleEnhanced() {
     email: '',
     relationship: '',
     photo_url: '',
+    personType: 'living', // 'living' or 'legacy'
     inviteMethod: 'email', // 'email' or 'sms'
     customMessage: '',
     taggedMemories: [] as string[],
@@ -87,6 +96,12 @@ export default function MyPeopleEnhanced() {
     
     try {
       setLoading(true)
+      
+      // Check if we're in impersonation mode
+      const impersonationResponse = await fetch('/api/admin/impersonate')
+      const impersonationData = await impersonationResponse.json()
+      
+      console.log('🎭 IMPERSONATION CHECK:', impersonationData)
       
       // Get JWT token for API call
       const tokenResponse = await fetch('/api/auth/token', {
@@ -141,33 +156,85 @@ export default function MyPeopleEnhanced() {
       const { people: networkPeople } = JSON.parse(responseText)
       console.log('✅ NETWORK API SUCCESS:', networkPeople)
       
-      // Transform real data to match our interface
-      const transformedRealPeople = networkPeople?.map((person: any) => ({
-        ...person,
-        tagged_memories_count: 0, // Will be fetched separately
-        recent_memories: [], // Will be fetched separately
+      // Transform real data and fetch tagged memories for each person
+      const transformedRealPeople = await Promise.all(
+        (networkPeople || []).map(async (person: any) => {
+          // Fetch tagged memories for this person
+          let taggedMemoriesCount = 0
+          let recentMemories: any[] = []
+          
+          try {
+            const memoriesResponse = await fetch(`/api/network/${person.id}/memories`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            
+            if (memoriesResponse.ok) {
+              const memoriesData = await memoriesResponse.json()
+              taggedMemoriesCount = memoriesData.total_memories || 0
+              recentMemories = (memoriesData.memories || []).slice(0, 3).map((mem: any) => ({
+                id: mem.id,
+                title: mem.title,
+                image_url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&h=150&fit=crop', // Placeholder
+                date: mem.memory_date,
+                chapter: mem.chapter || 'Personal'
+              }))
+            }
+          } catch (error) {
+            console.log('Could not fetch memories for', person.person_name, error)
+          }
+
+          return {
+            ...person,
+            tagged_memories_count: taggedMemoriesCount,
+            recent_memories: recentMemories,
         permissions: {
           can_view_memories: true,
           can_add_text: false,
           can_add_images: false,
           can_comment: true,
-          chapters_access: []
+          chapters_access: [
+            { chapter_name: 'Childhood', permissions: ['view', 'comment'] },
+            { chapter_name: 'University', permissions: ['view', 'add_text', 'comment'] }
+          ],
+          memory_access: taggedMemoriesCount > 0 ? [
+            { memory_title: 'Tagged memories', count: taggedMemoriesCount, permissions: ['view', 'comment'] }
+          ] : []
         },
-        collaboration_stats: {
-          contributions_made: 0,
-          memories_shared: 0,
-          last_active: 'Never'
-        }
-      })) || []
+            collaboration_stats: {
+              contributions_made: 0,
+              memories_shared: taggedMemoriesCount,
+              last_active: taggedMemoriesCount > 0 ? 'Recently' : 'Never'
+            }
+          }
+        })
+      )
 
-      // Always show demo data for visualization (as requested by user dgalvin@yourcaio.co.uk)
-      const demoData = [
+      // Only show demo data for the developer account (dgalvin@yourcaio.co.uk) when NOT impersonating
+      // Demo data should never show when impersonating (even if admin is the developer)
+      const isImpersonating = impersonationData.isImpersonating
+      const isDeveloper = user?.email === 'dgalvin@yourcaio.co.uk'
+      
+      const shouldShowDemoData = isDeveloper && !isImpersonating
+      
+      console.log('🎭 DEMO DATA CHECK:', { 
+        userEmail: user?.email,
+        isImpersonating,
+        isDeveloper,
+        shouldShowDemoData,
+        adminUserEmail: impersonationData.adminUser?.email,
+        targetUserEmail: impersonationData.targetUser?.email
+      })
+      
+      const demoData = shouldShowDemoData ? [
           {
             id: '1',
             person_name: 'Sarah Johnson',
             person_email: 'sarah@example.com',
             relationship: 'Sister',
-            photo_url: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
+            photo_url: null, // Use default icon instead of fake photo
             created_at: '2024-01-15T10:30:00Z',
             tagged_memories_count: 23,
             person_user_id: 'user_sarah_123',
@@ -199,7 +266,14 @@ export default function MyPeopleEnhanced() {
               can_add_text: true,
               can_add_images: true,
               can_comment: true,
-              chapters_access: ['family-holidays', 'celebrations']
+              chapters_access: [
+                { chapter_name: 'Family Holidays', permissions: ['view', 'add_text', 'add_images', 'comment'] },
+                { chapter_name: 'Celebrations', permissions: ['view', 'add_text', 'comment'] }
+              ],
+              memory_access: [
+                { memory_title: 'Beach Vacation 2024', permissions: ['view', 'add_images', 'comment'] },
+                { memory_title: 'Mom\'s Birthday Party', permissions: ['view', 'add_text', 'comment'] }
+              ]
             },
             collaboration_stats: {
               contributions_made: 12,
@@ -212,7 +286,7 @@ export default function MyPeopleEnhanced() {
             person_name: 'Mike Chen',
             person_email: 'mike.chen@gmail.com',
             relationship: 'Best Friend',
-            photo_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+            photo_url: null, // Use default icon instead of fake photo
             created_at: '2024-02-20T14:15:00Z',
             tagged_memories_count: 18,
             person_user_id: 'user_mike_456',
@@ -237,7 +311,14 @@ export default function MyPeopleEnhanced() {
               can_add_text: true,
               can_add_images: false,
               can_comment: true,
-              chapters_access: ['college-days', 'adventures']
+              chapters_access: [
+                { chapter_name: 'College Days', permissions: ['view', 'add_text', 'comment'] },
+                { chapter_name: 'Adventures', permissions: ['view', 'comment'] }
+              ],
+              memory_access: [
+                { memory_title: 'College Reunion', permissions: ['view', 'add_text', 'comment'] },
+                { memory_title: 'Road Trip to Coast', permissions: ['view', 'comment'] }
+              ]
             },
             collaboration_stats: {
               contributions_made: 7,
@@ -268,7 +349,12 @@ export default function MyPeopleEnhanced() {
               can_add_text: false,
               can_add_images: false,
               can_comment: true,
-              chapters_access: ['cultural-events']
+              chapters_access: [
+                { chapter_name: 'Cultural Events', permissions: ['view', 'comment'] }
+              ],
+              memory_access: [
+                { memory_title: 'Art Gallery Opening', permissions: ['view', 'comment'] }
+              ]
             },
             collaboration_stats: {
               contributions_made: 3,
@@ -312,7 +398,16 @@ export default function MyPeopleEnhanced() {
               can_add_text: true,
               can_add_images: true,
               can_comment: true,
-              chapters_access: ['family-gatherings', 'father-son-time', 'family-legacy']
+              chapters_access: [
+                { chapter_name: 'Family Gatherings', permissions: ['view', 'add_text', 'add_images', 'comment'] },
+                { chapter_name: 'Father-Son Time', permissions: ['view', 'add_text', 'add_images', 'comment'] },
+                { chapter_name: 'Family Legacy', permissions: ['view', 'add_text', 'comment'] }
+              ],
+              memory_access: [
+                { memory_title: 'Father\'s Day BBQ', permissions: ['view', 'add_text', 'add_images', 'comment'] },
+                { memory_title: 'Fishing Trip', permissions: ['view', 'add_images', 'comment'] },
+                { memory_title: 'Grandpa\'s Workshop', permissions: ['view', 'add_text', 'comment'] }
+              ]
             },
             collaboration_stats: {
               contributions_made: 18,
@@ -342,7 +437,12 @@ export default function MyPeopleEnhanced() {
               can_add_text: true,
               can_add_images: false,
               can_comment: true,
-              chapters_access: ['development']
+              chapters_access: [
+                { chapter_name: 'Development', permissions: ['view', 'add_text', 'comment'] }
+              ],
+              memory_access: [
+                { memory_title: 'API Testing Session', permissions: ['view', 'add_text', 'comment'] }
+              ]
             },
             collaboration_stats: {
               contributions_made: 2,
@@ -350,7 +450,7 @@ export default function MyPeopleEnhanced() {
               last_active: '2025-09-06'
             }
           }
-        ]
+        ] : []
       
       // Combine real people with demo data
       const allPeople = [...transformedRealPeople, ...demoData]
@@ -375,53 +475,78 @@ export default function MyPeopleEnhanced() {
 
     setIsAdding(true)
     try {
-      // Simulate API call
-      setTimeout(() => {
-        const newPersonData: NetworkPerson = {
-          id: Date.now().toString(),
-          person_name: newPerson.name,
-          person_email: newPerson.email,
-          relationship: newPerson.relationship,
-          photo_url: newPerson.photo_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-          created_at: new Date().toISOString(),
-          tagged_memories_count: 0,
-          recent_memories: [],
-          permissions: {
-            can_view_memories: false,
-            can_add_text: false,
-            can_add_images: false,
-            can_comment: false,
-            chapters_access: []
-          },
-          collaboration_stats: {
-            contributions_made: 0,
-            memories_shared: 0,
-            last_active: 'Never'
-          }
-        }
-        
-        setPeople(prev => [newPersonData, ...prev])
-        setNewPerson({ 
-          name: '', 
-          email: '', 
-          relationship: '', 
-          photo_url: '',
-          inviteMethod: 'email',
-          customMessage: '',
-          taggedMemories: [],
-          permissions: {
-            can_view_memories: true,
-            can_add_text: false,
-            can_add_images: false,
-            can_comment: true
-          }
+      console.log('🔄 ADDING PERSON: Starting add person process for:', newPerson.name)
+      
+      // Get JWT token for API call (this handles impersonation correctly)
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: user.id, 
+          email: user.email 
         })
-        setShowAddForm(false)
-        setIsAdding(false)
-      }, 1000)
-    } catch (error) {
-      console.error('Error adding person:', error)
+      })
+      
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json()
+        console.error('❌ TOKEN ERROR:', errorData)
+        throw new Error(`Failed to get auth token: ${errorData.error || 'Unknown error'}`)
+      }
+      
+      const { token } = await tokenResponse.json()
+      console.log('✅ TOKEN SUCCESS: Got JWT token for add person API')
+      
+      // Add person via API
+      const addResponse = await fetch('/api/network', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          person_name: newPerson.name.trim(),
+          person_email: newPerson.email?.trim() || null,
+          relationship: newPerson.relationship?.trim() || null,
+          photo_url: newPerson.photo_url?.trim() || null
+        })
+      })
+      
+      if (!addResponse.ok) {
+        const errorData = await addResponse.json()
+        console.error('❌ ADD PERSON ERROR:', errorData)
+        throw new Error(`Failed to add person: ${errorData.error || 'Unknown error'}`)
+      }
+      
+      const result = await addResponse.json()
+      console.log('✅ ADD PERSON SUCCESS:', result)
+      
+      // Refresh the people list to show the new person
+      await fetchPeople()
+      
+      // Reset form
+      setNewPerson({ 
+        name: '', 
+        email: '', 
+        relationship: '', 
+        photo_url: '',
+        personType: 'living',
+        inviteMethod: 'email',
+        customMessage: '',
+        taggedMemories: [],
+        permissions: {
+          can_view_memories: true,
+          can_add_text: false,
+          can_add_images: false,
+          can_comment: true
+        }
+      })
+      setShowAddForm(false)
       setIsAdding(false)
+      
+    } catch (error) {
+      console.error('❌ Error adding person:', error)
+      setIsAdding(false)
+      // You might want to show a toast notification here
     }
   }
 
@@ -594,6 +719,50 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                 <span>Add New Person to Your Network</span>
               </h2>
               
+              {/* Person Type Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  What type of person are you adding?
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewPerson(prev => ({ ...prev, personType: 'living' }))}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      newPerson.personType === 'living' 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl">👥</span>
+                      <div>
+                        <h4 className="font-medium text-gray-900">Living Person</h4>
+                        <p className="text-sm text-gray-500">Someone who can receive invitations and contribute</p>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setNewPerson(prev => ({ ...prev, personType: 'legacy' }))}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      newPerson.personType === 'legacy' 
+                        ? 'border-purple-500 bg-purple-50' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl">🕊️</span>
+                      <div>
+                        <h4 className="font-medium text-gray-900">Legacy Person</h4>
+                        <p className="text-sm text-gray-500">Someone who has passed away (for tagging in memories)</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+              
               {/* Basic Info */}
               <div className="space-y-6">
                 <div>
@@ -615,44 +784,173 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Relationship
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={newPerson.relationship}
                         onChange={(e) => setNewPerson(prev => ({ ...prev, relationship: e.target.value }))}
-                        placeholder="e.g., Mother, Sister, Best Friend"
                         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
+                      >
+                        <option value="">Select relationship...</option>
+                        <optgroup label="👨‍👩‍👧‍👦 Family">
+                          <option value="Mother">Mother</option>
+                          <option value="Father">Father</option>
+                          <option value="Sister">Sister</option>
+                          <option value="Brother">Brother</option>
+                          <option value="Daughter">Daughter</option>
+                          <option value="Son">Son</option>
+                          <option value="Grandmother">Grandmother</option>
+                          <option value="Grandfather">Grandfather</option>
+                          <option value="Aunt">Aunt</option>
+                          <option value="Uncle">Uncle</option>
+                          <option value="Cousin">Cousin</option>
+                          <option value="Spouse">Spouse</option>
+                          <option value="Partner">Partner</option>
+                        </optgroup>
+                        <optgroup label="👥 Friends">
+                          <option value="Best Friend">Best Friend</option>
+                          <option value="Close Friend">Close Friend</option>
+                          <option value="Friend">Friend</option>
+                          <option value="Childhood Friend">Childhood Friend</option>
+                          <option value="College Friend">College Friend</option>
+                        </optgroup>
+                        <optgroup label="💼 Professional">
+                          <option value="Colleague">Colleague</option>
+                          <option value="Boss">Boss</option>
+                          <option value="Mentor">Mentor</option>
+                          <option value="Business Partner">Business Partner</option>
+                          <option value="Client">Client</option>
+                        </optgroup>
+                        {newPerson.personType === 'living' && (
+                          <optgroup label="🕊️ In Memory (for memorial helpers)">
+                            <option value="Mother (In Memory)">Mother (In Memory)</option>
+                            <option value="Father (In Memory)">Father (In Memory)</option>
+                            <option value="Grandmother (In Memory)">Grandmother (In Memory)</option>
+                            <option value="Grandfather (In Memory)">Grandfather (In Memory)</option>
+                            <option value="Sister (In Memory)">Sister (In Memory)</option>
+                            <option value="Brother (In Memory)">Brother (In Memory)</option>
+                            <option value="Friend (In Memory)">Friend (In Memory)</option>
+                            <option value="Spouse (In Memory)">Spouse (In Memory)</option>
+                            <option value="Beloved Pet (In Memory)">Beloved Pet (In Memory)</option>
+                          </optgroup>
+                        )}
+                        {newPerson.personType === 'legacy' && (
+                          <optgroup label="🕊️ Legacy Person">
+                            <option value="Mother">Mother</option>
+                            <option value="Father">Father</option>
+                            <option value="Grandmother">Grandmother</option>
+                            <option value="Grandfather">Grandfather</option>
+                            <option value="Sister">Sister</option>
+                            <option value="Brother">Brother</option>
+                            <option value="Daughter">Daughter</option>
+                            <option value="Son">Son</option>
+                            <option value="Aunt">Aunt</option>
+                            <option value="Uncle">Uncle</option>
+                            <option value="Cousin">Cousin</option>
+                            <option value="Spouse">Spouse</option>
+                            <option value="Partner">Partner</option>
+                            <option value="Best Friend">Best Friend</option>
+                            <option value="Close Friend">Close Friend</option>
+                            <option value="Friend">Friend</option>
+                            <option value="Mentor">Mentor</option>
+                            <option value="Beloved Pet">Beloved Pet</option>
+                          </optgroup>
+                        )}
+                        <optgroup label="✏️ Custom">
+                          <option value="custom">Other (specify below)</option>
+                        </optgroup>
+                      </select>
+                      {newPerson.relationship === 'custom' && (
+                        <input
+                          type="text"
+                          placeholder="Enter custom relationship..."
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mt-2"
+                          onChange={(e) => setNewPerson(prev => ({ ...prev, relationship: e.target.value }))}
+                        />
+                      )}
                     </div>
+                    {newPerson.personType === 'living' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Email (optional)
+                        </label>
+                        <input
+                          type="email"
+                          value={newPerson.email}
+                          onChange={(e) => setNewPerson(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="Enter email address"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    )}
+                    
+                    {newPerson.personType === 'legacy' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Birth Year (optional)
+                        </label>
+                        <input
+                          type="number"
+                          min="1900"
+                          max={new Date().getFullYear()}
+                          placeholder="e.g., 1945"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Helps organize memories chronologically
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email (optional)
+                        Photo (optional)
                       </label>
-                      <input
-                        type="email"
-                        value={newPerson.email}
-                        onChange={(e) => setNewPerson(prev => ({ ...prev, email: e.target.value }))}
-                        placeholder="Enter email address"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Photo URL (optional)
-                      </label>
-                      <input
-                        type="url"
-                        value={newPerson.photo_url}
-                        onChange={(e) => setNewPerson(prev => ({ ...prev, photo_url: e.target.value }))}
-                        placeholder="https://example.com/photo.jpg"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-shrink-0">
+                          {newPerson.photo_url ? (
+                            <img
+                              src={newPerson.photo_url}
+                              alt="Preview"
+                              className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
+                              {newPerson.personType === 'legacy' ? (
+                                <span className="text-2xl">🕊️</span>
+                              ) : (
+                                <User className="w-8 h-8 text-gray-400" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                // Create a preview URL
+                                const reader = new FileReader()
+                                reader.onload = (e) => {
+                                  setNewPerson(prev => ({ ...prev, photo_url: e.target?.result as string }))
+                                }
+                                reader.readAsDataURL(file)
+                              }
+                            }}
+                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Upload a photo or leave empty to use default icon
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Permissions */}
-                <div>
-                  <h3 className="text-md font-medium text-gray-900 mb-3 flex items-center space-x-2">
+                {/* Permissions - Only for living people */}
+                {newPerson.personType === 'living' && (
+                  <div>
+                    <h3 className="text-md font-medium text-gray-900 mb-3 flex items-center space-x-2">
                     <Shield className="w-4 h-4 text-green-600" />
                     <span>Permissions</span>
                   </h3>
@@ -682,10 +980,12 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                       ))}
                     </div>
                   </div>
-                </div>
+                  </div>
+                )}
 
-                {/* Invitation Method */}
-                <div>
+                {/* Invitation Method - Only for living people */}
+                {newPerson.personType === 'living' && (
+                  <div>
                   <h3 className="text-md font-medium text-gray-900 mb-3 flex items-center space-x-2">
                     <Mail className="w-4 h-4 text-purple-600" />
                     <span>Invitation Method</span>
@@ -752,21 +1052,118 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                       })()}
                     </div>
                   )}
-                </div>
+                  </div>
+                )}
 
-                {/* Custom Message */}
-                <div>
+                {/* Email Templates - Only for living people */}
+                {newPerson.personType === 'living' && (
+                  <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    📧 Email Templates
+                  </label>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setNewPerson(prev => ({ ...prev, customMessage: e.target.value }))
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                  >
+                    <option value="">Choose a template...</option>
+                    <option value={`Hi ${newPerson.person_name || '[Name]'},
+
+I'm using This Is Me to organize and share my life memories, and I'd love for you to be part of it! 
+
+I've created a personal network where I can tag people in my memories and share special moments. You'll be able to see memories you're tagged in and even add your own photos or stories to help make them more complete.
+
+Would you like to join me in preserving these precious memories together?
+
+Best regards,
+[Your name]`}>🤝 General Invitation</option>
+                    <option value={`Dear ${newPerson.person_name || '[Name]'},
+
+I've been working on documenting our family history and memories using This Is Me, and your perspective would be invaluable!
+
+I'd love to invite you to contribute to our shared family stories. You can add photos, share your memories of events, and help me fill in details I might have missed.
+
+Your memories and photos would mean so much to our family's digital legacy.
+
+With love,
+[Your name]`}>👨‍👩‍👧‍👦 Family Member</option>
+                    <option value={`Hey ${newPerson.person_name || '[Name]'},
+
+Remember all those amazing times we've shared? I'm putting together a digital collection of our memories on This Is Me!
+
+I'd love for you to join me so you can see all the photos and stories from our adventures together. Plus, you can add your own photos and memories that I might not have.
+
+It'll be like our own private social network of memories!
+
+Talk soon,
+[Your name]`}>🎉 Close Friend</option>
+                    <option value={`Hi ${newPerson.person_name || '[Name]'},
+
+I'm documenting my professional journey and career milestones using This Is Me, and I'd value having you as part of this network.
+
+You've been an important part of my professional story, and I'd love to include memories from our time working together. You're welcome to add your own perspectives and photos from our shared projects.
+
+Looking forward to preserving these professional memories together.
+
+Best regards,
+[Your name]`}>💼 Professional Contact</option>
+                    <option value={`Hi ${newPerson.person_name || '[Name]'},
+
+I'm creating a memory collection on This Is Me and would love to include you! I've already tagged you in some special memories we've shared.
+
+You'll be able to see these memories and add your own photos or stories to make them even more meaningful. It's a beautiful way to preserve our shared experiences.
+
+Hope you'll join me in this journey of memory keeping!
+
+Warm regards,
+[Your name]`}>📸 Already Tagged</option>
+                    <option value={`Dear ${newPerson.person_name || '[Name]'},
+
+I hope this message finds you well. I'm using This Is Me to create a digital archive of important life moments and memories.
+
+I'd be honored if you'd join my memory network. You can contribute photos, stories, and your unique perspective on the experiences we've shared over the years.
+
+Your participation would help create a richer, more complete picture of these precious memories.
+
+Sincerely,
+[Your name]`}>✨ Formal Invitation</option>
+                    <option value={`Dear Family and Friends,
+
+I'm creating a digital memorial and memory collection for ${newPerson.person_name || '[Name]'} on This Is Me, and I would love your help in preserving their legacy.
+
+I'm gathering photos, stories, and memories that celebrate their life and the impact they had on all of us. If you have any photos, stories, or special memories of ${newPerson.person_name || '[Name]'}, I would be deeply grateful if you could contribute them to this collection.
+
+This memorial will serve as a beautiful tribute that we can all visit to remember and honor them. Your memories and photos would mean so much in creating a complete picture of their wonderful life.
+
+Thank you for helping me preserve these precious memories.
+
+With love and remembrance,
+[Your name]`}>🕊️ Memorial/Legacy</option>
+                  </select>
+                  </div>
+                )}
+
+                {/* Custom Message - Only for living people */}
+                {newPerson.personType === 'living' && (
+                  <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Custom Message (optional)
+                    Custom Message
                   </label>
                   <textarea
                     value={newPerson.customMessage}
                     onChange={(e) => setNewPerson(prev => ({ ...prev, customMessage: e.target.value }))}
-                    placeholder="Add a personal note to the invitation..."
-                    rows={3}
+                    placeholder="Choose a template above or write your own personal message..."
+                    rows={6}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Tip: Templates will auto-fill the person's name. You can customize the message after selecting.
+                  </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
@@ -789,7 +1186,9 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                   ) : (
                     <>
                       <Plus className="w-4 h-4" />
-                      <span>Add Person & Send Invite</span>
+                      <span>
+                        {newPerson.personType === 'legacy' ? 'Add Legacy Person' : 'Add Person & Send Invite'}
+                      </span>
                     </>
                   )}
                 </button>
@@ -836,18 +1235,35 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                     <div className="p-6 pb-4">
                       <div className="flex items-center space-x-4 mb-4">
                         <div className="relative">
-                          <img
-                            src={person.photo_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face'}
-                            alt={person.person_name}
-                            className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg"
-                          />
+                          {person.photo_url && !person.photo_url.includes('unsplash') ? (
+                            <img
+                              src={person.photo_url}
+                              alt={person.person_name}
+                              className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-full bg-gray-100 border-4 border-white shadow-lg flex items-center justify-center">
+                              {person.relationship?.includes('In Memory') || person.personType === 'legacy' ? (
+                                <span className="text-2xl">🕊️</span>
+                              ) : (
+                                <User className="w-8 h-8 text-gray-400" />
+                              )}
+                            </div>
+                          )}
                           {person.person_user_id && (
                             <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">{person.person_name}</h3>
-                          <p className="text-sm text-gray-500">{person.relationship}</p>
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-lg font-semibold text-gray-900 truncate">{person.person_name}</h3>
+                            {person.relationship?.includes('In Memory') && (
+                              <span className="text-gray-400">🕊️</span>
+                            )}
+                          </div>
+                          <p className={`text-sm ${person.relationship?.includes('In Memory') ? 'text-gray-400 italic' : 'text-gray-500'}`}>
+                            {person.relationship}
+                          </p>
                           {person.person_email && (
                             <p className="text-xs text-gray-400 truncate">{person.person_email}</p>
                           )}
@@ -943,6 +1359,56 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                               {person.permissions.can_comment && <MessageCircle className="w-3 h-3 text-purple-500" />}
                             </div>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Specific Chapter & Memory Permissions */}
+                      {person.permissions && (person.permissions.chapters_access?.length > 0 || person.permissions.memory_access?.length > 0) && (
+                        <div className="mb-4">
+                          <p className="text-sm font-medium text-gray-700 mb-3">Specific Access</p>
+                          
+                          {/* Chapter Permissions */}
+                          {person.permissions.chapters_access?.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-xs font-medium text-gray-600 mb-2">📚 Chapters</p>
+                              <div className="space-y-2">
+                                {person.permissions.chapters_access.map((chapter: any, idx: number) => (
+                                  <div key={idx} className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2">
+                                    <span className="text-xs font-medium text-blue-800">{chapter.chapter_name}</span>
+                                    <div className="flex items-center space-x-1">
+                                      {chapter.permissions.includes('view') && <Eye className="w-3 h-3 text-green-500" title="Can view" />}
+                                      {chapter.permissions.includes('add_text') && <FileText className="w-3 h-3 text-blue-500" title="Can add text" />}
+                                      {chapter.permissions.includes('add_images') && <Image className="w-3 h-3 text-purple-500" title="Can add images" />}
+                                      {chapter.permissions.includes('comment') && <MessageCircle className="w-3 h-3 text-orange-500" title="Can comment" />}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Memory Permissions */}
+                          {person.permissions.memory_access?.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-gray-600 mb-2">💭 Memories</p>
+                              <div className="space-y-2">
+                                {person.permissions.memory_access.map((memory: any, idx: number) => (
+                                  <div key={idx} className="flex items-center justify-between bg-purple-50 rounded-lg px-3 py-2">
+                                    <div className="flex-1">
+                                      <span className="text-xs font-medium text-purple-800">{memory.memory_title}</span>
+                                      {memory.count && <span className="text-xs text-purple-600 ml-1">({memory.count})</span>}
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      {memory.permissions.includes('view') && <Eye className="w-3 h-3 text-green-500" title="Can view" />}
+                                      {memory.permissions.includes('add_text') && <FileText className="w-3 h-3 text-blue-500" title="Can add text" />}
+                                      {memory.permissions.includes('add_images') && <Image className="w-3 h-3 text-purple-500" title="Can add images" />}
+                                      {memory.permissions.includes('comment') && <MessageCircle className="w-3 h-3 text-orange-500" title="Can comment" />}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

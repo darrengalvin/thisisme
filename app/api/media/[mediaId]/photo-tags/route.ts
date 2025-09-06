@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { verifyToken } from '@/lib/auth'
+import { cookies } from 'next/headers'
 
 export async function GET(
   request: NextRequest,
@@ -16,6 +17,18 @@ export async function GET(
     const user = await verifyToken(token)
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    // Check for admin impersonation
+    const cookieStore = cookies()
+    const impersonatingUserId = cookieStore.get('impersonating-user-id')?.value
+    const adminUserId = cookieStore.get('admin-user-id')?.value
+    
+    // If admin is impersonating, use the target user's ID
+    let effectiveUserId = user.userId
+    if (impersonatingUserId && adminUserId && user.userId === adminUserId) {
+      console.log('🎭 PHOTO TAGS API: Admin impersonating, using target user:', impersonatingUserId)
+      effectiveUserId = impersonatingUserId
     }
 
     const { mediaId } = params
@@ -47,14 +60,14 @@ export async function GET(
     }
 
     // Check if user owns the memory or is a member of the timezone
-    let hasAccess = memory.user_id === user.userId
+    let hasAccess = memory.user_id === effectiveUserId
 
     if (!hasAccess && memory.timezone_id) {
       const { data: membership } = await supabaseAdmin
         .from('timezone_members')
         .select('id')
         .eq('timezone_id', memory.timezone_id)
-        .eq('user_id', user.userId)
+        .eq('user_id', effectiveUserId)
         .single()
 
       hasAccess = !!membership
@@ -148,7 +161,19 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    console.log('🏷️ PHOTO TAGS API: User authenticated:', user.userId)
+    // Check for admin impersonation
+    const cookieStore = cookies()
+    const impersonatingUserId = cookieStore.get('impersonating-user-id')?.value
+    const adminUserId = cookieStore.get('admin-user-id')?.value
+    
+    // If admin is impersonating, use the target user's ID
+    let effectiveUserId = user.userId
+    if (impersonatingUserId && adminUserId && user.userId === adminUserId) {
+      console.log('🎭 PHOTO TAGS API POST: Admin impersonating, using target user:', impersonatingUserId)
+      effectiveUserId = impersonatingUserId
+    }
+
+    console.log('🏷️ PHOTO TAGS API: User authenticated:', user.userId, 'Effective user:', effectiveUserId)
 
     const { mediaId } = params
     const body = await request.json()
@@ -197,7 +222,7 @@ export async function POST(
     console.log('🏷️ PHOTO TAGS API: Memory found:', memory)
 
     // Check if user owns the memory or is a member of the timezone
-    let hasAccess = memory.user_id === user.userId
+    let hasAccess = memory.user_id === effectiveUserId
 
     if (!hasAccess && memory.timezone_id) {
       console.log('🏷️ PHOTO TAGS API: Checking timezone membership...')
@@ -205,7 +230,7 @@ export async function POST(
         .from('timezone_members')
         .select('id')
         .eq('timezone_id', memory.timezone_id)
-        .eq('user_id', user.userId)
+        .eq('user_id', effectiveUserId)
         .single()
 
       hasAccess = !!membership
@@ -224,7 +249,7 @@ export async function POST(
       .from('photo_tags')
       .delete()
       .eq('media_id', mediaId)
-      .eq('tagged_by_user_id', user.userId)
+      .eq('tagged_by_user_id', effectiveUserId)
 
     if (deleteError) {
       console.log('🏷️ PHOTO TAGS API: Delete error (might be expected if table doesn\'t exist):', deleteError)
@@ -235,7 +260,7 @@ export async function POST(
     const tagsToInsert = tags.map(tag => ({
       media_id: mediaId,
       tagged_person_id: tag.tagged_person_id,
-      tagged_by_user_id: user.userId,
+      tagged_by_user_id: effectiveUserId,
       x_position: tag.x_position,
       y_position: tag.y_position,
       tag_width: tag.tag_width || 10,

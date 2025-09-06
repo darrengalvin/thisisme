@@ -8,6 +8,7 @@ interface TabNavigationProps {
   activeTab: TabType
   onTabChange: (tab: TabType) => void
   className?: string
+  isBetaMode?: boolean
 }
 
 interface Tab {
@@ -44,12 +45,12 @@ const tabs: Tab[] = [
   }
 ]
 
-export default function TabNavigation({ activeTab, onTabChange, className = '' }: TabNavigationProps) {
+export default function TabNavigation({ activeTab, onTabChange, className = '', isBetaMode = false }: TabNavigationProps) {
   return (
     <div className={`bg-white border-b border-slate-200/50 shadow-sm ${className}`}>
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         <nav className="flex space-x-1 sm:space-x-8" aria-label="Tabs">
-          {tabs.map((tab) => {
+          {tabs.filter(tab => tab.id !== 'people' || isBetaMode).map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
             

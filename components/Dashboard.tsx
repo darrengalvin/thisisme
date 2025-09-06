@@ -40,6 +40,15 @@ interface UserType {
 export default function Dashboard() {
   const { user: supabaseUser, session } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('home')
+  
+  // Check for beta mode
+  const [isBetaMode, setIsBetaMode] = useState(false)
+  
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const betaParam = urlParams.get('beta')
+    setIsBetaMode(betaParam === 'true')
+  }, [])
   const [memories, setMemories] = useState<MemoryWithRelations[]>([])
   const [user, setUser] = useState<UserType | null>(null)
   const [showMemoryWizard, setShowMemoryWizard] = useState(false)
@@ -1244,6 +1253,14 @@ export default function Dashboard() {
 
           {/* Right - Actions & Profile */}
           <div className="flex items-center space-x-3">
+            {/* Beta Mode Indicator */}
+            {isBetaMode && (
+              <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
+                <span>🧪</span>
+                <span>Beta</span>
+              </div>
+            )}
+            
             {/* Add Chapter Button - Available for all users */}
             <button
               onClick={() => setActiveTab('create-timezone')}
@@ -1456,6 +1473,7 @@ export default function Dashboard() {
         activeTab={activeTab as MainTabType}
         onTabChange={(tab) => setActiveTab(tab)}
         className="sticky top-[73px] z-40"
+        isBetaMode={isBetaMode}
       />
 
       {/* Main Content */}
