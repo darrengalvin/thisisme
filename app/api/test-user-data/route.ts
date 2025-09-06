@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         memberships: memberships || []
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to test user data:', error)
     return NextResponse.json(
       { error: 'Failed to test user data', details: error.message },
