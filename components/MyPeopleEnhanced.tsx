@@ -471,7 +471,7 @@ export default function MyPeopleEnhanced() {
   }
 
   const addPerson = async () => {
-    if (!newPerson.name.trim()) return
+    if (!newPerson.name.trim() || !user) return
 
     setIsAdding(true)
     try {
