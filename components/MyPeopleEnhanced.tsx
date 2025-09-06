@@ -1377,10 +1377,10 @@ With love and remembrance,
                                   <div key={idx} className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2">
                                     <span className="text-xs font-medium text-blue-800">{chapter.chapter_name}</span>
                                     <div className="flex items-center space-x-1">
-                                      {chapter.permissions.includes('view') && <Eye className="w-3 h-3 text-green-500" title="Can view" />}
-                                      {chapter.permissions.includes('add_text') && <FileText className="w-3 h-3 text-blue-500" title="Can add text" />}
-                                      {chapter.permissions.includes('add_images') && <Image className="w-3 h-3 text-purple-500" title="Can add images" />}
-                                      {chapter.permissions.includes('comment') && <MessageCircle className="w-3 h-3 text-orange-500" title="Can comment" />}
+                                      {chapter.permissions.includes('view') && <div title="Can view"><Eye className="w-3 h-3 text-green-500" /></div>}
+                                      {chapter.permissions.includes('add_text') && <div title="Can add text"><FileText className="w-3 h-3 text-blue-500" /></div>}
+                                      {chapter.permissions.includes('add_images') && <div title="Can add images"><Image className="w-3 h-3 text-purple-500" /></div>}
+                                      {chapter.permissions.includes('comment') && <div title="Can comment"><MessageCircle className="w-3 h-3 text-orange-500" /></div>}
                                     </div>
                                   </div>
                                 ))}
@@ -1400,10 +1400,10 @@ With love and remembrance,
                                       {memory.count && <span className="text-xs text-purple-600 ml-1">({memory.count})</span>}
                                     </div>
                                     <div className="flex items-center space-x-1">
-                                      {memory.permissions.includes('view') && <Eye className="w-3 h-3 text-green-500" title="Can view" />}
-                                      {memory.permissions.includes('add_text') && <FileText className="w-3 h-3 text-blue-500" title="Can add text" />}
-                                      {memory.permissions.includes('add_images') && <Image className="w-3 h-3 text-purple-500" title="Can add images" />}
-                                      {memory.permissions.includes('comment') && <MessageCircle className="w-3 h-3 text-orange-500" title="Can comment" />}
+                                      {memory.permissions.includes('view') && <div title="Can view"><Eye className="w-3 h-3 text-green-500" /></div>}
+                                      {memory.permissions.includes('add_text') && <div title="Can add text"><FileText className="w-3 h-3 text-blue-500" /></div>}
+                                      {memory.permissions.includes('add_images') && <div title="Can add images"><Image className="w-3 h-3 text-purple-500" /></div>}
+                                      {memory.permissions.includes('comment') && <div title="Can comment"><MessageCircle className="w-3 h-3 text-orange-500" /></div>}
                                     </div>
                                   </div>
                                 ))}
