@@ -64,7 +64,7 @@ export async function GET(
     }
 
     // Transform the data to be more usable
-    const memories = taggedMemories?.map(tag => ({
+    const memories = taggedMemories?.map((tag: any) => ({
       id: tag.memories.id,
       title: tag.memories.title,
       text_content: tag.memories.text_content,
