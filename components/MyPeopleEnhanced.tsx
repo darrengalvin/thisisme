@@ -108,6 +108,8 @@ export default function MyPeopleEnhanced() {
       console.log('✅ TOKEN SUCCESS: Got JWT token for network API')
       
       // Fetch real network people
+      console.log('🔍 FRONTEND: About to call /api/network with token:', token.substring(0, 20) + '...')
+      
       const response = await fetch('/api/network', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -115,13 +117,28 @@ export default function MyPeopleEnhanced() {
         }
       })
       
+      console.log('🔍 FRONTEND: Network API response status:', response.status)
+      console.log('🔍 FRONTEND: Network API response headers:', Object.fromEntries(response.headers.entries()))
+      
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('❌ NETWORK API ERROR:', errorData)
+        const errorText = await response.text()
+        console.error('❌ NETWORK API ERROR (raw):', errorText)
+        
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { error: errorText }
+        }
+        
+        console.error('❌ NETWORK API ERROR (parsed):', errorData)
         throw new Error(`Failed to fetch network people: ${errorData.error || 'Unknown error'}`)
       }
       
-      const { people: networkPeople } = await response.json()
+      const responseText = await response.text()
+      console.log('🔍 FRONTEND: Network API raw response:', responseText)
+      
+      const { people: networkPeople } = JSON.parse(responseText)
       console.log('✅ NETWORK API SUCCESS:', networkPeople)
       
       // Transform real data to match our interface
