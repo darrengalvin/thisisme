@@ -7,6 +7,7 @@ import EditMemoryModal from './EditMemoryModal'
 import ShareMemoryModal from './ShareMemoryModal'
 import ImageCropper from './ImageCropper'
 import PhotoTagDisplay from './PhotoTagDisplay'
+import MemoryContributions from './MemoryContributions'
 import toast from 'react-hot-toast'
 
 interface ViewMemoryModalProps {
@@ -188,6 +189,14 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
               </div>
             </div>
           )}
+
+          {/* Memory Contributions */}
+          <div className="border-t border-slate-200 pt-6 mt-6">
+            <MemoryContributions 
+              memoryId={memory.id}
+              memoryTitle={memory.title || 'this memory'}
+            />
+          </div>
 
           {/* Memory metadata */}
           <div className="border-t border-slate-200 pt-4 mt-6">

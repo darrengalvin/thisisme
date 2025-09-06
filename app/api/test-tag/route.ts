@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const { data: testPerson, error: personError } = await supabaseAdmin
       .from('user_networks')
       .insert({
-        user_id: user.userId,
+        owner_id: user.userId,
         person_name: 'Test Person API',
         person_email: 'test-api@example.com',
         relationship: 'Test Friend'

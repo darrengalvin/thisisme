@@ -11,6 +11,7 @@ import UpgradeModal from './UpgradeModal'
 import TaggingInput from './TaggingInput'
 import PhotoTagger from './PhotoTagger'
 import PhotoTagDisplay from './PhotoTagDisplay'
+import MemoryContributions from './MemoryContributions'
 import { useAuth } from '@/components/AuthProvider'
 
 interface EditMemoryModalProps {
@@ -1009,6 +1010,14 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
               </p>
             </div>
           )}
+
+          {/* Memory Contributions */}
+          <div className="border-t border-slate-200 pt-6">
+            <MemoryContributions 
+              memoryId={memory.id}
+              memoryTitle={memory.title || 'this memory'}
+            />
+          </div>
         </div>
 
         {/* Footer */}

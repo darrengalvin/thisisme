@@ -39,8 +39,10 @@ export default function PhotoTagDisplay({
   const [showTags, setShowTags] = useState(!showTagsOnHover)
   const { user, session } = useAuth()
 
-  // IMMEDIATE: Log component render
-  console.log('🏷️ PHOTO TAG DISPLAY: Component rendering for media:', mediaId, 'user:', !!user, 'session:', !!session)
+  // Component render log (reduced frequency)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🏷️ PHOTO TAG DISPLAY: Component rendering for media:', mediaId)
+  }
 
   const loadPhotoTags = async () => {
     try {
@@ -100,21 +102,15 @@ export default function PhotoTagDisplay({
     }
   }
 
-  // Simple useEffect that should ALWAYS run
+  // Load tags when component mounts or dependencies change
   useEffect(() => {
-    console.log('🏷️ PHOTO TAG DISPLAY: SIMPLE useEffect running - this should ALWAYS appear!')
-    console.log('🏷️ PHOTO TAG DISPLAY: mediaId:', mediaId, 'user:', !!user)
+    console.log('🏷️ PHOTO TAG DISPLAY: Effect running with deps:', { mediaId: !!mediaId, user: !!user, session: !!session })
     
-    if (mediaId && user) {
+    if (mediaId && user && session) {
       console.log('🏷️ PHOTO TAG DISPLAY: Conditions met, calling loadPhotoTags')
       loadPhotoTags()
     }
-  })
-
-  // Also try a basic effect with empty deps
-  useEffect(() => {
-    console.log('🏷️ PHOTO TAG DISPLAY: Mount effect running')
-  }, [])
+  }, [mediaId, user, session]) // Proper dependency array
 
   const handlePersonClick = (personId: string, personName: string) => {
     console.log('🏷️ PHOTO TAG DISPLAY: Person clicked:', personName, personId)

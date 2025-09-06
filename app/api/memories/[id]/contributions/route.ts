@@ -122,12 +122,18 @@ export async function POST(
       return NextResponse.json({ error: 'Memory not found' }, { status: 404 })
     }
 
-    // Check if user can contribute (must be timezone member, not just memory owner)
-    if (!memory.timezone_id) {
-      return NextResponse.json({ error: 'Cannot contribute to private memories' }, { status: 403 })
+    // Check if user can contribute
+    let canContribute = false
+    
+    // Memory owner can always contribute to their own memories
+    if (memory.user_id === user.userId) {
+      canContribute = true
     }
-
-    const canContribute = await checkTimezoneMembership(memory.timezone_id, user.userId)
+    // If memory is in a chapter, check if user is a member
+    else if (memory.timezone_id) {
+      canContribute = await checkTimezoneMembership(memory.timezone_id, user.userId)
+    }
+    
     if (!canContribute) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }

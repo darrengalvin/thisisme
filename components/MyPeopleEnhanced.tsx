@@ -115,9 +115,27 @@ export default function MyPeopleEnhanced() {
       
       const { people: networkPeople } = await response.json()
       
-      // If no real people, show enhanced mock data for demonstration
-      if (!networkPeople || networkPeople.length === 0) {
-        setPeople([
+      // Transform real data to match our interface
+      const transformedRealPeople = networkPeople?.map((person: any) => ({
+        ...person,
+        tagged_memories_count: 0, // Will be fetched separately
+        recent_memories: [], // Will be fetched separately
+        permissions: {
+          can_view_memories: true,
+          can_add_text: false,
+          can_add_images: false,
+          can_comment: true,
+          chapters_access: []
+        },
+        collaboration_stats: {
+          contributions_made: 0,
+          memories_shared: 0,
+          last_active: 'Never'
+        }
+      })) || []
+
+      // Always show demo data for visualization (as requested by user dgalvin@yourcaio.co.uk)
+      const demoData = [
           {
             id: '1',
             person_name: 'Sarah Johnson',
@@ -306,31 +324,20 @@ export default function MyPeopleEnhanced() {
               last_active: '2025-09-06'
             }
           }
-        ])
-        setLoading(false)
-      } else {
-        // Transform real data to match our interface
-        const transformedPeople = networkPeople.map((person: any) => ({
-          ...person,
-          tagged_memories_count: 0, // Will be fetched separately
-          recent_memories: [], // Will be fetched separately
-          permissions: {
-            can_view_memories: true,
-            can_add_text: false,
-            can_add_images: false,
-            can_comment: true,
-            chapters_access: []
-          },
-          collaboration_stats: {
-            contributions_made: 0,
-            memories_shared: 0,
-            last_active: 'Never'
-          }
-        }))
-        
-        setPeople(transformedPeople)
-        setLoading(false)
-      }
+        ]
+      
+      // Combine real people with demo data
+      const allPeople = [...transformedRealPeople, ...demoData]
+      
+      console.log('📊 PEOPLE DATA:', {
+        realPeople: transformedRealPeople.length,
+        demoData: demoData.length,
+        total: allPeople.length,
+        realPeopleNames: transformedRealPeople.map(p => p.person_name)
+      })
+      
+      setPeople(allPeople)
+      setLoading(false)
     } catch (error) {
       console.error('Error fetching people:', error)
       setLoading(false)

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
-import { Users, Plus, Mail, User, X, Calendar, BookOpen, ArrowLeft } from 'lucide-react'
+import { Users, Plus, Mail, User, X, Calendar, BookOpen, ArrowLeft, Shield } from 'lucide-react'
+import AccessManagement from './AccessManagement'
 
 interface NetworkPerson {
   id: string
@@ -28,6 +29,7 @@ export default function MyPeople() {
   const { user } = useAuth()
   const [people, setPeople] = useState<NetworkPerson[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeSubTab, setActiveSubTab] = useState<'people' | 'access'>('people')
   const [showAddForm, setShowAddForm] = useState(false)
   const [newPerson, setNewPerson] = useState({
     name: '',
@@ -156,7 +158,44 @@ export default function MyPeople() {
         </div>
       </div>
 
-      {/* Add Person Form */}
+      {/* Sub-Tab Navigation */}
+      <div className="mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8">
+            <button
+              onClick={() => setActiveSubTab('people')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeSubTab === 'people'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <Users className="w-4 h-4" />
+                <span>My People</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveSubTab('access')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeSubTab === 'access'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <Shield className="w-4 h-4" />
+                <span>Access Management</span>
+              </div>
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeSubTab === 'people' ? (
+        <div>
+          {/* Add Person Form */}
       {showAddForm && (
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">Add New Person</h2>
@@ -332,6 +371,13 @@ export default function MyPeople() {
           <li>• Use this to involve family and friends in your memories</li>
         </ul>
       </div>
+        </div>
+      ) : (
+        <div>
+          {/* Access Management Tab */}
+          <AccessManagement />
+        </div>
+      )}
     </div>
   )
 }

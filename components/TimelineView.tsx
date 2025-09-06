@@ -7,6 +7,7 @@ import { formatDate, formatRelativeTime } from './utils'
 import { useAuth } from './AuthProvider'
 import EditChapterModal from './EditChapterModal'
 import PhotoTagDisplay from './PhotoTagDisplay'
+import MemoryContributions from './MemoryContributions'
 
 interface TimelineViewProps {
   memories: MemoryWithRelations[]
@@ -80,8 +81,16 @@ export default function TimelineView({
   }
 
   const handleCommentMemory = (memoryId: string) => {
-    // For now, just show an alert - this would open a comment modal in a full implementation
-    alert(`Comments feature coming soon! Memory ID: ${memoryId}`)
+    // Scroll to the contributions section for this memory
+    const contributionsElement = document.querySelector(`[data-memory-contributions="${memoryId}"]`)
+    if (contributionsElement) {
+      contributionsElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // Highlight the contributions section briefly
+      contributionsElement.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50')
+      setTimeout(() => {
+        contributionsElement.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50')
+      }, 2000)
+    }
   }
 
   const handleShareMemory = (memory: MemoryWithRelations) => {
@@ -874,6 +883,17 @@ export default function TimelineView({
                                   </button>
                                 )}
                               </div>
+                            </div>
+
+                            {/* Memory Contributions - Always Visible */}
+                            <div 
+                              className="mt-4 border-t border-slate-200 pt-4 transition-all duration-300 rounded-lg"
+                              data-memory-contributions={memory.id}
+                            >
+                              <MemoryContributions 
+                                memoryId={memory.id}
+                                memoryTitle={memory.title || 'this memory'}
+                              />
                             </div>
                           </div>
                         </article>

@@ -8,6 +8,7 @@ import DeleteConfirmationModal from './DeleteConfirmationModal'
 import ImageCropper from './ImageCropper'
 import VoiceRecorder from './VoiceRecorder'
 import UpgradeModal from './UpgradeModal'
+import InviteCollaborators from './InviteCollaborators'
 import toast from 'react-hot-toast'
 
 interface GroupManagerProps {
@@ -949,6 +950,18 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                   placeholder="Where did this chapter take place?"
                 />
               </div>
+            </div>
+
+            {/* Collaboration Section */}
+            <div className="border-t border-slate-200 pt-6">
+              <InviteCollaborators 
+                chapterId={editingChapter.id}
+                chapterTitle={editingChapter.title}
+                onInviteSent={() => {
+                  // Optionally refresh chapter data to show new members
+                  fetchChaptersAndMemories()
+                }}
+              />
             </div>
 
             {/* Modal Footer */}
