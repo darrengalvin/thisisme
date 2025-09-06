@@ -1373,7 +1373,7 @@ With love and remembrance,
                             <div className="mb-3">
                               <p className="text-xs font-medium text-gray-600 mb-2">📚 Chapters</p>
                               <div className="space-y-2">
-                                {person.permissions.chapters_access.map((chapter: any, idx: number) => (
+                                {person.permissions.chapters_access?.map((chapter: any, idx: number) => (
                                   <div key={idx} className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2">
                                     <span className="text-xs font-medium text-blue-800">{chapter.chapter_name}</span>
                                     <div className="flex items-center space-x-1">
@@ -1393,7 +1393,7 @@ With love and remembrance,
                             <div>
                               <p className="text-xs font-medium text-gray-600 mb-2">💭 Memories</p>
                               <div className="space-y-2">
-                                {person.permissions.memory_access.map((memory: any, idx: number) => (
+                                {person.permissions.memory_access?.map((memory: any, idx: number) => (
                                   <div key={idx} className="flex items-center justify-between bg-purple-50 rounded-lg px-3 py-2">
                                     <div className="flex-1">
                                       <span className="text-xs font-medium text-purple-800">{memory.memory_title}</span>
