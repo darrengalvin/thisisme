@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Clock, Users, Lock, Heart, MessageCircle } from 'lucide-react'
 import { MemoryWithRelations } from '@/lib/types'
 import { formatRelativeTime } from './utils'
+import PhotoTagDisplay from './PhotoTagDisplay'
 
 interface MemoryGridProps {
   memories: MemoryWithRelations[]
@@ -50,10 +51,16 @@ export default function MemoryGrid({ memories, onEdit, onDelete, onStartCreating
                 {memory.media && memory.media.length > 0 && (
                   <div className="relative overflow-hidden rounded-t-2xl">
                     {memory.media[0].type === 'IMAGE' && (
-                      <img
-                        src={memory.media[0].storage_url}
-                        alt=""
+                      <PhotoTagDisplay
+                        mediaId={memory.media[0].id}
+                        imageUrl={memory.media[0].storage_url}
                         className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-110"
+                        showTagsOnHover={true}
+                        showTagIndicator={true}
+                        onPersonClick={(personId, personName) => {
+                          console.log('🏷️ MEMORY GRID: Person clicked:', personName, personId)
+                          // TODO: Navigate to My People or show person details
+                        }}
                       />
                     )}
                     {memory.media[0].type === 'VIDEO' && (

@@ -17,13 +17,14 @@ import DeleteConfirmationModal from './DeleteConfirmationModal'
 import { useAuth } from '@/components/AuthProvider'
 import TicketNotifications from '@/components/TicketNotifications'
 import TabNavigation from './TabNavigation'
+import MyPeople from './MyPeople'
 
 import VoiceChatButton from './VoiceChatButton'
 import { MemoryWithRelations } from '@/lib/types'
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates'
 
-type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support'
-type MainTabType = 'home' | 'timeline' | 'timezones'
+type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support' | 'people'
+type MainTabType = 'home' | 'timeline' | 'timezones' | 'people'
 
 interface UserType {
   id: string
@@ -224,8 +225,11 @@ export default function Dashboard() {
 
   const fetchUser = async () => {
     try {
+      console.log('🚀 FETCH USER: Starting user profile fetch...')
+      
       if (!supabaseUser) {
-        console.log('No Supabase user found')
+        console.log('❌ FETCH USER: No Supabase user found')
+        setIsLoadingUser(false)
         return
       }
 
@@ -237,17 +241,21 @@ export default function Dashboard() {
       })
 
       if (!tokenResponse.ok) {
-        console.error('Failed to get auth token for user profile')
+        console.error('❌ FETCH USER: Failed to get auth token for user profile')
+        setIsLoadingUser(false)
         return
       }
 
       const { token } = await tokenResponse.json()
+      console.log('✅ FETCH USER: Got auth token, fetching profile...')
 
       const response = await fetch('/api/user/profile', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
+      
+      console.log('📡 FETCH USER: Profile API response status:', response.status)
 
       if (response.ok) {
         const data = await response.json()
@@ -274,7 +282,8 @@ export default function Dashboard() {
           setIsNewUser(true)
         }
       } else {
-        console.error('Failed to fetch user profile:', response.status)
+        console.error('❌ FETCH USER: Failed to fetch user profile:', response.status)
+        setIsLoadingUser(false)
       }
     } catch (error) {
       console.error('Error fetching user profile:', error)
@@ -909,6 +918,11 @@ export default function Dashboard() {
               highlightedMemories={highlightedMemories}
               voiceAddedMemories={voiceAddedMemories}
               highlightedChapters={highlightedChapters}
+              onNavigateToMyPeople={(personId) => {
+                console.log('🏷️ DASHBOARD: Navigating to My People for person:', personId)
+                setActiveTab('people')
+                // TODO: Pass personId to MyPeople component to highlight/filter
+              }}
             />
             
             {/* Debug Panel for Force Delete */}
@@ -1141,6 +1155,8 @@ export default function Dashboard() {
         return <GroupManager user={user} onCreateGroup={() => setActiveTab('create-timezone')} onStartCreating={handleCreateMemory} />
       case 'create-timezone':
         return <CreateTimeZone onSuccess={() => { setActiveTab('timezones'); fetchMemories(); }} onCancel={() => setActiveTab('timezones')} />
+      case 'people':
+        return <MyPeople />
       default:
         return <div className="flex items-center justify-center h-full"><p>Select a view from the navigation</p></div>
     }

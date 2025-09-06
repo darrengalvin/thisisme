@@ -1,13 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Save, Loader2, Upload, Crop, Trash2, ChevronDown, Mic, Crown, Sparkles } from 'lucide-react'
+import { X, Save, Loader2, Upload, Crop, Trash2, ChevronDown, Mic, Crown, Sparkles, Tag } from 'lucide-react'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import toast from 'react-hot-toast'
 import ImageCropper from '@/components/ImageCropper'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
 import VoiceRecorder from '@/components/VoiceRecorder'
 import UpgradeModal from './UpgradeModal'
+import TaggingInput from './TaggingInput'
+import PhotoTagger from './PhotoTagger'
+import PhotoTagDisplay from './PhotoTagDisplay'
 import { useAuth } from '@/components/AuthProvider'
 
 interface EditMemoryModalProps {
@@ -36,6 +39,13 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const [premiumLoading, setPremiumLoading] = useState(true)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [taggedPeople, setTaggedPeople] = useState<string[]>([])
+  const [existingTags, setExistingTags] = useState<string[]>([])
+  const [showPhotoTagger, setShowPhotoTagger] = useState(false)
+  const [selectedImageForTagging, setSelectedImageForTagging] = useState<{
+    url: string
+    mediaId: string
+  } | null>(null)
 
   useEffect(() => {
     if (memory) {
@@ -44,6 +54,10 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
       setSelectedChapterId(memory.timeZoneId || '')
       setMediaFiles([])
       setExistingMediaToDelete([])
+      setTaggedPeople([])
+      setExistingTags([])
+      // Load existing tags
+      loadExistingTags(memory.id)
     }
   }, [memory])
 
@@ -54,6 +68,39 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
       checkPremiumStatus()
     }
   }, [isOpen, user])
+
+  const loadExistingTags = async (memoryId: string) => {
+    if (!user) return
+
+    try {
+      // Get JWT token
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      })
+
+      if (!tokenResponse.ok) return
+
+      const { token } = await tokenResponse.json()
+
+      const response = await fetch(`/api/memories/${memoryId}/tags`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const { tags } = await response.json()
+        const tagNames = tags.map((tag: any) => tag.user_networks.person_name)
+        setExistingTags(tagNames)
+        setTaggedPeople(tagNames)
+      }
+    } catch (error) {
+      console.error('Failed to load existing tags:', error)
+    }
+  }
 
   const checkPremiumStatus = async () => {
     if (!user) {
@@ -199,6 +246,7 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
       formData.append('title', title.trim() || '')
       formData.append('textContent', textContent.trim() || '')
       formData.append('timeZoneId', selectedChapterId || '')
+      formData.append('taggedPeople', JSON.stringify(taggedPeople))
       
       // Add new media files
       console.log('📁 EDIT MEMORY: Adding media files...', mediaFiles.map(f => ({ name: f.name, size: f.size, type: f.type })))
@@ -530,6 +578,21 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                     </div>
                     <div className="absolute top-2 right-2 flex space-x-2">
                       <button
+                        onClick={() => {
+                          setSelectedImageForTagging({
+                            url: URL.createObjectURL(mediaFiles[0]),
+                            mediaId: 'new-upload' // Will be handled after save
+                          })
+                          setShowPhotoTagger(true)
+                        }}
+                        className="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs transition-colors"
+                        type="button"
+                        title="Tag people in this photo"
+                      >
+                        <Tag size={12} />
+                        <span>Tag People</span>
+                      </button>
+                      <button
                         onClick={async () => {
                           const aspectRatio = await getImageAspectRatio(mediaFiles[0])
                           setTempImageForCrop({ file: mediaFiles[0], index: 0, aspectRatio })
@@ -557,10 +620,16 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                 memory.media && memory.media.length > 0 && memory.media[0] && !existingMediaToDelete.includes(memory.media[0].id) ? (
                 <div className="relative">
                   <div className="relative w-full h-64 rounded-lg overflow-hidden border-2 border-slate-200">
-                    <img
-                      src={memory.media[0].storage_url || memory.media[0].thumbnail_url || ''}
-                      alt="Primary memory"
+                    <PhotoTagDisplay
+                      mediaId={memory.media[0].id}
+                      imageUrl={memory.media[0].storage_url || memory.media[0].thumbnail_url || ''}
                       className="w-full h-full object-cover"
+                      showTagsOnHover={true}
+                      showTagIndicator={true}
+                      onPersonClick={(personId, personName) => {
+                        console.log('🏷️ EDIT MODAL: Person clicked:', personName, personId)
+                        // TODO: Navigate to My People or show person details
+                      }}
                     />
                     <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                       Primary Image
@@ -578,6 +647,20 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                   
                   {/* Actions */}
                   <div className="flex items-center justify-center space-x-3 mt-3">
+                    <button
+                      onClick={() => {
+                        setSelectedImageForTagging({
+                          url: memory.media![0].storage_url || '',
+                          mediaId: memory.media![0].id
+                        })
+                        setShowPhotoTagger(true)
+                      }}
+                      className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                      type="button"
+                    >
+                      <Tag size={16} />
+                      <span>Tag People</span>
+                    </button>
                     <button
                       onClick={() => cropExistingImage(memory.media![0].id, memory.media![0].storage_url || '')}
                       className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg transition-colors"
@@ -629,15 +712,35 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                           {visibleAdditionalImages.map((media) => (
                             <div key={media.id} className="relative group">
                               <div className="aspect-square rounded-lg overflow-hidden border border-slate-200">
-                                <img
-                                  src={media.thumbnail_url || media.storage_url}
-                                  alt="Additional memory"
+                                <PhotoTagDisplay
+                                  mediaId={media.id}
+                                  imageUrl={media.thumbnail_url || media.storage_url}
                                   className="w-full h-full object-cover"
+                                  showTagsOnHover={true}
+                                  showTagIndicator={true}
+                                  onPersonClick={(personId, personName) => {
+                                    console.log('🏷️ EDIT MODAL: Additional image person clicked:', personName, personId)
+                                    // TODO: Navigate to My People or show person details
+                                  }}
                                 />
                               </div>
                               
                               {/* Action buttons */}
                               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
+                                <button
+                                  onClick={() => {
+                                    setSelectedImageForTagging({
+                                      url: media.storage_url,
+                                      mediaId: media.id
+                                    })
+                                    setShowPhotoTagger(true)
+                                  }}
+                                  className="p-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg transition-colors"
+                                  title="Tag People"
+                                  type="button"
+                                >
+                                  <Tag size={12} />
+                                </button>
                                 <button
                                   onClick={() => cropExistingImage(media.id, media.storage_url)}
                                   className="p-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg transition-colors"
@@ -697,10 +800,11 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
             </div>
             
             <div className="relative">
-              <textarea
+              <TaggingInput
                 value={textContent}
-                onChange={(e) => setTextContent(e.target.value)}
-                placeholder="Describe your memory..."
+                onChange={setTextContent}
+                onTaggedPeopleChange={setTaggedPeople}
+                placeholder="Describe your memory... Use @ to tag people"
                 rows={4}
                 className={`w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none transition-colors resize-none ${isPremiumUser ? 'pr-16' : ''}`}
                 disabled={isLoading}
@@ -745,6 +849,23 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
               )}
             </div>
             
+            {/* Tagged People Display */}
+            {taggedPeople.length > 0 && (
+              <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="text-sm font-medium text-blue-900 mb-2">Tagged People:</div>
+                <div className="flex flex-wrap gap-2">
+                  {taggedPeople.map((person, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                    >
+                      @{person}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {isPremiumUser && (
               <div className="mt-2 text-xs text-slate-500 flex items-center space-x-1">
                 <Sparkles size={12} className="text-slate-600" />
@@ -822,18 +943,34 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
                         {/* Action buttons */}
                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center space-x-1">
                           {file.type.startsWith('image/') && (
-                            <button
-                              onClick={async () => {
-                                const aspectRatio = await getImageAspectRatio(file)
-                                setTempImageForCrop({ file, index: actualIndex, aspectRatio })
-                                setShowImageCropper(true)
-                              }}
-                              className="p-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg transition-colors"
-                              title="Adjust Position"
-                              type="button"
-                            >
-                              <Crop size={12} />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSelectedImageForTagging({
+                                    url: URL.createObjectURL(file),
+                                    mediaId: 'new-upload' // Will be handled after save
+                                  })
+                                  setShowPhotoTagger(true)
+                                }}
+                                className="p-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg transition-colors"
+                                title="Tag People"
+                                type="button"
+                              >
+                                <Tag size={12} />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  const aspectRatio = await getImageAspectRatio(file)
+                                  setTempImageForCrop({ file, index: actualIndex, aspectRatio })
+                                  setShowImageCropper(true)
+                                }}
+                                className="p-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg transition-colors"
+                                title="Adjust Position"
+                                type="button"
+                              >
+                                <Crop size={12} />
+                              </button>
+                            </>
                           )}
                           <button
                             onClick={() => removeNewFile(actualIndex)}
@@ -977,6 +1114,26 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
       />
+
+      {/* Photo Tagger Modal */}
+      {showPhotoTagger && selectedImageForTagging && (
+        <PhotoTagger
+          imageUrl={selectedImageForTagging.url}
+          mediaId={selectedImageForTagging.mediaId}
+          memoryId={memory?.id || ''}
+          existingTags={[]} // TODO: Load existing photo tags
+          onSave={(tags) => {
+            console.log('Photo tags saved:', tags)
+            setShowPhotoTagger(false)
+            setSelectedImageForTagging(null)
+            // TODO: Refresh memory data to show new tags
+          }}
+          onClose={() => {
+            setShowPhotoTagger(false)
+            setSelectedImageForTagging(null)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -125,6 +125,8 @@ export async function POST(request: NextRequest) {
     const customDate = formData.get('customDate') as string
     const datePrecision = formData.get('datePrecision') as string
     const approximateDate = formData.get('approximateDate') as string
+    const taggedPeopleJson = formData.get('taggedPeople') as string
+    const taggedPeople = taggedPeopleJson ? JSON.parse(taggedPeopleJson) : []
     const files = formData.getAll('media') as File[]
 
     console.log('Form data received:', {
@@ -351,6 +353,46 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('🏁 MEDIA UPLOAD COMPLETE:', mediaRecords.length, 'records created')
+
+    // Handle tagged people
+    if (taggedPeople && taggedPeople.length > 0) {
+      console.log('🏷️ PROCESSING TAGGED PEOPLE:', taggedPeople)
+      
+      for (const personName of taggedPeople) {
+        // Find or create person in user's network
+        let { data: networkPerson } = await supabase
+          .from('user_networks')
+          .select('id')
+          .eq('owner_id', user.userId)
+          .eq('person_name', personName)
+          .single()
+
+        if (!networkPerson) {
+          // Create new person in network
+          const { data: newPerson } = await supabase
+            .from('user_networks')
+            .insert({
+              owner_id: user.userId,
+              person_name: personName
+            })
+            .select('id')
+            .single()
+
+          networkPerson = newPerson
+        }
+
+        if (networkPerson) {
+          // Create memory tag
+          await supabase
+            .from('memory_tags')
+            .insert({
+              memory_id: memory.id,
+              tagged_person_id: networkPerson.id,
+              tagged_by_user_id: user.userId
+            })
+        }
+      }
+    }
 
     // Get complete memory with relations
     const { data: completeMemory, error: fetchError } = await supabase

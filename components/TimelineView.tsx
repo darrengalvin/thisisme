@@ -6,6 +6,7 @@ import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import { formatDate, formatRelativeTime } from './utils'
 import { useAuth } from './AuthProvider'
 import EditChapterModal from './EditChapterModal'
+import PhotoTagDisplay from './PhotoTagDisplay'
 
 interface TimelineViewProps {
   memories: MemoryWithRelations[]
@@ -19,6 +20,7 @@ interface TimelineViewProps {
   highlightedMemories?: Set<string>
   voiceAddedMemories?: Set<string>
   highlightedChapters?: Set<string>
+  onNavigateToMyPeople?: (personId?: string) => void
 }
 
 interface TimelineGroup {
@@ -39,7 +41,8 @@ export default function TimelineView({
   onChapterSelected,
   highlightedMemories = new Set(),
   voiceAddedMemories = new Set(),
-  highlightedChapters = new Set()
+  highlightedChapters = new Set(),
+  onNavigateToMyPeople
 }: TimelineViewProps) {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
@@ -753,12 +756,32 @@ export default function TimelineView({
                                 {memory.media.map((media) => (
                                   <div key={media.id} className="rounded-xl overflow-hidden">
                                     {media.type === 'IMAGE' && (
-                                      <img 
-                                        src={media.storage_url} 
-                                        alt={memory.title || ''} 
-                                        className="w-full max-w-[480px] h-auto mx-auto object-contain cursor-pointer hover:scale-105 transition-transform duration-300"
-                                        onClick={() => handleMemoryClick(memory.id)}
-                                      />
+                                      <>
+                        <PhotoTagDisplay
+                          mediaId={media.id}
+                          imageUrl={media.storage_url}
+                          className="w-full max-w-[480px] h-auto mx-auto object-contain cursor-pointer hover:scale-105 transition-transform duration-300"
+                          showTagsOnHover={true}
+                          showTagIndicator={true}
+                          onPersonClick={(personId, personName) => {
+                            console.log('🏷️ TIMELINE: Person clicked:', personName, personId)
+                            if (onNavigateToMyPeople) {
+                              onNavigateToMyPeople(personId)
+                            }
+                          }}
+                          onTagNowClick={(mediaId) => {
+                            console.log('🏷️ TIMELINE: Tag now clicked for media:', mediaId)
+                            // Find the memory that contains this media and open edit modal
+                            const memoryWithMedia = memories.find(mem => 
+                              mem.media && mem.media.some(m => m.id === mediaId)
+                            )
+                            if (memoryWithMedia && onEdit) {
+                              console.log('🏷️ TIMELINE: Opening edit modal for memory:', memoryWithMedia.id)
+                              onEdit(memoryWithMedia)
+                            }
+                          }}
+                        />
+                                      </>
                                     )}
                                     {media.type === 'VIDEO' && (
                                       <video 

@@ -6,6 +6,7 @@ import { MemoryWithRelations } from '@/lib/types'
 import EditMemoryModal from './EditMemoryModal'
 import ShareMemoryModal from './ShareMemoryModal'
 import ImageCropper from './ImageCropper'
+import PhotoTagDisplay from './PhotoTagDisplay'
 import toast from 'react-hot-toast'
 
 interface ViewMemoryModalProps {
@@ -68,12 +69,18 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
         <div className="relative">
           {primaryImage ? (
             <div className="relative overflow-hidden">
-              <img
-                src={primaryImage}
-                alt={memory.title || 'Memory'}
+              <PhotoTagDisplay
+                mediaId={memory.media?.[0]?.id || ''}
+                imageUrl={primaryImage}
                 className="w-full h-auto object-contain max-h-80"
+                showTagsOnHover={true}
+                showTagIndicator={true}
+                onPersonClick={(personId, personName) => {
+                  console.log('🏷️ VIEW MODAL: Person clicked:', personName, personId)
+                  // TODO: Navigate to My People or show person details
+                }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
               
               {/* Title overlay on image */}
               <div className="absolute bottom-4 left-6 right-16">

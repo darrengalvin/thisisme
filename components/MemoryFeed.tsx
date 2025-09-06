@@ -5,6 +5,7 @@ import { MemoryWithRelations } from '@/lib/types'
 // import MemoryCard from './MemoryCard' // Will create simplified version
 import { formatRelativeTime } from './utils'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
+import PhotoTagDisplay from './PhotoTagDisplay'
 
 export default function MemoryFeed({ 
   memories: propMemories, 
@@ -200,10 +201,16 @@ export default function MemoryFeed({
                         {memory.media.map((media) => (
                           <div key={media.id}>
                             {media.type === 'IMAGE' && (
-                              <img 
-                                src={media.storage_url} 
-                                alt="" 
+                              <PhotoTagDisplay
+                                mediaId={media.id}
+                                imageUrl={media.storage_url}
                                 className="w-full max-w-[480px] h-auto mx-auto rounded-xl object-contain"
+                                showTagsOnHover={true}
+                                showTagIndicator={true}
+                                onPersonClick={(personId, personName) => {
+                                  console.log('🏷️ MEMORY FEED: Person clicked:', personName, personId)
+                                  // TODO: Navigate to My People or show person details
+                                }}
                               />
                             )}
                             {media.type === 'VIDEO' && (
