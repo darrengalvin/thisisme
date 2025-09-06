@@ -187,7 +187,7 @@ export default function TestCollaborationPage() {
             <TaggingInput
               value={memoryText}
               onChange={setMemoryText}
-              onTagsChange={setTags}
+              onTaggedPeopleChange={setTags}
               placeholder="Try typing @ followed by a name from your network..."
               className="min-h-32"
             />
