@@ -1364,12 +1364,12 @@ With love and remembrance,
                       )}
 
                       {/* Specific Chapter & Memory Permissions */}
-                      {person.permissions && (person.permissions.chapters_access?.length > 0 || person.permissions.memory_access?.length > 0) && (
+                      {person.permissions && ((person.permissions.chapters_access?.length || 0) > 0 || (person.permissions.memory_access?.length || 0) > 0) && (
                         <div className="mb-4">
                           <p className="text-sm font-medium text-gray-700 mb-3">Specific Access</p>
                           
                           {/* Chapter Permissions */}
-                          {person.permissions.chapters_access?.length > 0 && (
+                          {(person.permissions.chapters_access?.length || 0) > 0 && (
                             <div className="mb-3">
                               <p className="text-xs font-medium text-gray-600 mb-2">📚 Chapters</p>
                               <div className="space-y-2">
@@ -1389,7 +1389,7 @@ With love and remembrance,
                           )}
 
                           {/* Memory Permissions */}
-                          {person.permissions.memory_access?.length > 0 && (
+                          {(person.permissions.memory_access?.length || 0) > 0 && (
                             <div>
                               <p className="text-xs font-medium text-gray-600 mb-2">💭 Memories</p>
                               <div className="space-y-2">
