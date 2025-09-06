@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const { data: networkPeople, error } = await supabaseAdmin
       .from('user_networks')
       .select('*')
-      .eq('owner_id', user.userId)
+      .eq('user_id', user.userId)
       .order('person_name')
 
     if (error) {
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     const { data: newPerson, error } = await supabaseAdmin
       .from('user_networks')
       .insert({
-        owner_id: user.userId,
+        user_id: user.userId,
         person_name: person_name.trim(),
         person_email: person_email?.toLowerCase(),
         relationship: relationship?.trim(),

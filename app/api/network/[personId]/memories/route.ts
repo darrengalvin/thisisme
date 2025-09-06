@@ -27,7 +27,7 @@ export async function GET(
       .from('user_networks')
       .select('*')
       .eq('id', personId)
-      .eq('owner_id', user.userId)
+      .eq('user_id', user.userId)
       .single()
 
     if (personError || !person) {
