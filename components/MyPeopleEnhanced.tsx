@@ -92,14 +92,20 @@ export default function MyPeopleEnhanced() {
       const tokenResponse = await fetch('/api/auth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user, session: user })
+        body: JSON.stringify({ 
+          userId: user.id, 
+          email: user.email 
+        })
       })
       
       if (!tokenResponse.ok) {
-        throw new Error('Failed to get auth token')
+        const errorData = await tokenResponse.json()
+        console.error('❌ TOKEN ERROR:', errorData)
+        throw new Error(`Failed to get auth token: ${errorData.error || 'Unknown error'}`)
       }
       
       const { token } = await tokenResponse.json()
+      console.log('✅ TOKEN SUCCESS: Got JWT token for network API')
       
       // Fetch real network people
       const response = await fetch('/api/network', {
@@ -110,10 +116,13 @@ export default function MyPeopleEnhanced() {
       })
       
       if (!response.ok) {
-        throw new Error('Failed to fetch network people')
+        const errorData = await response.json()
+        console.error('❌ NETWORK API ERROR:', errorData)
+        throw new Error(`Failed to fetch network people: ${errorData.error || 'Unknown error'}`)
       }
       
       const { people: networkPeople } = await response.json()
+      console.log('✅ NETWORK API SUCCESS:', networkPeople)
       
       // Transform real data to match our interface
       const transformedRealPeople = networkPeople?.map((person: any) => ({
