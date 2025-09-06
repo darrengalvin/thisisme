@@ -1070,7 +1070,7 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
                   >
                     <option value="">Choose a template...</option>
-                    <option value={`Hi ${newPerson.person_name || '[Name]'},
+                    <option value={`Hi ${newPerson.name || '[Name]'},
 
 I'm using This Is Me to organize and share my life memories, and I'd love for you to be part of it! 
 
@@ -1080,7 +1080,7 @@ Would you like to join me in preserving these precious memories together?
 
 Best regards,
 [Your name]`}>🤝 General Invitation</option>
-                    <option value={`Dear ${newPerson.person_name || '[Name]'},
+                    <option value={`Dear ${newPerson.name || '[Name]'},
 
 I've been working on documenting our family history and memories using This Is Me, and your perspective would be invaluable!
 
@@ -1090,7 +1090,7 @@ Your memories and photos would mean so much to our family's digital legacy.
 
 With love,
 [Your name]`}>👨‍👩‍👧‍👦 Family Member</option>
-                    <option value={`Hey ${newPerson.person_name || '[Name]'},
+                    <option value={`Hey ${newPerson.name || '[Name]'},
 
 Remember all those amazing times we've shared? I'm putting together a digital collection of our memories on This Is Me!
 
@@ -1100,7 +1100,7 @@ It'll be like our own private social network of memories!
 
 Talk soon,
 [Your name]`}>🎉 Close Friend</option>
-                    <option value={`Hi ${newPerson.person_name || '[Name]'},
+                    <option value={`Hi ${newPerson.name || '[Name]'},
 
 I'm documenting my professional journey and career milestones using This Is Me, and I'd value having you as part of this network.
 
@@ -1110,7 +1110,7 @@ Looking forward to preserving these professional memories together.
 
 Best regards,
 [Your name]`}>💼 Professional Contact</option>
-                    <option value={`Hi ${newPerson.person_name || '[Name]'},
+                    <option value={`Hi ${newPerson.name || '[Name]'},
 
 I'm creating a memory collection on This Is Me and would love to include you! I've already tagged you in some special memories we've shared.
 
@@ -1120,7 +1120,7 @@ Hope you'll join me in this journey of memory keeping!
 
 Warm regards,
 [Your name]`}>📸 Already Tagged</option>
-                    <option value={`Dear ${newPerson.person_name || '[Name]'},
+                    <option value={`Dear ${newPerson.name || '[Name]'},
 
 I hope this message finds you well. I'm using This Is Me to create a digital archive of important life moments and memories.
 
@@ -1132,9 +1132,9 @@ Sincerely,
 [Your name]`}>✨ Formal Invitation</option>
                     <option value={`Dear Family and Friends,
 
-I'm creating a digital memorial and memory collection for ${newPerson.person_name || '[Name]'} on This Is Me, and I would love your help in preserving their legacy.
+I'm creating a digital memorial and memory collection for ${newPerson.name || '[Name]'} on This Is Me, and I would love your help in preserving their legacy.
 
-I'm gathering photos, stories, and memories that celebrate their life and the impact they had on all of us. If you have any photos, stories, or special memories of ${newPerson.person_name || '[Name]'}, I would be deeply grateful if you could contribute them to this collection.
+I'm gathering photos, stories, and memories that celebrate their life and the impact they had on all of us. If you have any photos, stories, or special memories of ${newPerson.name || '[Name]'}, I would be deeply grateful if you could contribute them to this collection.
 
 This memorial will serve as a beautiful tribute that we can all visit to remember and honor them. Your memories and photos would mean so much in creating a complete picture of their wonderful life.
 
