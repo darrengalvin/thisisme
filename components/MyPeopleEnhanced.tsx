@@ -13,6 +13,7 @@ interface NetworkPerson {
   person_user_id?: string
   photo_url?: string
   created_at: string
+  personType?: 'living' | 'legacy'
   tagged_memories_count?: number
   recent_memories?: Array<{
     id: string
