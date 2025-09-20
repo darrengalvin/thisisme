@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
             email,
             status: 'email_failed',
             user_exists: false,
-            error: emailError.message
+            error: emailError instanceof Error ? emailError.message : 'Unknown error'
           })
         }
       }
