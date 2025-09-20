@@ -74,6 +74,8 @@ export async function PUT(
     const title = formData.get('title') as string
     const textContent = formData.get('textContent') as string
     const chapterId = formData.get('timeZoneId') as string // Keep timeZoneId for backward compatibility
+    const taggedPeopleJson = formData.get('taggedPeople') as string
+    const taggedPeople = taggedPeopleJson ? JSON.parse(taggedPeopleJson) : []
     const mediaToDelete = formData.getAll('deleteMedia') as string[]
     const newMediaFiles = formData.getAll('media') as File[]
 
@@ -217,6 +219,57 @@ export async function PUT(
         { success: false, error: 'Failed to update memory' },
         { status: 500 }
       )
+    }
+
+    // Handle tagged people updates
+    if (taggedPeople && taggedPeople.length > 0) {
+      // First, delete existing tags for this memory
+      await supabase
+        .from('memory_tags')
+        .delete()
+        .eq('memory_id', memoryId)
+
+      // Add new tags
+      for (const personName of taggedPeople) {
+        // Find or create person in user's network
+        let { data: networkPerson } = await supabase
+          .from('user_networks')
+          .select('id')
+          .eq('owner_id', user.userId)
+          .eq('person_name', personName)
+          .single()
+
+        if (!networkPerson) {
+          // Create new person in network
+          const { data: newPerson } = await supabase
+            .from('user_networks')
+            .insert({
+              owner_id: user.userId,
+              person_name: personName
+            })
+            .select('id')
+            .single()
+          
+          networkPerson = newPerson
+        }
+
+        if (networkPerson) {
+          // Create memory tag
+          await supabase
+            .from('memory_tags')
+            .insert({
+              memory_id: memoryId,
+              tagged_person_id: networkPerson.id,
+              tagged_by_user_id: user.userId
+            })
+        }
+      }
+    } else {
+      // If no tagged people, remove all existing tags
+      await supabase
+        .from('memory_tags')
+        .delete()
+        .eq('memory_id', memoryId)
     }
 
     // Get complete updated memory with relations

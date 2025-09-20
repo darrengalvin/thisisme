@@ -16,4 +16,19 @@ JWT_SECRET=your-jwt-secret-here
 
 # File Upload Configuration
 NEXT_PUBLIC_MAX_FILE_SIZE=10485760
-NEXT_PUBLIC_ALLOWED_FILE_TYPES=image/*,video/* 
+NEXT_PUBLIC_ALLOWED_FILE_TYPES=image/*,video/*
+
+# Email Service Configuration (Resend)
+RESEND_API_KEY=your-resend-api-key-here
+RESEND_FROM_EMAIL=noreply@yourdomain.com
+RESEND_DOMAIN=yourdomain.com
+
+# SMS/Voice Service Configuration (Twilio)
+TWILIO_ACCOUNT_SID=your-twilio-account-sid-here
+TWILIO_AUTH_TOKEN=your-twilio-auth-token-here
+TWILIO_PHONE_NUMBER=your-twilio-phone-number-here
+TWILIO_PHONE_SID=your-twilio-phone-sid-here
+TWILIO_USER_SID=your-twilio-user-sid-here
+
+# Webhook Configuration
+TWILIO_WEBHOOK_URL=https://your-domain.com/api/webhooks/twilio 

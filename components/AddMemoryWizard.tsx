@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check, Mic, Crown, Sparkles, Crop } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check, Mic, Crown, Sparkles, Crop, Tag } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import VoiceRecorder from '@/components/VoiceRecorder'
 import ImageCropper from '@/components/ImageCropper'
 import UpgradeModal from './UpgradeModal'
 import SystemMessageModal from './SystemMessageModal'
+import TaggingInput from './TaggingInput'
+import PhotoTagger from './PhotoTagger'
 
 interface AddMemoryWizardProps {
   chapterId: string | null
@@ -35,6 +37,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     dateType: 'within-chapter',
     files: []
   })
+  const [taggedPeople, setTaggedPeople] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isPremiumUser, setIsPremiumUser] = useState(false)
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
@@ -44,6 +47,11 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [showPhotoTagger, setShowPhotoTagger] = useState(false)
+  const [selectedImageForTagging, setSelectedImageForTagging] = useState<{
+    url: string
+    fileIndex: number
+  } | null>(null)
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -166,6 +174,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       const formData = new FormData()
       formData.append('title', memoryData.title)
       formData.append('textContent', memoryData.description)
+      formData.append('taggedPeople', JSON.stringify(taggedPeople))
       
       if (chapterId) {
         formData.append('timeZoneId', chapterId)
@@ -357,13 +366,25 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                 </div>
                 
                 <div className="relative">
-                  <textarea
-                    placeholder="Tell the story of this memory... What happened? How did you feel? Who was there?"
+                  <TaggingInput
                     value={memoryData.description}
-                    onChange={(e) => setMemoryData(prev => ({ ...prev, description: e.target.value }))}
-                    rows={4}
+                    onChange={(value) => setMemoryData(prev => ({ ...prev, description: value }))}
+                    onTaggedPeopleChange={setTaggedPeople}
+                    placeholder="Tell the story of this memory... What happened? How did you feel? Who was there? Use @ to tag people!"
                     className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent resize-none transition-all border-slate-300 focus:ring-slate-800 ${isPremiumUser ? 'pr-16' : ''}`}
                   />
+                  
+                  {/* Tagged People Display */}
+                  {taggedPeople.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="text-sm text-gray-600">Tagged:</span>
+                      {taggedPeople.map((person, index) => (
+                        <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                          @{person}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   
                   
                   {/* Premium Voice Button - Positioned on textarea */}
@@ -571,20 +592,35 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                       </div>
                       <div className="flex items-center space-x-2">
                         {file.type.startsWith('image/') && (
-                          <button
-                            onClick={() => {
-                              setTempImageForCrop({ file, index })
-                              const reader = new FileReader()
-                              reader.onload = (e) => {
-                                setShowImageCropper(true)
-                              }
-                              reader.readAsDataURL(file)
-                            }}
-                            className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
-                            title="Crop image"
-                          >
-                            <Crop size={16} />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => {
+                                setSelectedImageForTagging({
+                                  url: URL.createObjectURL(file),
+                                  fileIndex: index
+                                })
+                                setShowPhotoTagger(true)
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                              title="Tag people in this photo"
+                            >
+                              <Tag size={16} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setTempImageForCrop({ file, index })
+                                const reader = new FileReader()
+                                reader.onload = (e) => {
+                                  setShowImageCropper(true)
+                                }
+                                reader.readAsDataURL(file)
+                              }}
+                              className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                              title="Crop image"
+                            >
+                              <Crop size={16} />
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => removeFile(index)}
@@ -693,6 +729,26 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
         message={errorMessage}
         onClose={() => setShowErrorModal(false)}
       />
+
+      {/* Photo Tagger Modal */}
+      {showPhotoTagger && selectedImageForTagging && (
+        <PhotoTagger
+          imageUrl={selectedImageForTagging.url}
+          mediaId="new-upload" // Will be handled after memory creation
+          memoryId="" // Will be set after memory creation
+          existingTags={[]}
+          onSave={(tags) => {
+            console.log('Photo tags saved for new memory:', tags)
+            setShowPhotoTagger(false)
+            setSelectedImageForTagging(null)
+            // TODO: Store tags temporarily until memory is created
+          }}
+          onClose={() => {
+            setShowPhotoTagger(false)
+            setSelectedImageForTagging(null)
+          }}
+        />
+      )}
     </div>
   )
 } 

@@ -379,7 +379,9 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
         <div className="w-full h-full bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
           <div className="p-4 h-full flex flex-col">
             <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-56">
-              {memories.map((memory, index) => {
+              {memories
+                .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+                .map((memory, index) => {
                 const thumbnail = memory.media?.[0]?.storage_url || memory.media?.[0]?.thumbnail_url
                 return (
                   <div 

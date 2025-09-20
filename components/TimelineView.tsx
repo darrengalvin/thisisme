@@ -6,6 +6,8 @@ import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import { formatDate, formatRelativeTime } from './utils'
 import { useAuth } from './AuthProvider'
 import EditChapterModal from './EditChapterModal'
+import PhotoTagDisplay from './PhotoTagDisplay'
+import MemoryContributions from './MemoryContributions'
 
 interface TimelineViewProps {
   memories: MemoryWithRelations[]
@@ -19,6 +21,7 @@ interface TimelineViewProps {
   highlightedMemories?: Set<string>
   voiceAddedMemories?: Set<string>
   highlightedChapters?: Set<string>
+  onNavigateToMyPeople?: (personId?: string) => void
 }
 
 interface TimelineGroup {
@@ -39,7 +42,8 @@ export default function TimelineView({
   onChapterSelected,
   highlightedMemories = new Set(),
   voiceAddedMemories = new Set(),
-  highlightedChapters = new Set()
+  highlightedChapters = new Set(),
+  onNavigateToMyPeople
 }: TimelineViewProps) {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
@@ -77,8 +81,16 @@ export default function TimelineView({
   }
 
   const handleCommentMemory = (memoryId: string) => {
-    // For now, just show an alert - this would open a comment modal in a full implementation
-    alert(`Comments feature coming soon! Memory ID: ${memoryId}`)
+    // Scroll to the contributions section for this memory
+    const contributionsElement = document.querySelector(`[data-memory-contributions="${memoryId}"]`)
+    if (contributionsElement) {
+      contributionsElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // Highlight the contributions section briefly
+      contributionsElement.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50')
+      setTimeout(() => {
+        contributionsElement.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50')
+      }, 2000)
+    }
   }
 
   const handleShareMemory = (memory: MemoryWithRelations) => {
@@ -753,12 +765,32 @@ export default function TimelineView({
                                 {memory.media.map((media) => (
                                   <div key={media.id} className="rounded-xl overflow-hidden">
                                     {media.type === 'IMAGE' && (
-                                      <img 
-                                        src={media.storage_url} 
-                                        alt={memory.title || ''} 
-                                        className="w-full max-w-[480px] h-auto mx-auto object-contain cursor-pointer hover:scale-105 transition-transform duration-300"
-                                        onClick={() => handleMemoryClick(memory.id)}
-                                      />
+                                      <>
+                        <PhotoTagDisplay
+                          mediaId={media.id}
+                          imageUrl={media.storage_url}
+                          className="w-full max-w-[480px] h-auto mx-auto object-contain cursor-pointer hover:scale-105 transition-transform duration-300"
+                          showTagsOnHover={true}
+                          showTagIndicator={true}
+                          onPersonClick={(personId, personName) => {
+                            console.log('🏷️ TIMELINE: Person clicked:', personName, personId)
+                            if (onNavigateToMyPeople) {
+                              onNavigateToMyPeople(personId)
+                            }
+                          }}
+                          onTagNowClick={(mediaId) => {
+                            console.log('🏷️ TIMELINE: Tag now clicked for media:', mediaId)
+                            // Find the memory that contains this media and open edit modal
+                            const memoryWithMedia = memories.find(mem => 
+                              mem.media && mem.media.some(m => m.id === mediaId)
+                            )
+                            if (memoryWithMedia && onEdit) {
+                              console.log('🏷️ TIMELINE: Opening edit modal for memory:', memoryWithMedia.id)
+                              onEdit(memoryWithMedia)
+                            }
+                          }}
+                        />
+                                      </>
                                     )}
                                     {media.type === 'VIDEO' && (
                                       <video 
@@ -851,6 +883,17 @@ export default function TimelineView({
                                   </button>
                                 )}
                               </div>
+                            </div>
+
+                            {/* Memory Contributions - Always Visible */}
+                            <div 
+                              className="mt-4 border-t border-slate-200 pt-4 transition-all duration-300 rounded-lg"
+                              data-memory-contributions={memory.id}
+                            >
+                              <MemoryContributions 
+                                memoryId={memory.id}
+                                memoryTitle={memory.title || 'this memory'}
+                              />
                             </div>
                           </div>
                         </article>

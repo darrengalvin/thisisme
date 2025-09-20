@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Clock, Users, Lock, Heart, MessageCircle } from 'lucide-react'
 import { MemoryWithRelations } from '@/lib/types'
 import { formatRelativeTime } from './utils'
+import PhotoTagDisplay from './PhotoTagDisplay'
 
 interface MemoryGridProps {
   memories: MemoryWithRelations[]
@@ -38,7 +39,9 @@ export default function MemoryGrid({ memories, onEdit, onDelete, onStartCreating
       <div className="container-responsive p-4 lg:p-8">
         {/* Masonry Grid */}
         <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
-          {memories.map((memory) => (
+          {memories
+            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+            .map((memory) => (
             <div
               key={memory.id}
               className="break-inside-avoid mb-6"
@@ -50,10 +53,16 @@ export default function MemoryGrid({ memories, onEdit, onDelete, onStartCreating
                 {memory.media && memory.media.length > 0 && (
                   <div className="relative overflow-hidden rounded-t-2xl">
                     {memory.media[0].type === 'IMAGE' && (
-                      <img
-                        src={memory.media[0].storage_url}
-                        alt=""
+                      <PhotoTagDisplay
+                        mediaId={memory.media[0].id}
+                        imageUrl={memory.media[0].storage_url}
                         className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-110"
+                        showTagsOnHover={true}
+                        showTagIndicator={true}
+                        onPersonClick={(personId, personName) => {
+                          console.log('🏷️ MEMORY GRID: Person clicked:', personName, personId)
+                          // TODO: Navigate to My People or show person details
+                        }}
                       />
                     )}
                     {memory.media[0].type === 'VIDEO' && (

@@ -1,0 +1,99 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { verifyToken } from '@/lib/auth'
+import { createClient } from '@supabase/supabase-js'
+
+// Create Supabase admin client directly
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+})
+
+// Get memories tagged with a specific person
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { personId: string } }
+) {
+  try {
+    // Get user from JWT token
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'No authorization header' }, { status: 401 })
+    }
+
+    const token = authHeader.replace('Bearer ', '')
+    const user = await verifyToken(token)
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    const { personId } = params
+
+    // First verify this person belongs to the user
+    const { data: person, error: personError } = await supabaseAdmin
+      .from('user_networks')
+      .select('*')
+      .eq('id', personId)
+      .eq('user_id', user.userId)
+      .single()
+
+    if (personError || !person) {
+      return NextResponse.json({ error: 'Person not found or access denied' }, { status: 404 })
+    }
+
+    console.log('🔍 PERSON MEMORIES API: Fetching memories for person:', personId)
+    
+    // Get memories tagged with this person
+    const { data: taggedMemories, error: memoriesError } = await supabaseAdmin
+      .from('memory_tags')
+      .select(`
+        memory_id,
+        created_at,
+        memories (
+          id,
+          title,
+          text_content,
+          created_at,
+          timezone_id,
+          timezones (
+            title
+          )
+        )
+      `)
+      .eq('tagged_person_id', personId)
+      .order('created_at', { ascending: false })
+      
+    console.log('🔍 PERSON MEMORIES API: Query result:', { taggedMemories, memoriesError })
+
+    if (memoriesError) {
+      console.error('Error fetching tagged memories:', memoriesError)
+      return NextResponse.json({ error: 'Failed to fetch memories' }, { status: 500 })
+    }
+
+    // Transform the data to be more usable
+    const memories = taggedMemories?.map((tag: any) => ({
+      id: tag.memories.id,
+      title: tag.memories.title,
+      text_content: tag.memories.text_content,
+      memory_date: tag.memories.created_at, // Using created_at as memory_date
+      tagged_at: tag.created_at,
+      chapter: tag.memories.timezones?.title || 'Personal'
+    })) || []
+
+    return NextResponse.json({
+      success: true,
+      person,
+      memories,
+      total_memories: memories.length
+    })
+  } catch (error) {
+    console.error('Failed to fetch person memories:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch person memories' },
+      { status: 500 }
+    )
+  }
+}

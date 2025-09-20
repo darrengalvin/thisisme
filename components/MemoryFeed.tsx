@@ -5,6 +5,8 @@ import { MemoryWithRelations } from '@/lib/types'
 // import MemoryCard from './MemoryCard' // Will create simplified version
 import { formatRelativeTime } from './utils'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
+import PhotoTagDisplay from './PhotoTagDisplay'
+import MemoryContributions from './MemoryContributions'
 
 export default function MemoryFeed({ 
   memories: propMemories, 
@@ -170,7 +172,9 @@ export default function MemoryFeed({
         )}
         
         <div className="grid gap-6 lg:gap-8">
-          {memories.map((memory) => (
+          {memories
+            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+            .map((memory) => (
                               <div key={memory.id} className="card p-6">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm text-primary-600 font-medium">
@@ -200,10 +204,16 @@ export default function MemoryFeed({
                         {memory.media.map((media) => (
                           <div key={media.id}>
                             {media.type === 'IMAGE' && (
-                              <img 
-                                src={media.storage_url} 
-                                alt="" 
+                              <PhotoTagDisplay
+                                mediaId={media.id}
+                                imageUrl={media.storage_url}
                                 className="w-full max-w-[480px] h-auto mx-auto rounded-xl object-contain"
+                                showTagsOnHover={true}
+                                showTagIndicator={true}
+                                onPersonClick={(personId, personName) => {
+                                  console.log('🏷️ MEMORY FEED: Person clicked:', personName, personId)
+                                  // TODO: Navigate to My People or show person details
+                                }}
                               />
                             )}
                             {media.type === 'VIDEO' && (
@@ -225,25 +235,61 @@ export default function MemoryFeed({
                       </div>
                     )}
                     
-                    <div className="flex items-center justify-between">
-                      <div className="flex space-x-2">
-                        <button className="text-sm text-gray-500 hover:text-red-500">♥ Like</button>
-                        <button className="text-sm text-gray-500 hover:text-primary-600">💬 Comment</button>
+                    {/* Social Actions */}
+                    <div className="flex items-center justify-between border-t border-gray-200 pt-3 mt-4">
+                      <div className="flex space-x-4">
+                        <button className="flex items-center space-x-1 text-sm text-gray-500 hover:text-red-500 transition-colors">
+                          <span>♥</span>
+                          <span>Like</span>
+                        </button>
+                        <button 
+                          onClick={() => {
+                            // Scroll to contributions section
+                            const contributionsElement = document.querySelector(`[data-memory-contributions="${memory.id}"]`)
+                            if (contributionsElement) {
+                              contributionsElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                              // Highlight briefly
+                              contributionsElement.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50')
+                              setTimeout(() => {
+                                contributionsElement.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50')
+                              }, 2000)
+                            }
+                          }}
+                          className="flex items-center space-x-1 text-sm text-gray-500 hover:text-blue-600 transition-colors"
+                        >
+                          <span>💬</span>
+                          <span>Comment</span>
+                        </button>
+                        <button className="flex items-center space-x-1 text-sm text-gray-500 hover:text-green-600 transition-colors">
+                          <span>📤</span>
+                          <span>Share</span>
+                        </button>
                       </div>
                       <div className="flex space-x-2">
                         <button 
                           onClick={() => handleEditMemory(memory)}
-                          className="text-sm text-gray-500 hover:text-primary-600"
+                          className="text-sm text-gray-500 hover:text-primary-600 transition-colors"
                         >
                           Edit
                         </button>
                         <button 
                           onClick={() => handleDeleteMemory(memory)}
-                          className="text-sm text-gray-500 hover:text-red-600"
+                          className="text-sm text-gray-500 hover:text-red-600 transition-colors"
                         >
                           Delete
                         </button>
                       </div>
+                    </div>
+
+                    {/* Memory Contributions - Always Visible */}
+                    <div 
+                      className="mt-4 transition-all duration-300 rounded-lg"
+                      data-memory-contributions={memory.id}
+                    >
+                      <MemoryContributions 
+                        memoryId={memory.id}
+                        memoryTitle={memory.title || 'this memory'}
+                      />
                     </div>
                   </div>
           ))}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { Plus, User, LogOut, Menu, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, UserCheck, AlertTriangle, Search } from 'lucide-react'
+import { Plus, User, LogOut, Menu, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, UserCheck, AlertTriangle, Search, UserPlus } from 'lucide-react'
 import MemoryViews from './MemoryViews'
 import GroupManager from './GroupManager'
 import CreateMemory from './CreateMemory'
@@ -17,13 +17,16 @@ import DeleteConfirmationModal from './DeleteConfirmationModal'
 import { useAuth } from '@/components/AuthProvider'
 import TicketNotifications from '@/components/TicketNotifications'
 import TabNavigation from './TabNavigation'
+import MyPeopleEnhanced from './MyPeopleEnhanced'
+import NotificationBell from './NotificationBell'
+import AccessManagement from './AccessManagement'
 
 import VoiceChatButton from './VoiceChatButton'
 import { MemoryWithRelations } from '@/lib/types'
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates'
 
-type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support'
-type MainTabType = 'home' | 'timeline' | 'timezones'
+type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support' | 'people'
+type MainTabType = 'home' | 'timeline' | 'timezones' | 'people'
 
 interface UserType {
   id: string
@@ -37,6 +40,15 @@ interface UserType {
 export default function Dashboard() {
   const { user: supabaseUser, session } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('home')
+  
+  // Check for beta mode
+  const [isBetaMode, setIsBetaMode] = useState(false)
+  
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const betaParam = urlParams.get('beta')
+    setIsBetaMode(betaParam === 'true')
+  }, [])
   const [memories, setMemories] = useState<MemoryWithRelations[]>([])
   const [user, setUser] = useState<UserType | null>(null)
   const [showMemoryWizard, setShowMemoryWizard] = useState(false)
@@ -82,6 +94,11 @@ export default function Dashboard() {
   const [highlightedMemories, setHighlightedMemories] = useState<Set<string>>(new Set())
   const [voiceAddedMemories, setVoiceAddedMemories] = useState<Set<string>>(new Set())
   const [highlightedChapters, setHighlightedChapters] = useState<Set<string>>(new Set())
+  
+  // Invitation management state
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [availableChapters, setAvailableChapters] = useState<any[]>([])
+  const [selectedChapterForInvite, setSelectedChapterForInvite] = useState<string>('')
   
   const router = useRouter()
 
@@ -224,8 +241,11 @@ export default function Dashboard() {
 
   const fetchUser = async () => {
     try {
+      console.log('🚀 FETCH USER: Starting user profile fetch...')
+      
       if (!supabaseUser) {
-        console.log('No Supabase user found')
+        console.log('❌ FETCH USER: No Supabase user found')
+        setIsLoadingUser(false)
         return
       }
 
@@ -237,17 +257,21 @@ export default function Dashboard() {
       })
 
       if (!tokenResponse.ok) {
-        console.error('Failed to get auth token for user profile')
+        console.error('❌ FETCH USER: Failed to get auth token for user profile')
+        setIsLoadingUser(false)
         return
       }
 
       const { token } = await tokenResponse.json()
+      console.log('✅ FETCH USER: Got auth token, fetching profile...')
 
       const response = await fetch('/api/user/profile', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
+      
+      console.log('📡 FETCH USER: Profile API response status:', response.status)
 
       if (response.ok) {
         const data = await response.json()
@@ -274,7 +298,8 @@ export default function Dashboard() {
           setIsNewUser(true)
         }
       } else {
-        console.error('Failed to fetch user profile:', response.status)
+        console.error('❌ FETCH USER: Failed to fetch user profile:', response.status)
+        setIsLoadingUser(false)
       }
     } catch (error) {
       console.error('Error fetching user profile:', error)
@@ -909,6 +934,11 @@ export default function Dashboard() {
               highlightedMemories={highlightedMemories}
               voiceAddedMemories={voiceAddedMemories}
               highlightedChapters={highlightedChapters}
+              onNavigateToMyPeople={(personId) => {
+                console.log('🏷️ DASHBOARD: Navigating to My People for person:', personId)
+                setActiveTab('people')
+                // TODO: Pass personId to MyPeople component to highlight/filter
+              }}
             />
             
             {/* Debug Panel for Force Delete */}
@@ -1141,6 +1171,8 @@ export default function Dashboard() {
         return <GroupManager user={user} onCreateGroup={() => setActiveTab('create-timezone')} onStartCreating={handleCreateMemory} />
       case 'create-timezone':
         return <CreateTimeZone onSuccess={() => { setActiveTab('timezones'); fetchMemories(); }} onCancel={() => setActiveTab('timezones')} />
+      case 'people':
+        return <MyPeopleEnhanced />
       default:
         return <div className="flex items-center justify-center h-full"><p>Select a view from the navigation</p></div>
     }
@@ -1221,6 +1253,14 @@ export default function Dashboard() {
 
           {/* Right - Actions & Profile */}
           <div className="flex items-center space-x-3">
+            {/* Beta Mode Indicator */}
+            {isBetaMode && (
+              <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
+                <span>🧪</span>
+                <span>Beta</span>
+              </div>
+            )}
+            
             {/* Add Chapter Button - Available for all users */}
             <button
               onClick={() => setActiveTab('create-timezone')}
@@ -1229,6 +1269,18 @@ export default function Dashboard() {
               <Plus size={18} />
               <span className="hidden lg:inline">Add Chapter</span>
             </button>
+
+            {/* Invite People Button */}
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
+            >
+              <UserPlus size={18} />
+              <span className="hidden lg:inline">Invite People</span>
+            </button>
+
+            {/* Notification Bell */}
+            <NotificationBell />
 
             {/* Debug Admin Toggle - Remove in production */}
             {!isAdmin && user?.email === 'dgalvin@yourcaio.co.uk' && (
@@ -1403,6 +1455,13 @@ export default function Dashboard() {
                       </div>
                     </button>
                   )}
+                  <a
+                    href="/test-services"
+                    className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors text-blue-600 flex items-center space-x-2"
+                  >
+                    <span>🧪</span>
+                    <span>Test Services</span>
+                  </a>
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 hover:bg-red-50 transition-colors text-red-600"
@@ -1421,6 +1480,7 @@ export default function Dashboard() {
         activeTab={activeTab as MainTabType}
         onTabChange={(tab) => setActiveTab(tab)}
         className="sticky top-[73px] z-40"
+        isBetaMode={isBetaMode}
       />
 
       {/* Main Content */}
@@ -1473,6 +1533,57 @@ export default function Dashboard() {
           showForceDelete={showForceDeleteOption}
           onForceDelete={forceDeleteMemory}
         />
+
+      {/* Quick Invite Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Invite People to Collaborate</h2>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <span className="text-gray-500 text-xl">×</span>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-gray-600">
+                Choose a chapter to invite people to collaborate on your memories together.
+              </p>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <UserPlus className="w-5 h-5 text-blue-600" />
+                  <span className="font-medium text-blue-900">Quick Access</span>
+                </div>
+                <p className="text-sm text-blue-700 mb-3">
+                  Go to any chapter and click "Edit" to find the full collaboration tools with email invites and share links.
+                </p>
+                <button
+                  onClick={() => {
+                    setShowInviteModal(false)
+                    setActiveTab('timezones')
+                  }}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Go to Chapters
+                </button>
+              </div>
+              
+              <div className="text-center">
+                <button
+                  onClick={() => setShowInviteModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Maya Toggle Button - Small, unobtrusive */}
       <div className="fixed bottom-6 left-6 z-40">

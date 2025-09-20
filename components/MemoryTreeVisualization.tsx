@@ -25,7 +25,9 @@ export default function MemoryTreeVisualization({ memories = [], onMemorySelect 
     { id: 'demo-6', age: 5, title: "Travel Adventures", date: "2024-01-20", type: "travel", icon: "plane", description: "Adventures and journeys remembered", branch: "main", year: 2024 }
   ]
 
-  const memoryData = memories.length > 0 ? memories.map((m, i) => ({
+  const memoryData = memories.length > 0 ? memories
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .map((m, i) => ({
     id: m.id,
     age: i,
     title: m.title || 'Untitled Memory',
