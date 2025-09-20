@@ -50,7 +50,7 @@ export default function TabNavigation({ activeTab, onTabChange, className = '', 
     <div className={`bg-white border-b border-slate-200/50 shadow-sm ${className}`}>
       <div className="max-w-7xl mx-auto px-4 lg:px-8">
         <nav className="flex space-x-1 sm:space-x-8" aria-label="Tabs">
-          {tabs.filter(tab => tab.id !== 'people' || isBetaMode).map((tab) => {
+          {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
             

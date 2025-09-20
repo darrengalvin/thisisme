@@ -23,12 +23,14 @@ interface MemoryContributionsProps {
   memoryId: string
   memoryTitle?: string
   className?: string
+  onNavigateToMyPeople?: () => void
 }
 
 export default function MemoryContributions({ 
   memoryId, 
   memoryTitle = 'this memory',
-  className = '' 
+  className = '',
+  onNavigateToMyPeople
 }: MemoryContributionsProps) {
   const { user, session } = useAuth()
   const [contributions, setContributions] = useState<Contribution[]>([])
@@ -231,6 +233,7 @@ export default function MemoryContributions({
               // Refresh contributions after invite
               loadContributions()
             }}
+            onNavigateToMyPeople={onNavigateToMyPeople}
           />
           <button
             onClick={() => setShowAddForm(!showAddForm)}

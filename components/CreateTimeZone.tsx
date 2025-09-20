@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ArrowRight, ArrowLeft, Calendar, Clock, X, Check, Upload, Image as ImageIcon, Move, Mic, Crown, Sparkles } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { ArrowRight, ArrowLeft, Calendar, Clock, X, Check, Upload, Image as ImageIcon, Move, Mic, Crown, Sparkles, Save, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from './AuthProvider'
 import toast from 'react-hot-toast'
 import ImageCropper from './ImageCropper'
@@ -29,8 +29,107 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const [premiumLoading, setPremiumLoading] = useState(true)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  
+  // Auto-save functionality for draft
+  const [isAutoSaving, setIsAutoSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [autoSaveError, setAutoSaveError] = useState<string | null>(null)
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   const totalSteps = 4
+
+  // Auto-save draft to localStorage
+  const saveDraft = useCallback(() => {
+    const draft = {
+      title,
+      startYear,
+      endYear,
+      description,
+      currentStep,
+      timestamp: new Date().toISOString()
+    }
+    localStorage.setItem('chapter-draft', JSON.stringify(draft))
+    setLastSaved(new Date())
+    setHasUnsavedChanges(false)
+    console.log('📝 Draft saved to localStorage')
+  }, [title, startYear, endYear, description, currentStep])
+
+  // Load draft from localStorage
+  const loadDraft = useCallback(() => {
+    try {
+      const savedDraft = localStorage.getItem('chapter-draft')
+      if (savedDraft) {
+        const draft = JSON.parse(savedDraft)
+        // Only load if draft is less than 24 hours old
+        const draftAge = Date.now() - new Date(draft.timestamp).getTime()
+        if (draftAge < 24 * 60 * 60 * 1000) {
+          setTitle(draft.title || '')
+          setStartYear(draft.startYear || '')
+          setEndYear(draft.endYear || '')
+          setDescription(draft.description || '')
+          setCurrentStep(draft.currentStep || 1)
+          setLastSaved(new Date(draft.timestamp))
+          console.log('📝 Draft loaded from localStorage')
+        } else {
+          localStorage.removeItem('chapter-draft')
+        }
+      }
+    } catch (error) {
+      console.error('Error loading draft:', error)
+      localStorage.removeItem('chapter-draft')
+    }
+  }, [])
+
+  // Clear draft
+  const clearDraft = useCallback(() => {
+    localStorage.removeItem('chapter-draft')
+    setLastSaved(null)
+    setHasUnsavedChanges(false)
+  }, [])
+
+  // Check for unsaved changes
+  useEffect(() => {
+    const hasChanges = title.trim() || startYear || endYear || description.trim()
+    setHasUnsavedChanges(hasChanges)
+  }, [title, startYear, endYear, description])
+
+  // Auto-save effect
+  useEffect(() => {
+    if (!hasUnsavedChanges) return
+
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+    }
+
+    // Set new timeout for auto-save
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      setIsAutoSaving(true)
+      setAutoSaveError(null)
+      
+      try {
+        saveDraft()
+      } catch (error) {
+        console.error('Auto-save error:', error)
+        setAutoSaveError('Failed to save draft')
+      } finally {
+        setIsAutoSaving(false)
+      }
+    }, 3000) // Auto-save after 3 seconds of inactivity
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [hasUnsavedChanges, saveDraft])
+
+  // Load draft on mount
+  useEffect(() => {
+    loadDraft()
+  }, [loadDraft])
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -174,6 +273,18 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
     setHeaderImagePreview(null)
   }
 
+  // Handle cancel with unsaved changes warning
+  const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      const shouldCancel = window.confirm(
+        'You have unsaved changes. Are you sure you want to close? Your draft will be lost.'
+      )
+      if (!shouldCancel) return
+    }
+    clearDraft()
+    onCancel?.()
+  }
+
 
   const handleNext = () => {
     if (currentStep === 1 && !title.trim()) {
@@ -277,6 +388,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
       if (response.ok) {
         console.log('✅ CREATE CHAPTER: Chapter created successfully')
         toast.success('Life chapter created!')
+        clearDraft() // Clear the draft since chapter was successfully created
         setTitle('')
         setStartYear('')
         setEndYear('')
@@ -566,13 +678,39 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">Create Life Chapter</h1>
-                <p className="text-slate-600">Step {currentStep} of {totalSteps}</p>
+                <div className="flex items-center space-x-4">
+                  <p className="text-slate-600">Step {currentStep} of {totalSteps}</p>
+                  {/* Auto-save status indicator */}
+                  {isAutoSaving ? (
+                    <div className="flex items-center space-x-1 text-blue-600 text-sm">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                      <span>Saving draft...</span>
+                    </div>
+                  ) : lastSaved && !hasUnsavedChanges ? (
+                    <div className="flex items-center space-x-1 text-green-600 text-sm">
+                      <CheckCircle size={14} />
+                      <span>Draft saved</span>
+                    </div>
+                  ) : hasUnsavedChanges ? (
+                    <div className="flex items-center space-x-1 text-amber-600 text-sm">
+                      <AlertCircle size={14} />
+                      <span>Unsaved changes</span>
+                    </div>
+                  ) : null}
+                  {autoSaveError && (
+                    <div className="flex items-center space-x-1 text-red-600 text-sm">
+                      <AlertCircle size={14} />
+                      <span>Save failed</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             {onCancel && (
               <button
-                onClick={onCancel}
+                onClick={handleCancel}
                 className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"
+                title={hasUnsavedChanges ? "You have unsaved changes" : "Close"}
               >
                 <X size={20} />
               </button>

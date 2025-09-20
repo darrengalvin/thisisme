@@ -893,6 +893,7 @@ export default function TimelineView({
                               <MemoryContributions 
                                 memoryId={memory.id}
                                 memoryTitle={memory.title || 'this memory'}
+                                onNavigateToMyPeople={() => onNavigateToMyPeople?.()}
                               />
                             </div>
                           </div>

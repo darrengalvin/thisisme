@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { Plus, User, LogOut, Menu, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, UserCheck, AlertTriangle, Search, UserPlus } from 'lucide-react'
+import { Plus, User, LogOut, Menu, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, UserCheck, AlertTriangle, Search } from 'lucide-react'
 import MemoryViews from './MemoryViews'
 import GroupManager from './GroupManager'
 import CreateMemory from './CreateMemory'
@@ -95,10 +95,6 @@ export default function Dashboard() {
   const [voiceAddedMemories, setVoiceAddedMemories] = useState<Set<string>>(new Set())
   const [highlightedChapters, setHighlightedChapters] = useState<Set<string>>(new Set())
   
-  // Invitation management state
-  const [showInviteModal, setShowInviteModal] = useState(false)
-  const [availableChapters, setAvailableChapters] = useState<any[]>([])
-  const [selectedChapterForInvite, setSelectedChapterForInvite] = useState<string>('')
   
   const router = useRouter()
 
@@ -1270,14 +1266,6 @@ export default function Dashboard() {
               <span className="hidden lg:inline">Add Chapter</span>
             </button>
 
-            {/* Invite People Button */}
-            <button
-              onClick={() => setShowInviteModal(true)}
-              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
-            >
-              <UserPlus size={18} />
-              <span className="hidden lg:inline">Invite People</span>
-            </button>
 
             {/* Notification Bell */}
             <NotificationBell />
@@ -1534,56 +1522,6 @@ export default function Dashboard() {
           onForceDelete={forceDeleteMemory}
         />
 
-      {/* Quick Invite Modal */}
-      {showInviteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Invite People to Collaborate</h2>
-              <button
-                onClick={() => setShowInviteModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <span className="text-gray-500 text-xl">×</span>
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <p className="text-gray-600">
-                Choose a chapter to invite people to collaborate on your memories together.
-              </p>
-              
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <UserPlus className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium text-blue-900">Quick Access</span>
-                </div>
-                <p className="text-sm text-blue-700 mb-3">
-                  Go to any chapter and click "Edit" to find the full collaboration tools with email invites and share links.
-                </p>
-                <button
-                  onClick={() => {
-                    setShowInviteModal(false)
-                    setActiveTab('timezones')
-                  }}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Go to Chapters
-                </button>
-              </div>
-              
-              <div className="text-center">
-                <button
-                  onClick={() => setShowInviteModal(false)}
-                  className="text-gray-500 hover:text-gray-700 text-sm"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Maya Toggle Button - Small, unobtrusive */}
       <div className="fixed bottom-6 left-6 z-40">

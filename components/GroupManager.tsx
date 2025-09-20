@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Plus, Settings, Calendar, MapPin, Edit, Camera, Trash2, Users, Upload, X, Save, Info, Move, Mic, Crown, Sparkles } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Plus, Settings, Calendar, MapPin, Edit, Camera, Trash2, Users, Upload, X, Save, Info, Move, Mic, Crown, Sparkles, CheckCircle, AlertCircle } from 'lucide-react'
 import { TimeZoneWithRelations, MemoryWithRelations } from '@/lib/types'
 import { useAuth } from './AuthProvider'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
@@ -73,6 +73,14 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const [premiumLoading, setPremiumLoading] = useState(true)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  
+  // Auto-save functionality
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [isAutoSaving, setIsAutoSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [autoSaveError, setAutoSaveError] = useState<string | null>(null)
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [originalChapter, setOriginalChapter] = useState<EditChapterData | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -286,7 +294,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
   }
 
   const handleEditChapter = (chapter: TimeZoneWithRelations) => {
-    setEditingChapter({
+    const chapterData = {
       id: chapter.id,
       title: chapter.title,
       description: chapter.description || '',
@@ -294,9 +302,137 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       endDate: formatDateForInput(chapter.endDate),
       location: chapter.location || '',
       headerImageUrl: chapter.headerImageUrl || null
-    })
+    }
+    setEditingChapter(chapterData)
+    setOriginalChapter({ ...chapterData })
     setSelectedHeaderImage(null)
     setPreviewImageUrl(null)
+    setHasUnsavedChanges(false)
+    setLastSaved(new Date())
+    setAutoSaveError(null)
+  }
+
+  // Auto-save function
+  const autoSave = useCallback(async () => {
+    if (!editingChapter || !user || !originalChapter) return
+
+    // Check if there are actual changes
+    const hasChanges = 
+      editingChapter.title !== originalChapter.title ||
+      editingChapter.description !== originalChapter.description ||
+      editingChapter.startDate !== originalChapter.startDate ||
+      editingChapter.endDate !== originalChapter.endDate ||
+      editingChapter.location !== originalChapter.location ||
+      editingChapter.headerImageUrl !== originalChapter.headerImageUrl ||
+      selectedHeaderImage !== null
+
+    if (!hasChanges) {
+      setHasUnsavedChanges(false)
+      return
+    }
+
+    setIsAutoSaving(true)
+    setAutoSaveError(null)
+
+    try {
+      const token = await getAuthToken()
+      if (!token) {
+        throw new Error('Authentication failed')
+      }
+
+      const formData = new FormData()
+      formData.append('title', editingChapter.title)
+      formData.append('description', editingChapter.description)
+      formData.append('startDate', editingChapter.startDate)
+      formData.append('endDate', editingChapter.endDate)
+      formData.append('location', editingChapter.location)
+      
+      if (selectedHeaderImage) {
+        formData.append('headerImage', selectedHeaderImage)
+      } else if (editingChapter.headerImageUrl === null) {
+        formData.append('removeHeaderImage', 'true')
+      }
+
+      const response = await fetch(`/api/timezones/${editingChapter.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (response.ok) {
+        setLastSaved(new Date())
+        setHasUnsavedChanges(false)
+        setOriginalChapter({ ...editingChapter })
+        setSelectedHeaderImage(null)
+        setPreviewImageUrl(null)
+        console.log('✅ Auto-save successful')
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Auto-save failed')
+      }
+    } catch (error) {
+      console.error('Auto-save error:', error)
+      setAutoSaveError(error instanceof Error ? error.message : 'Auto-save failed')
+    } finally {
+      setIsAutoSaving(false)
+    }
+  }, [editingChapter, originalChapter, selectedHeaderImage, user, getAuthToken])
+
+  // Debounced auto-save effect
+  useEffect(() => {
+    if (!editingChapter || !originalChapter) return
+
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+    }
+
+    // Set new timeout for auto-save
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSave()
+    }, 2000) // Auto-save after 2 seconds of inactivity
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [editingChapter, autoSave])
+
+  // Check for unsaved changes
+  useEffect(() => {
+    if (!editingChapter || !originalChapter) return
+
+    const hasChanges = 
+      editingChapter.title !== originalChapter.title ||
+      editingChapter.description !== originalChapter.description ||
+      editingChapter.startDate !== originalChapter.startDate ||
+      editingChapter.endDate !== originalChapter.endDate ||
+      editingChapter.location !== originalChapter.location ||
+      editingChapter.headerImageUrl !== originalChapter.headerImageUrl ||
+      selectedHeaderImage !== null
+
+    setHasUnsavedChanges(hasChanges)
+  }, [editingChapter, originalChapter, selectedHeaderImage])
+
+  // Handle close with unsaved changes warning
+  const handleCloseEdit = () => {
+    if (hasUnsavedChanges && !isAutoSaving) {
+      const shouldClose = window.confirm(
+        'You have unsaved changes. Are you sure you want to close? Your changes will be lost.'
+      )
+      if (!shouldClose) return
+    }
+    setEditingChapter(null)
+    setOriginalChapter(null)
+    setSelectedHeaderImage(null)
+    setPreviewImageUrl(null)
+    setHasUnsavedChanges(false)
+    setLastSaved(null)
+    setAutoSaveError(null)
   }
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -743,10 +879,38 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-2xl font-bold text-slate-900">Edit Chapter </h2>
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-slate-900">Edit Chapter</h2>
+                {/* Auto-save status indicator */}
+                <div className="flex items-center space-x-2 mt-1">
+                  {isAutoSaving ? (
+                    <div className="flex items-center space-x-1 text-blue-600 text-sm">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                      <span>Auto-saving...</span>
+                    </div>
+                  ) : lastSaved && !hasUnsavedChanges ? (
+                    <div className="flex items-center space-x-1 text-green-600 text-sm">
+                      <CheckCircle size={14} />
+                      <span>Saved {lastSaved.toLocaleTimeString()}</span>
+                    </div>
+                  ) : hasUnsavedChanges ? (
+                    <div className="flex items-center space-x-1 text-amber-600 text-sm">
+                      <AlertCircle size={14} />
+                      <span>Unsaved changes</span>
+                    </div>
+                  ) : null}
+                  {autoSaveError && (
+                    <div className="flex items-center space-x-1 text-red-600 text-sm">
+                      <AlertCircle size={14} />
+                      <span>Auto-save failed</span>
+                    </div>
+                  )}
+                </div>
+              </div>
               <button
-                onClick={() => setEditingChapter(null)}
+                onClick={handleCloseEdit}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                title={hasUnsavedChanges ? "You have unsaved changes" : "Close"}
               >
                 <X size={20} className="text-slate-500" />
               </button>
@@ -965,31 +1129,42 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end space-x-4 p-6 border-t border-slate-200">
-              <button
-                onClick={() => setEditingChapter(null)}
-                className="px-6 py-2 text-slate-600 hover:text-slate-800 font-medium transition-colors"
-                disabled={isUpdating}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateChapter}
-                disabled={isUpdating || !editingChapter.title.trim()}
-                className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white px-6 py-2 rounded-xl font-medium transition-all duration-200 flex items-center space-x-2"
-              >
-                {isUpdating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Updating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} />
-                    <span>Update Chapter</span>
-                  </>
-                )}
-              </button>
+            <div className="flex items-center justify-between p-6 border-t border-slate-200">
+              <div className="text-sm text-slate-500">
+                {isAutoSaving ? (
+                  <span className="text-blue-600">Auto-saving your changes...</span>
+                ) : lastSaved && !hasUnsavedChanges ? (
+                  <span className="text-green-600">All changes saved automatically</span>
+                ) : hasUnsavedChanges ? (
+                  <span className="text-amber-600">Changes will be saved automatically</span>
+                ) : null}
+              </div>
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleCloseEdit}
+                  className="px-6 py-2 text-slate-600 hover:text-slate-800 font-medium transition-colors"
+                  disabled={isUpdating}
+                >
+                  {hasUnsavedChanges ? 'Close Anyway' : 'Close'}
+                </button>
+                <button
+                  onClick={handleUpdateChapter}
+                  disabled={isUpdating || !editingChapter.title.trim()}
+                  className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white px-6 py-2 rounded-xl font-medium transition-all duration-200 flex items-center space-x-2"
+                >
+                  {isUpdating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      <span>Update Chapter</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

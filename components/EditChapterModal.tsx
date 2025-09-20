@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { X, Image as ImageIcon, Move, Upload, Mic, Crown, Sparkles } from 'lucide-react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { X, Image as ImageIcon, Move, Upload, Mic, Crown, Sparkles, Save, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { createClient } from '@supabase/supabase-js'
 import toast from 'react-hot-toast'
@@ -39,6 +39,14 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const [premiumLoading, setPremiumLoading] = useState(true)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  
+  // Auto-save functionality
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [isAutoSaving, setIsAutoSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [autoSaveError, setAutoSaveError] = useState<string | null>(null)
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isInitialLoad = useRef(true)
 
   // Enhanced memory sorting with error handling and validation
   const sortMemories = (memories: MemoryWithRelations[] | undefined): MemoryWithRelations[] => {
@@ -96,6 +104,10 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         setOriginalChapter({ ...initialChapter })
         setSelectedHeaderImage(null)
         setPreviewImageUrl(null)
+        setHasUnsavedChanges(false)
+        setLastSaved(new Date())
+        setAutoSaveError(null)
+        isInitialLoad.current = true
         checkPremiumStatus()
       } catch (error) {
         console.error('Error initializing chapter editing:', error)
@@ -104,6 +116,138 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       }
     }
   }, [chapter, isOpen])
+
+  // Get auth token
+  const getAuthToken = async () => {
+    if (!user) return null
+    
+    try {
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      })
+
+      if (!tokenResponse.ok) return null
+      
+      const { token } = await tokenResponse.json()
+      return token
+    } catch (error) {
+      console.error('Failed to get auth token:', error)
+      return null
+    }
+  }
+
+  // Auto-save function
+  const autoSave = useCallback(async () => {
+    if (!editingChapter || !user || isInitialLoad.current) {
+      isInitialLoad.current = false
+      return
+    }
+
+    // Check if there are actual changes
+    if (!originalChapter) return
+    
+    const hasChanges = 
+      editingChapter.title !== originalChapter.title ||
+      editingChapter.description !== originalChapter.description ||
+      editingChapter.startDate !== originalChapter.startDate ||
+      editingChapter.endDate !== originalChapter.endDate ||
+      editingChapter.location !== originalChapter.location ||
+      editingChapter.headerImageUrl !== originalChapter.headerImageUrl ||
+      selectedHeaderImage !== null
+
+    if (!hasChanges) {
+      setHasUnsavedChanges(false)
+      return
+    }
+
+    setIsAutoSaving(true)
+    setAutoSaveError(null)
+
+    try {
+      const token = await getAuthToken()
+      if (!token) {
+        throw new Error('Authentication failed')
+      }
+
+      const formData = new FormData()
+      formData.append('title', editingChapter.title)
+      formData.append('description', editingChapter.description)
+      formData.append('startDate', editingChapter.startDate)
+      formData.append('endDate', editingChapter.endDate)
+      formData.append('location', editingChapter.location)
+      
+      if (selectedHeaderImage) {
+        formData.append('headerImage', selectedHeaderImage)
+      } else if (editingChapter.headerImageUrl === null) {
+        formData.append('removeHeaderImage', 'true')
+      }
+
+      const response = await fetch(`/api/timezones/${editingChapter.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (response.ok) {
+        setLastSaved(new Date())
+        setHasUnsavedChanges(false)
+        setOriginalChapter({ ...editingChapter })
+        setSelectedHeaderImage(null)
+        setPreviewImageUrl(null)
+        console.log('✅ Auto-save successful')
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Auto-save failed')
+      }
+    } catch (error) {
+      console.error('Auto-save error:', error)
+      setAutoSaveError(error instanceof Error ? error.message : 'Auto-save failed')
+    } finally {
+      setIsAutoSaving(false)
+    }
+  }, [editingChapter, originalChapter, selectedHeaderImage, user, getAuthToken])
+
+  // Debounced auto-save effect
+  useEffect(() => {
+    if (!editingChapter || isInitialLoad.current) return
+
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+    }
+
+    // Set new timeout for auto-save
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSave()
+    }, 2000) // Auto-save after 2 seconds of inactivity
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [editingChapter, autoSave])
+
+  // Check for unsaved changes
+  useEffect(() => {
+    if (!editingChapter || !originalChapter || isInitialLoad.current) return
+
+    const hasChanges = 
+      editingChapter.title !== originalChapter.title ||
+      editingChapter.description !== originalChapter.description ||
+      editingChapter.startDate !== originalChapter.startDate ||
+      editingChapter.endDate !== originalChapter.endDate ||
+      editingChapter.location !== originalChapter.location ||
+      editingChapter.headerImageUrl !== originalChapter.headerImageUrl ||
+      selectedHeaderImage !== null
+
+    setHasUnsavedChanges(hasChanges)
+  }, [editingChapter, originalChapter, selectedHeaderImage])
 
   const checkPremiumStatus = async () => {
     if (!user) {
@@ -159,27 +303,6 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
     } finally {
       setPremiumLoading(false)
       console.log('✅ EDIT CHAPTER MODAL: Premium status check completed')
-    }
-  }
-
-  // Get auth token
-  const getAuthToken = async () => {
-    if (!user) return null
-    
-    try {
-      const tokenResponse = await fetch('/api/auth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email: user.email }),
-      })
-
-      if (!tokenResponse.ok) return null
-      
-      const { token } = await tokenResponse.json()
-      return token
-    } catch (error) {
-      console.error('Failed to get auth token:', error)
-      return null
     }
   }
 
@@ -249,6 +372,17 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       })
     }
     setShowVoiceRecorder(false)
+  }
+
+  // Handle close with unsaved changes warning
+  const handleClose = () => {
+    if (hasUnsavedChanges && !isAutoSaving) {
+      const shouldClose = window.confirm(
+        'You have unsaved changes. Are you sure you want to close? Your changes will be lost.'
+      )
+      if (!shouldClose) return
+    }
+    onClose()
   }
 
   // Handle update
@@ -341,19 +475,45 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       onClick={(e) => {
         // Only close if clicking the backdrop, not the modal content
         if (e.target === e.currentTarget) {
-          onClose()
+          handleClose()
         }
       }}
     >
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <div>
+          <div className="flex-1">
             <h2 className="text-2xl font-bold text-slate-900">Edit Chapter</h2>
+            {/* Auto-save status indicator */}
+            <div className="flex items-center space-x-2 mt-1">
+              {isAutoSaving ? (
+                <div className="flex items-center space-x-1 text-blue-600 text-sm">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                  <span>Auto-saving...</span>
+                </div>
+              ) : lastSaved && !hasUnsavedChanges ? (
+                <div className="flex items-center space-x-1 text-green-600 text-sm">
+                  <CheckCircle size={14} />
+                  <span>Saved {lastSaved.toLocaleTimeString()}</span>
+                </div>
+              ) : hasUnsavedChanges ? (
+                <div className="flex items-center space-x-1 text-amber-600 text-sm">
+                  <AlertCircle size={14} />
+                  <span>Unsaved changes</span>
+                </div>
+              ) : null}
+              {autoSaveError && (
+                <div className="flex items-center space-x-1 text-red-600 text-sm">
+                  <AlertCircle size={14} />
+                  <span>Auto-save failed</span>
+                </div>
+              )}
+            </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            title={hasUnsavedChanges ? "You have unsaved changes" : "Close"}
           >
             <X size={20} className="text-slate-500" />
           </button>
@@ -576,20 +736,31 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-end space-x-4 p-6 border-t border-slate-200">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 text-slate-600 hover:text-slate-800 font-medium transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleUpdateChapter}
-            disabled={isUpdating || !editingChapter.title.trim()}
-            className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isUpdating ? 'Updating...' : 'Update Chapter'}
-          </button>
+        <div className="flex items-center justify-between p-6 border-t border-slate-200">
+          <div className="text-sm text-slate-500">
+            {isAutoSaving ? (
+              <span className="text-blue-600">Auto-saving your changes...</span>
+            ) : lastSaved && !hasUnsavedChanges ? (
+              <span className="text-green-600">All changes saved automatically</span>
+            ) : hasUnsavedChanges ? (
+              <span className="text-amber-600">Changes will be saved automatically</span>
+            ) : null}
+          </div>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={handleClose}
+              className="px-6 py-2 text-slate-600 hover:text-slate-800 font-medium transition-colors"
+            >
+              {hasUnsavedChanges ? 'Close Anyway' : 'Close'}
+            </button>
+            <button
+              onClick={handleUpdateChapter}
+              disabled={isUpdating || !editingChapter.title.trim()}
+              className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUpdating ? 'Updating...' : 'Update Chapter'}
+            </button>
+          </div>
         </div>
       </div>
       

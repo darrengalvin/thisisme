@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
-import { UserPlus, Mail, MessageCircle, Image, FileText, Eye, Send, X, Users, Sparkles } from 'lucide-react'
+import { UserPlus, Mail, MessageCircle, Image, FileText, Eye, Send, X, Users, Sparkles, Search, Plus, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface MemoryInviteSystemProps {
@@ -11,7 +11,16 @@ interface MemoryInviteSystemProps {
   memoryDescription?: string
   memoryImageUrl?: string
   onInviteSent?: () => void
+  onNavigateToMyPeople?: () => void
   className?: string
+}
+
+interface NetworkPerson {
+  id: string
+  person_name?: string
+  person_email?: string
+  relationship?: string
+  photo_url?: string
 }
 
 interface InvitePermission {
@@ -28,11 +37,15 @@ export default function MemoryInviteSystem({
   memoryDescription,
   memoryImageUrl,
   onInviteSent,
+  onNavigateToMyPeople,
   className = '' 
 }: MemoryInviteSystemProps) {
   const { user } = useAuth()
-  const [showInviteModal, setShowInviteModal] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState('')
+  const [showPickerModal, setShowPickerModal] = useState(false)
+  const [people, setPeople] = useState<NetworkPerson[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedPerson, setSelectedPerson] = useState<NetworkPerson | null>(null)
   const [inviteMessage, setInviteMessage] = useState('')
   const [inviteReason, setInviteReason] = useState('')
   const [permissions, setPermissions] = useState<InvitePermission[]>([
@@ -67,6 +80,53 @@ export default function MemoryInviteSystem({
   ])
   const [sending, setSending] = useState(false)
 
+  // Fetch people from user's network
+  const fetchPeople = async () => {
+    if (!user) return
+
+    setLoading(true)
+    try {
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      })
+
+      if (!tokenResponse.ok) return
+
+      const { token } = await tokenResponse.json()
+
+      const response = await fetch('/api/network', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const { people } = await response.json()
+        // Remove duplicates based on person_email or person_name
+        const uniquePeople = people.filter((person: NetworkPerson, index: number, self: NetworkPerson[]) => 
+          index === self.findIndex((p: NetworkPerson) => 
+            (person.person_email && p.person_email === person.person_email) ||
+            (!person.person_email && p.person_name === person.person_name)
+          )
+        )
+        setPeople(uniquePeople)
+      }
+    } catch (error) {
+      console.error('Failed to fetch people:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (showPickerModal) {
+      fetchPeople()
+    }
+  }, [showPickerModal, user])
+
   const generateContextualMessage = () => {
     const reasons = [
       `I'm working on a memory about "${memoryTitle}" and I believe you might have some great insights or photos to add!`,
@@ -78,10 +138,18 @@ export default function MemoryInviteSystem({
     return reasons[Math.floor(Math.random() * reasons.length)]
   }
 
-  const handleOpenInvite = () => {
-    setShowInviteModal(true)
+  const handleOpenPicker = () => {
+    setShowPickerModal(true)
     setInviteMessage(generateContextualMessage())
+    setSelectedPerson(null)
+    setSearchQuery('')
   }
+
+  const filteredPeople = people.filter(person =>
+    (person.person_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (person.person_email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (person.relationship?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+  )
 
   const togglePermission = (permissionId: string) => {
     setPermissions(prev => prev.map(p => 
@@ -90,7 +158,7 @@ export default function MemoryInviteSystem({
   }
 
   const sendInvite = async () => {
-    if (!user || !inviteEmail.trim()) return
+    if (!user || !selectedPerson) return
 
     setSending(true)
     try {
@@ -117,7 +185,7 @@ export default function MemoryInviteSystem({
         },
         body: JSON.stringify({
           memoryId,
-          email: inviteEmail.trim(),
+          email: selectedPerson.person_email,
           message: inviteMessage.trim(),
           reason: inviteReason.trim(),
           permissions: permissions.filter(p => p.enabled).map(p => p.id)
@@ -125,9 +193,9 @@ export default function MemoryInviteSystem({
       })
 
       if (response.ok) {
-        toast.success(`Invitation sent to ${inviteEmail}!`)
-        setShowInviteModal(false)
-        setInviteEmail('')
+        toast.success(`Invitation sent to ${selectedPerson.person_name}!`)
+        setShowPickerModal(false)
+        setSelectedPerson(null)
         setInviteMessage('')
         setInviteReason('')
         
@@ -150,17 +218,17 @@ export default function MemoryInviteSystem({
 
   return (
     <>
-      {/* Invite Button */}
+      {/* People Picker Button */}
       <button
-        onClick={handleOpenInvite}
+        onClick={handleOpenPicker}
         className={`flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-medium transition-colors duration-200 ${className}`}
       >
-        <UserPlus className="w-4 h-4" />
-        <span>Invite Someone</span>
+        <Users className="w-4 h-4" />
+        <span>Involve Someone</span>
       </button>
 
-      {/* Invite Modal */}
-      {showInviteModal && (
+      {/* People Picker Modal */}
+      {showPickerModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Header */}
@@ -168,15 +236,15 @@ export default function MemoryInviteSystem({
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <UserPlus className="w-5 h-5 text-blue-600" />
+                    <Users className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">Invite Someone to Collaborate</h2>
-                    <p className="text-sm text-gray-600">on "{memoryTitle}"</p>
+                    <h2 className="text-xl font-bold text-gray-900">Involve Someone</h2>
+                    <p className="text-sm text-gray-600">in "{memoryTitle}"</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowInviteModal(false)}
+                  onClick={() => setShowPickerModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <X className="w-6 h-6 text-gray-500" />
@@ -208,21 +276,108 @@ export default function MemoryInviteSystem({
                 </div>
               </div>
 
-              {/* Email Input */}
+              {/* People Search */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Who would you like to invite?
+                  Search your people
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="Enter their email address"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by name, email, or relationship..."
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
+              </div>
+
+              {/* People List */}
+              <div className="max-h-60 overflow-y-auto">
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : filteredPeople.length > 0 ? (
+                  <div className="space-y-2">
+                    {filteredPeople.map((person) => (
+                      <div
+                        key={person.id}
+                        onClick={() => setSelectedPerson(person)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                          selectedPerson?.id === person.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          {person.photo_url ? (
+                            <img
+                              src={person.photo_url}
+                              alt={person.person_name || 'Person'}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                              <Users className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900">{person.person_name || 'Unknown'}</p>
+                            <p className="text-sm text-gray-500">
+                              {person.person_email || <span className="text-gray-400 italic">No email</span>}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {person.relationship || <span className="text-gray-400 italic">No relationship</span>}
+                            </p>
+                          </div>
+                          {selectedPerson?.id === person.id && (
+                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-4">No people found</p>
+                    <button
+                      onClick={() => {
+                        setShowPickerModal(false)
+                        window.location.href = '/?tab=people'
+                      }}
+                      className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add People to Your Network</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Add Person Button - Always Visible */}
+              <div className="flex justify-center">
+                <button
+                  onClick={() => {
+                    setShowPickerModal(false)
+                    if (onNavigateToMyPeople) {
+                      onNavigateToMyPeople()
+                    } else {
+                      window.location.href = '/?tab=people'
+                    }
+                  }}
+                  className="inline-flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Person</span>
+                </button>
               </div>
 
               {/* Reason for Invitation */}
@@ -340,14 +495,14 @@ export default function MemoryInviteSystem({
             {/* Footer */}
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
               <button
-                onClick={() => setShowInviteModal(false)}
+                onClick={() => setShowPickerModal(false)}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={sendInvite}
-                disabled={sending || !inviteEmail.trim()}
+                disabled={sending || !selectedPerson}
                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 disabled:cursor-not-allowed"
               >
                 {sending ? (
@@ -358,7 +513,7 @@ export default function MemoryInviteSystem({
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    <span>Send Invitation</span>
+                    <span>Send Invite</span>
                   </>
                 )}
               </button>
