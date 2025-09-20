@@ -1,10 +1,15 @@
 // @ts-ignore
 import twilio from 'twilio';
 
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID || 'ACdummy',
-  process.env.TWILIO_AUTH_TOKEN || 'dummy'
-);
+const getTwilioClient = () => {
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+    return null;
+  }
+  return twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+};
 
 export interface TwilioSMSOptions {
   to: string;
@@ -20,7 +25,8 @@ export interface TwilioVoiceOptions {
 }
 
 export async function sendSMS(options: TwilioSMSOptions) {
-  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+  const client = getTwilioClient();
+  if (!client) {
     console.warn('Twilio credentials not configured');
     return null;
   }
@@ -40,7 +46,8 @@ export async function sendSMS(options: TwilioSMSOptions) {
 }
 
 export async function makeVoiceCall(options: TwilioVoiceOptions) {
-  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+  const client = getTwilioClient();
+  if (!client) {
     console.warn('Twilio credentials not configured');
     return null;
   }
