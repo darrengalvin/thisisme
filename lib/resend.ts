@@ -21,7 +21,7 @@ export async function sendResendEmail(options: ResendEmailOptions) {
       from: options.from || process.env.RESEND_FROM_EMAIL || 'noreply@yourcaio.co.uk',
       to: Array.isArray(options.to) ? options.to : [options.to],
       subject: options.subject,
-      html: options.html,
+      html: options.html || '',
       text: options.text,
     });
 

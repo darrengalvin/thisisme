@@ -71,8 +71,8 @@ export async function POST(request: NextRequest) {
           personEmail,
           user.email || 'A friend', // You might want to get the user's display name
           relationship,
-          customMessage,
-          selectedChapters
+          customMessage || undefined,
+          selectedChapters || undefined
         )
       } else if (inviteMethod === 'sms') {
         result = await sendPersonInviteSMS(
@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
           personEmail,
           user.email || 'A friend',
           relationship,
-          customMessage,
-          selectedChapters
+          customMessage || undefined,
+          selectedChapters || undefined
         )
         const smsResult = await sendPersonInviteSMS(
           personName,
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
       { 
         success: false, 
         error: `Failed to send ${inviteMethod} invitation`,
-        details: error?.message || 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     )

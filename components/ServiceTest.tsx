@@ -53,7 +53,7 @@ export default function ServiceTest() {
       console.error('Test error:', error)
       setResults({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       })
     } finally {
       setIsTesting(false)

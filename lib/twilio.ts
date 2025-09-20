@@ -1,3 +1,4 @@
+// @ts-ignore
 import twilio from 'twilio';
 
 const client = twilio(
@@ -64,11 +65,15 @@ export async function sendPersonInviteSMS(
   personPhone: string,
   inviterName: string,
   relationship: string,
-  customMessage?: string
+  customMessage?: string,
+  selectedChapters?: string[]
 ) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   
-  const message = `Hi ${personName}! ${inviterName} (your ${relationship}) invited you to join This Is Me - a memory collaboration platform. ${customMessage ? `"${customMessage}" ` : ''}Join: ${appUrl}`;
+  const chapterText = selectedChapters && selectedChapters.length > 0 
+    ? ` I'd love your help with these chapters: ${selectedChapters.join(', ')}.`
+    : '';
+  const message = `Hi ${personName}! ${inviterName} (your ${relationship}) invited you to join This Is Me - a memory collaboration platform.${chapterText} ${customMessage ? `"${customMessage}" ` : ''}Join: ${appUrl}`;
 
   return sendSMS({
     to: personPhone,

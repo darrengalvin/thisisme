@@ -91,7 +91,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
   // Check for unsaved changes
   useEffect(() => {
     const hasChanges = title.trim() || startYear || endYear || description.trim()
-    setHasUnsavedChanges(hasChanges)
+    setHasUnsavedChanges(!!hasChanges)
   }, [title, startYear, endYear, description])
 
   // Auto-save effect

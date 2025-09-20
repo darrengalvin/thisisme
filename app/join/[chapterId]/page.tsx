@@ -111,7 +111,7 @@ export default function JoinChapterPage() {
       }
     } catch (error) {
       console.error('Error joining chapter:', error)
-      setError(error.message)
+      setError(error instanceof Error ? error.message : 'Unknown error')
       toast.error('Failed to join chapter')
     } finally {
       setJoining(false)

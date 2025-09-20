@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
     const { testEmail, testPhone, testType } = body
 
     const results = {
-      resend: null,
-      twilio: null,
-      errors: []
+      resend: null as any,
+      twilio: null as any,
+      errors: [] as string[]
     }
 
     // Test Resend (Email)
@@ -62,10 +62,10 @@ export async function POST(request: NextRequest) {
           message: 'Test email sent successfully'
         }
       } catch (error) {
-        results.errors.push(`Resend error: ${error.message}`)
+        results.errors.push(`Resend error: ${error instanceof Error ? error.message : 'Unknown error'}`)
         results.resend = {
           success: false,
-          error: error.message
+          error: error instanceof Error ? error.message : 'Unknown error'
         }
       }
     }
@@ -88,10 +88,10 @@ export async function POST(request: NextRequest) {
           message: 'Test SMS sent successfully'
         }
       } catch (error) {
-        results.errors.push(`Twilio error: ${error.message}`)
+        results.errors.push(`Twilio error: ${error instanceof Error ? error.message : 'Unknown error'}`)
         results.twilio = {
           success: false,
-          error: error.message
+          error: error instanceof Error ? error.message : 'Unknown error'
         }
       }
     }
