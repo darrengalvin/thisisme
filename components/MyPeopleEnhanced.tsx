@@ -637,10 +637,17 @@ export default function MyPeopleEnhanced() {
             console.log('✅ PLATFORM INVITATION SENT: Successfully sent invitation')
             toast.success(`Person added and invitation sent to ${newPerson.name}!`)
           } else {
-            const errorData = await inviteResponse.json()
+            let errorData
+            try {
+              errorData = await inviteResponse.json()
+            } catch (parseError) {
+              errorData = { error: 'Failed to parse error response', rawResponse: await inviteResponse.text() }
+            }
             console.log('⚠️ PLATFORM INVITATION FAILED: Person added but invitation failed', {
               status: inviteResponse.status,
-              error: errorData
+              statusText: inviteResponse.statusText,
+              error: errorData,
+              url: inviteResponse.url
             })
             toast.success(`Person added to your network! (Invitation failed - you can send it manually later)`)
           }
