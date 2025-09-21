@@ -2,9 +2,20 @@
 const twilio = require('twilio');
 
 const getTwilioClient = () => {
+  console.log('🔧 TWILIO DEBUG: Environment variables check:', {
+    hasAccountSid: !!process.env.TWILIO_ACCOUNT_SID,
+    hasAuthToken: !!process.env.TWILIO_AUTH_TOKEN,
+    hasPhoneNumber: !!process.env.TWILIO_PHONE_NUMBER,
+    accountSidStart: process.env.TWILIO_ACCOUNT_SID?.substring(0, 5),
+    phoneNumber: process.env.TWILIO_PHONE_NUMBER
+  });
+  
   if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+    console.log('❌ TWILIO DEBUG: Missing credentials, returning null');
     return null;
   }
+  
+  console.log('✅ TWILIO DEBUG: Creating Twilio client');
   return twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
@@ -25,22 +36,33 @@ export interface TwilioVoiceOptions {
 }
 
 export async function sendSMS(options: TwilioSMSOptions) {
+  console.log('📱 SMS DEBUG: Starting SMS send with options:', {
+    to: options.to,
+    body: options.body?.substring(0, 50) + '...',
+    from: options.from || process.env.TWILIO_PHONE_NUMBER
+  });
+  
   const client = getTwilioClient();
   if (!client) {
-    console.warn('Twilio credentials not configured');
+    console.warn('❌ SMS DEBUG: Twilio credentials not configured');
     return null;
   }
 
   try {
+    console.log('📱 SMS DEBUG: Creating Twilio message...');
     const message = await client.messages.create({
       body: options.body,
       from: options.from || process.env.TWILIO_PHONE_NUMBER,
       to: options.to,
     });
 
+    console.log('✅ SMS DEBUG: Message sent successfully:', {
+      sid: message.sid,
+      status: message.status
+    });
     return message;
   } catch (error) {
-    console.error('Error sending SMS via Twilio:', error);
+    console.error('❌ SMS DEBUG: Error sending SMS via Twilio:', error);
     throw error;
   }
 }
