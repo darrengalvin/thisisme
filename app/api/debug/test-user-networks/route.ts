@@ -5,50 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔍 TEST USER NETWORKS: Starting database test...')
     
-    // Test 1: Check if table exists
-    const { data: tableCheck, error: tableError } = await supabaseAdmin
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public')
-      .eq('table_name', 'user_networks')
-    
-    console.log('🔍 TABLE EXISTS CHECK:', { tableCheck, tableError })
-    
-    if (tableError) {
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to check table existence',
-        details: tableError
-      }, { status: 500 })
-    }
-    
-    if (!tableCheck || tableCheck.length === 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'user_networks table does not exist',
-        tableCheck
-      }, { status: 404 })
-    }
-    
-    // Test 2: Check table structure
-    const { data: columns, error: columnsError } = await supabaseAdmin
-      .from('information_schema.columns')
-      .select('column_name, data_type, is_nullable')
-      .eq('table_schema', 'public')
-      .eq('table_name', 'user_networks')
-      .order('ordinal_position')
-    
-    console.log('🔍 TABLE COLUMNS:', { columns, columnsError })
-    
-    if (columnsError) {
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to get table structure',
-        details: columnsError
-      }, { status: 500 })
-    }
-    
-    // Test 3: Try a simple query
+    // Test 1: Try a simple query to see if table exists and what structure it has
     const { data: testData, error: queryError } = await supabaseAdmin
       .from('user_networks')
       .select('*')
@@ -56,13 +13,55 @@ export async function GET(request: NextRequest) {
     
     console.log('🔍 TEST QUERY:', { testData, queryError })
     
+    if (queryError) {
+      // Check if it's a "table doesn't exist" error
+      if (queryError.code === '42P01') {
+        return NextResponse.json({
+          success: false,
+          error: 'user_networks table does not exist',
+          details: queryError
+        }, { status: 404 })
+      }
+      
+      return NextResponse.json({
+        success: false,
+        error: 'Database query failed',
+        details: queryError
+      }, { status: 500 })
+    }
+    
+    // Test 2: Try to get table structure by attempting to insert a test record
+    const testRecord = {
+      owner_id: '00000000-0000-0000-0000-000000000000', // Dummy UUID
+      person_name: 'Test Record',
+      person_email: 'test@example.com'
+    }
+    
+    const { data: insertTest, error: insertError } = await supabaseAdmin
+      .from('user_networks')
+      .insert(testRecord)
+      .select()
+    
+    console.log('🔍 INSERT TEST:', { insertTest, insertError })
+    
+    // Clean up test record if it was created
+    if (insertTest && insertTest.length > 0) {
+      await supabaseAdmin
+        .from('user_networks')
+        .delete()
+        .eq('id', insertTest[0].id)
+    }
+    
     return NextResponse.json({
       success: true,
       tableExists: true,
-      columns: columns,
       testQuery: {
         data: testData,
         error: queryError
+      },
+      insertTest: {
+        data: insertTest,
+        error: insertError
       }
     })
     
