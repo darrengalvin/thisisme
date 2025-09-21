@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { Users, Plus, Mail, User, X, Calendar, BookOpen, ArrowLeft, Shield, UserPlus, Settings, Eye, MessageCircle, Image, FileText, Lock, Unlock, Crown, Star } from 'lucide-react'
 import AccessManagement from './AccessManagement'
+import toast from 'react-hot-toast'
 
 interface NetworkPerson {
   id: string
