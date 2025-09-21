@@ -606,7 +606,7 @@ export default function MyPeopleEnhanced() {
               personEmail: newPerson.email.trim(),
               personPhone: newPerson.phone.trim(),
               relationship: newPerson.relationship?.trim() || null,
-              inviteMethod: 'both', // Always send both email and SMS for platform invitations
+              inviteMethod: newPerson.inviteMethod, // Use selected invitation method
               customMessage: `Hi ${newPerson.name}! I'd love you to be part of my memory network on ThisIsMe. It's a platform where we can share and collaborate on our memories together - from family stories to life milestones.`,
               selectedChapters: newPersonSelectedChapters
             })
@@ -847,7 +847,7 @@ export default function MyPeopleEnhanced() {
           personEmail: invitingPerson.person_email,
           personPhone: invitingPerson.person_phone,
           relationship: invitingPerson.relationship,
-          inviteMethod: 'both', // Always send both email and SMS for platform invitations
+          inviteMethod: inviteMethod, // Use selected invitation method
           customMessage: inviteMessage,
           selectedChapters: selectedChapters
         })
@@ -1347,45 +1347,127 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                   </div>
                 )}
 
-                {/* Platform Invitation Preview - Only for living people */}
+                {/* Platform Invitation Method - Only for living people */}
                 {newPerson.personType === 'living' && (
                   <div>
                   <h3 className="text-md font-medium text-gray-900 mb-3 flex items-center space-x-2">
                     <Mail className="w-4 h-4 text-purple-600" />
-                    <span>Platform Invitation Preview</span>
+                    <span>Platform Invitation Method</span>
                   </h3>
-                  
-                  {/* Platform Invitation Template */}
+                  <div className="flex space-x-4 mb-4">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="inviteMethod"
+                        value="email"
+                        checked={newPerson.inviteMethod === 'email'}
+                        onChange={(e) => setNewPerson(prev => ({ ...prev, inviteMethod: e.target.value as 'email' | 'sms' | 'both' }))}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <Mail className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium">Email</span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="inviteMethod"
+                        value="sms"
+                        checked={newPerson.inviteMethod === 'sms'}
+                        onChange={(e) => setNewPerson(prev => ({ ...prev, inviteMethod: e.target.value as 'email' | 'sms' | 'both' }))}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <MessageCircle className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium">SMS</span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="inviteMethod"
+                        value="both"
+                        checked={newPerson.inviteMethod === 'both'}
+                        onChange={(e) => setNewPerson(prev => ({ ...prev, inviteMethod: e.target.value as 'email' | 'sms' | 'both' }))}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <div className="flex items-center space-x-1">
+                        <Mail className="w-4 h-4 text-gray-500" />
+                        <MessageCircle className="w-4 h-4 text-gray-500" />
+                      </div>
+                      <span className="text-sm font-medium">Both</span>
+                    </label>
+                  </div>
+
+                  {/* Platform Invitation Template Preview */}
                   {newPerson.name && newPerson.relationship && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="text-sm font-medium text-blue-900 mb-2">Email & SMS Preview</h4>
-                      <div className="space-y-4">
-                        <div>
-                          <span className="text-xs font-medium text-blue-800">Email Subject:</span>
-                          <p className="text-sm text-blue-700">Join me on ThisIsMe - Let's share our memories together!</p>
-                        </div>
-                        <div>
-                          <span className="text-xs font-medium text-blue-800">Email Message:</span>
-                          <div className="text-sm text-blue-700 whitespace-pre-line bg-white rounded p-3">
-                            <p>Hi {newPerson.name}!</p>
-                            <p className="mt-2">I'd love you to be part of my memory network on ThisIsMe. It's a platform where we can share and collaborate on our memories together - from family stories to life milestones.</p>
-                            <p className="mt-2">You'll be able to:</p>
-                            <ul className="list-disc list-inside mt-1 space-y-1">
-                              <li>View and contribute to my memories</li>
-                              <li>Add your own memories and stories</li>
-                              <li>Collaborate on shared experiences</li>
-                              <li>Keep our family history alive together</li>
-                            </ul>
-                            <p className="mt-3 text-blue-600 font-medium">Click here to join my network and start sharing memories!</p>
-                          </div>
-                        </div>
-                        <div className="border-t border-blue-200 pt-2">
-                          <span className="text-xs font-medium text-blue-800">SMS Message:</span>
-                          <p className="text-sm text-blue-700 bg-white rounded p-3">
-                            Hi {newPerson.name}! I'd love you to join my memory network on ThisIsMe. Let's share our stories together! Join here: [link]
-                          </p>
-                        </div>
-                      </div>
+                      <h4 className="text-sm font-medium text-blue-900 mb-2">
+                        {newPerson.inviteMethod === 'email' ? 'Email Template Preview' : newPerson.inviteMethod === 'sms' ? 'SMS Template Preview' : 'Email & SMS Template Preview'}
+                      </h4>
+                      {(() => {
+                        if (newPerson.inviteMethod === 'email') {
+                          return (
+                            <div className="space-y-2">
+                              <div>
+                                <span className="text-xs font-medium text-blue-800">Subject:</span>
+                                <p className="text-sm text-blue-700">Join me on ThisIsMe - Let's share our memories together!</p>
+                              </div>
+                              <div>
+                                <span className="text-xs font-medium text-blue-800">Message:</span>
+                                <div className="text-sm text-blue-700 whitespace-pre-line bg-white rounded p-3">
+                                  <p>Hi {newPerson.name}!</p>
+                                  <p className="mt-2">I'd love you to be part of my memory network on ThisIsMe. It's a platform where we can share and collaborate on our memories together - from family stories to life milestones.</p>
+                                  <p className="mt-2">You'll be able to:</p>
+                                  <ul className="list-disc list-inside mt-1 space-y-1">
+                                    <li>View and contribute to my memories</li>
+                                    <li>Add your own memories and stories</li>
+                                    <li>Collaborate on shared experiences</li>
+                                    <li>Keep our family history alive together</li>
+                                  </ul>
+                                  <p className="mt-3 text-blue-600 font-medium">Click here to join my network and start sharing memories!</p>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        } else if (newPerson.inviteMethod === 'sms') {
+                          return (
+                            <div>
+                              <span className="text-xs font-medium text-blue-800">SMS Message:</span>
+                              <p className="text-sm text-blue-700 bg-white rounded p-3">
+                                Hi {newPerson.name}! I'd love you to join my memory network on ThisIsMe. Let's share our stories together! Join here: [link]
+                              </p>
+                            </div>
+                          )
+                        } else { // both
+                          return (
+                            <div className="space-y-4">
+                              <div>
+                                <span className="text-xs font-medium text-blue-800">Email Subject:</span>
+                                <p className="text-sm text-blue-700">Join me on ThisIsMe - Let's share our memories together!</p>
+                              </div>
+                              <div>
+                                <span className="text-xs font-medium text-blue-800">Email Message:</span>
+                                <div className="text-sm text-blue-700 whitespace-pre-line bg-white rounded p-3">
+                                  <p>Hi {newPerson.name}!</p>
+                                  <p className="mt-2">I'd love you to be part of my memory network on ThisIsMe. It's a platform where we can share and collaborate on our memories together - from family stories to life milestones.</p>
+                                  <p className="mt-2">You'll be able to:</p>
+                                  <ul className="list-disc list-inside mt-1 space-y-1">
+                                    <li>View and contribute to my memories</li>
+                                    <li>Add your own memories and stories</li>
+                                    <li>Collaborate on shared experiences</li>
+                                    <li>Keep our family history alive together</li>
+                                  </ul>
+                                  <p className="mt-3 text-blue-600 font-medium">Click here to join my network and start sharing memories!</p>
+                                </div>
+                              </div>
+                              <div className="border-t border-blue-200 pt-2">
+                                <span className="text-xs font-medium text-blue-800">SMS Message:</span>
+                                <p className="text-sm text-blue-700 bg-white rounded p-3">
+                                  Hi {newPerson.name}! I'd love you to join my memory network on ThisIsMe. Let's share our stories together! Join here: [link]
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        }
+                      })()}
                     </div>
                   )}
                   </div>
@@ -2282,38 +2364,127 @@ With love and remembrance,
             </div>
             
             <div className="p-6 space-y-4">
+              {/* Platform Invitation Method */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Platform Invitation Method</label>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="inviteMethod"
+                      value="email"
+                      checked={inviteMethod === 'email'}
+                      onChange={(e) => setInviteMethod(e.target.value as 'email' | 'sms' | 'both')}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      disabled={!invitingPerson.person_email}
+                    />
+                    <Mail className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-medium">Email {!invitingPerson.person_email && '(No email available)'}</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="inviteMethod"
+                      value="sms"
+                      checked={inviteMethod === 'sms'}
+                      onChange={(e) => setInviteMethod(e.target.value as 'email' | 'sms' | 'both')}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      disabled={!invitingPerson.person_phone}
+                    />
+                    <span className="text-sm font-medium">SMS {!invitingPerson.person_phone && '(No phone available)'}</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="inviteMethod"
+                      value="both"
+                      checked={inviteMethod === 'both'}
+                      onChange={(e) => setInviteMethod(e.target.value as 'email' | 'sms' | 'both')}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      disabled={!invitingPerson.person_email || !invitingPerson.person_phone}
+                    />
+                    <div className="flex items-center space-x-1">
+                      <Mail className="w-4 h-4 text-gray-500" />
+                      <MessageCircle className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <span className="text-sm font-medium">Both {(!invitingPerson.person_email || !invitingPerson.person_phone) && '(Email or phone missing)'}</span>
+                  </label>
+                </div>
+              </div>
+
               {/* Platform Invitation Preview */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Platform Invitation Preview</label>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">Email & SMS Preview</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <span className="text-xs font-medium text-blue-800">Email Subject:</span>
-                      <p className="text-sm text-blue-700">Join me on ThisIsMe - Let's share our memories together!</p>
-                    </div>
-                    <div>
-                      <span className="text-xs font-medium text-blue-800">Email Message:</span>
-                      <div className="text-sm text-blue-700 whitespace-pre-line bg-white rounded p-3">
-                        <p>Hi {invitingPerson.person_name}!</p>
-                        <p className="mt-2">I'd love you to be part of my memory network on ThisIsMe. It's a platform where we can share and collaborate on our memories together - from family stories to life milestones.</p>
-                        <p className="mt-2">You'll be able to:</p>
-                        <ul className="list-disc list-inside mt-1 space-y-1">
-                          <li>View and contribute to my memories</li>
-                          <li>Add your own memories and stories</li>
-                          <li>Collaborate on shared experiences</li>
-                          <li>Keep our family history alive together</li>
-                        </ul>
-                        <p className="mt-3 text-blue-600 font-medium">Click here to join my network and start sharing memories!</p>
-                      </div>
-                    </div>
-                    <div className="border-t border-blue-200 pt-2">
-                      <span className="text-xs font-medium text-blue-800">SMS Message:</span>
-                      <p className="text-sm text-blue-700 bg-white rounded p-3">
-                        Hi {invitingPerson.person_name}! I'd love you to join my memory network on ThisIsMe. Let's share our stories together! Join here: [link]
-                      </p>
-                    </div>
-                  </div>
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">
+                    {inviteMethod === 'email' ? 'Email Template Preview' : inviteMethod === 'sms' ? 'SMS Template Preview' : 'Email & SMS Template Preview'}
+                  </h4>
+                  {(() => {
+                    if (inviteMethod === 'email') {
+                      return (
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-xs font-medium text-blue-800">Subject:</span>
+                            <p className="text-sm text-blue-700">Join me on ThisIsMe - Let's share our memories together!</p>
+                          </div>
+                          <div>
+                            <span className="text-xs font-medium text-blue-800">Message:</span>
+                            <div className="text-sm text-blue-700 whitespace-pre-line bg-white rounded p-3">
+                              <p>Hi {invitingPerson.person_name}!</p>
+                              <p className="mt-2">I'd love you to be part of my memory network on ThisIsMe. It's a platform where we can share and collaborate on our memories together - from family stories to life milestones.</p>
+                              <p className="mt-2">You'll be able to:</p>
+                              <ul className="list-disc list-inside mt-1 space-y-1">
+                                <li>View and contribute to my memories</li>
+                                <li>Add your own memories and stories</li>
+                                <li>Collaborate on shared experiences</li>
+                                <li>Keep our family history alive together</li>
+                              </ul>
+                              <p className="mt-3 text-blue-600 font-medium">Click here to join my network and start sharing memories!</p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    } else if (inviteMethod === 'sms') {
+                      return (
+                        <div>
+                          <span className="text-xs font-medium text-blue-800">SMS Message:</span>
+                          <p className="text-sm text-blue-700 bg-white rounded p-3">
+                            Hi {invitingPerson.person_name}! I'd love you to join my memory network on ThisIsMe. Let's share our stories together! Join here: [link]
+                          </p>
+                        </div>
+                      )
+                    } else { // both
+                      return (
+                        <div className="space-y-4">
+                          <div>
+                            <span className="text-xs font-medium text-blue-800">Email Subject:</span>
+                            <p className="text-sm text-blue-700">Join me on ThisIsMe - Let's share our memories together!</p>
+                          </div>
+                          <div>
+                            <span className="text-xs font-medium text-blue-800">Email Message:</span>
+                            <div className="text-sm text-blue-700 whitespace-pre-line bg-white rounded p-3">
+                              <p>Hi {invitingPerson.person_name}!</p>
+                              <p className="mt-2">I'd love you to be part of my memory network on ThisIsMe. It's a platform where we can share and collaborate on our memories together - from family stories to life milestones.</p>
+                              <p className="mt-2">You'll be able to:</p>
+                              <ul className="list-disc list-inside mt-1 space-y-1">
+                                <li>View and contribute to my memories</li>
+                                <li>Add your own memories and stories</li>
+                                <li>Collaborate on shared experiences</li>
+                                <li>Keep our family history alive together</li>
+                              </ul>
+                              <p className="mt-3 text-blue-600 font-medium">Click here to join my network and start sharing memories!</p>
+                            </div>
+                          </div>
+                          <div className="border-t border-blue-200 pt-2">
+                            <span className="text-xs font-medium text-blue-800">SMS Message:</span>
+                            <p className="text-sm text-blue-700 bg-white rounded p-3">
+                              Hi {invitingPerson.person_name}! I'd love you to join my memory network on ThisIsMe. Let's share our stories together! Join here: [link]
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    }
+                  })()}
                 </div>
               </div>
 
@@ -2429,7 +2600,7 @@ With love and remembrance,
                 </button>
                 <button
                   onClick={sendInvitation}
-                  disabled={isInviting || !invitingPerson.person_email || !invitingPerson.person_phone}
+                  disabled={isInviting || (inviteMethod === 'email' && !invitingPerson.person_email) || (inviteMethod === 'sms' && !invitingPerson.person_phone) || (inviteMethod === 'both' && (!invitingPerson.person_email || !invitingPerson.person_phone))}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
                   {isInviting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
