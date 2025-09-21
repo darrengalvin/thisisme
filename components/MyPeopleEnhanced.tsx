@@ -589,8 +589,14 @@ export default function MyPeopleEnhanced() {
       const result = await addResponse.json()
       console.log('✅ ADD PERSON SUCCESS:', result)
       
-      // Send platform invitation if person has email and phone
-      if (newPerson.email && newPerson.phone) {
+      // Send platform invitation if person has email or phone (based on selected method)
+      const hasEmail = newPerson.email && newPerson.email.trim()
+      const hasPhone = newPerson.phone && newPerson.phone.trim()
+      const shouldSendInvite = (newPerson.inviteMethod === 'email' && hasEmail) || 
+                              (newPerson.inviteMethod === 'sms' && hasPhone) || 
+                              (newPerson.inviteMethod === 'both' && hasEmail && hasPhone)
+      
+      if (shouldSendInvite) {
         try {
           console.log('🔄 SENDING PLATFORM INVITATION: Sending invitation to:', newPerson.name)
           
@@ -624,8 +630,15 @@ export default function MyPeopleEnhanced() {
           toast.success(`Person added to your network! (Invitation failed - you can send it manually later)`)
         }
       } else {
-        console.log('ℹ️ NO INVITATION SENT: Person added but no email/phone provided')
-        toast.success(`Person added to your network! (Add email/phone to send invitations)`)
+        console.log('ℹ️ NO INVITATION SENT: Person added but missing required contact info for selected method')
+        const missingInfo = []
+        if (newPerson.inviteMethod === 'email' && !hasEmail) missingInfo.push('email')
+        if (newPerson.inviteMethod === 'sms' && !hasPhone) missingInfo.push('phone')
+        if (newPerson.inviteMethod === 'both') {
+          if (!hasEmail) missingInfo.push('email')
+          if (!hasPhone) missingInfo.push('phone')
+        }
+        toast.success(`Person added to your network! (Add ${missingInfo.join(' and ')} to send invitations)`)
       }
       
       // Refresh the people list to show the new person
