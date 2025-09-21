@@ -543,6 +543,12 @@ export default function MyPeopleEnhanced() {
     setIsAdding(true)
     try {
       console.log('🔄 ADDING PERSON: Starting add person process for:', newPerson.name)
+      console.log('📧 EMAIL FIELD DEBUG:', { 
+        email: newPerson.email, 
+        emailTrimmed: newPerson.email?.trim(), 
+        hasEmail: newPerson.email && newPerson.email.trim(),
+        inviteMethod: newPerson.inviteMethod 
+      })
       
       // Get JWT token for API call (this handles impersonation correctly)
       const tokenResponse = await fetch('/api/auth/token', {
@@ -595,6 +601,15 @@ export default function MyPeopleEnhanced() {
       const shouldSendInvite = (newPerson.inviteMethod === 'email' && hasEmail) || 
                               (newPerson.inviteMethod === 'sms' && hasPhone) || 
                               (newPerson.inviteMethod === 'both' && hasEmail && hasPhone)
+      
+      console.log('📧 INVITATION LOGIC DEBUG:', {
+        hasEmail,
+        hasPhone,
+        inviteMethod: newPerson.inviteMethod,
+        shouldSendInvite,
+        emailValue: newPerson.email,
+        phoneValue: newPerson.phone
+      })
       
       if (shouldSendInvite) {
         try {
