@@ -19,13 +19,15 @@ interface InviteCollaboratorsProps {
   chapterTitle: string
   className?: string
   onInviteSent?: () => void
+  onNavigateToMyPeople?: () => void
 }
 
 export default function InviteCollaborators({ 
   chapterId, 
   chapterTitle,
   className = '',
-  onInviteSent
+  onInviteSent,
+  onNavigateToMyPeople
 }: InviteCollaboratorsProps) {
   const { user, session } = useAuth()
   const [showInviteForm, setShowInviteForm] = useState(false)
@@ -314,13 +316,19 @@ export default function InviteCollaborators({
                   To invite people to collaborate on this chapter, you need to add them to your "My People" network first. 
                   This way you can track all your relationships and easily invite them to future chapters.
                 </p>
-                <a
-                  href="/my-people"
+                <button
+                  onClick={() => {
+                    if (onNavigateToMyPeople) {
+                      onNavigateToMyPeople()
+                    } else {
+                      window.location.href = '/my-people'
+                    }
+                  }}
                   className="inline-flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>Go to My People</span>
-                </a>
+                </button>
                 <p className="text-sm text-green-600 mt-3">
                   After adding people, come back here and select "Pick from My People"
                 </p>

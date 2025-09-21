@@ -350,7 +350,11 @@ export default function MemoryInviteSystem({
                     <button
                       onClick={() => {
                         setShowPickerModal(false)
-                        window.location.href = '/?tab=people'
+                        if (onNavigateToMyPeople) {
+                          onNavigateToMyPeople()
+                        } else {
+                          window.location.href = '/?tab=people'
+                        }
                       }}
                       className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                     >

@@ -15,6 +15,7 @@ interface GroupManagerProps {
   user?: { id: string; email: string; birthYear?: number } | null
   onCreateGroup?: () => void
   onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
+  onNavigateToMyPeople?: () => void
 }
 
 interface EditChapterData {
@@ -51,7 +52,7 @@ const formatDateRange = (startDate?: string | null, endDate?: string | null) => 
   return 'No dates set'
 }
 
-export default function GroupManager({ user: propUser, onCreateGroup, onStartCreating }: GroupManagerProps) {
+export default function GroupManager({ user: propUser, onCreateGroup, onStartCreating, onNavigateToMyPeople }: GroupManagerProps) {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
@@ -1125,6 +1126,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                   // Optionally refresh chapter data to show new members
                   fetchChaptersAndMemories()
                 }}
+                onNavigateToMyPeople={onNavigateToMyPeople}
               />
             </div>
 

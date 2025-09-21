@@ -1164,7 +1164,7 @@ export default function Dashboard() {
       case 'create':
         return <CreateMemory onMemoryCreated={handleMemoryCreated} />
       case 'timezones':
-        return <GroupManager user={user} onCreateGroup={() => setActiveTab('create-timezone')} onStartCreating={handleCreateMemory} />
+        return <GroupManager user={user} onCreateGroup={() => setActiveTab('create-timezone')} onStartCreating={handleCreateMemory} onNavigateToMyPeople={() => setActiveTab('people')} />
       case 'create-timezone':
         return <CreateTimeZone onSuccess={() => { setActiveTab('timezones'); fetchMemories(); }} onCancel={() => setActiveTab('timezones')} />
       case 'people':
