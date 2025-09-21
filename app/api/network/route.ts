@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const { data: networkPeople, error } = await supabaseAdmin
       .from('user_networks')
       .select('*')
-      .eq('user_id', user.userId)
+      .eq('owner_id', user.userId)
       .order('person_name')
 
     if (error) {
@@ -69,6 +69,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { person_name, person_email, person_phone, relationship, notes, photo_url, selectedChapters = [] } = body
+    
+    // Note: person_phone is not stored in the database schema, so we'll ignore it for now
 
     if (!person_name?.trim()) {
       return NextResponse.json({ error: 'Person name is required' }, { status: 400 })
@@ -91,10 +93,9 @@ export async function POST(request: NextRequest) {
     const { data: newPerson, error } = await supabaseAdmin
       .from('user_networks')
       .insert({
-        user_id: user.userId,
+        owner_id: user.userId,
         person_name: person_name.trim(),
         person_email: person_email?.toLowerCase(),
-        person_phone: person_phone?.trim(),
         relationship: relationship?.trim(),
         photo_url: photo_url?.trim(),
         pending_chapter_invitations: selectedChapters
@@ -111,7 +112,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Failed to add person to network:', error)
     return NextResponse.json(
-      { error: 'Failed to add person' },
+      { 
+        error: 'Failed to add person',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
