@@ -20,7 +20,7 @@ NEXT_PUBLIC_ALLOWED_FILE_TYPES=image/*,video/*
 
 # Email Service Configuration (Resend)
 RESEND_API_KEY=your-resend-api-key-here
-RESEND_FROM_EMAIL=noreply@yourdomain.com
+RESEND_FROM_EMAIL=admin@yourcaio.co.uk
 RESEND_DOMAIN=yourdomain.com
 
 # SMS/Voice Service Configuration (Twilio)
