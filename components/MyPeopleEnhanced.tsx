@@ -1512,11 +1512,11 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                   </div>
                 )}
 
-                {/* Email Templates - Only for living people */}
+                {/* Message Templates - Only for living people */}
                 {newPerson.personType === 'living' && (
                   <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    📧 Email Templates
+                    {newPerson.inviteMethod === 'email' ? '📧 Email Templates' : newPerson.inviteMethod === 'sms' ? '📱 SMS Templates' : '📧📱 Message Templates'}
                   </label>
                   <select
                     onChange={(e) => {
@@ -1527,7 +1527,9 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
                   >
                     <option value="">Choose a template...</option>
-                    <option value={`Hi ${newPerson.name || '[Name]'},
+                    {newPerson.inviteMethod === 'email' ? (
+                      <>
+                        <option value={`Hi ${newPerson.name || '[Name]'},
 
 I'm using This Is Me to organize and share my life memories, and I'd love for you to be part of it! 
 
@@ -1537,6 +1539,27 @@ Would you like to join me in preserving these precious memories together?
 
 Best regards,
 [Your name]`}>🤝 General Invitation</option>
+                      </>
+                    ) : newPerson.inviteMethod === 'sms' ? (
+                      <>
+                        <option value={`Hi ${newPerson.name || '[Name]'}! I'd love you to join my memory network on ThisIsMe. Let's share our stories together! Join here: [link]`}>🤝 General SMS</option>
+                        <option value={`Hey ${newPerson.name || '[Name]'}! I'm building a family memory network on ThisIsMe. Would love for you to join and share our stories! [link]`}>👨‍👩‍👧‍👦 Family SMS</option>
+                        <option value={`Hi ${newPerson.name || '[Name]'}! I'm organizing my life memories on ThisIsMe and would love your input. Join me: [link]`}>📸 Memory SMS</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value={`Hi ${newPerson.name || '[Name]'},
+
+I'm using This Is Me to organize and share my life memories, and I'd love for you to be part of it! 
+
+I've created a personal network where I can tag people in my memories and share special moments. You'll be able to see memories you're tagged in and even add your own photos or stories to help make them more complete.
+
+Would you like to join me in preserving these precious memories together?
+
+Best regards,
+[Your name]`}>🤝 General Invitation</option>
+                      </>
+                    )}
                     <option value={`Dear ${newPerson.name || '[Name]'},
 
 I've been working on documenting our family history and memories using This Is Me, and your perspective would be invaluable!

@@ -1,5 +1,5 @@
 // @ts-ignore
-import twilio from 'twilio';
+const twilio = require('twilio');
 
 const getTwilioClient = () => {
   if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
