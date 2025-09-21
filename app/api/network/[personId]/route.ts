@@ -39,7 +39,7 @@ export async function PUT(
     // First, verify that this person belongs to the user
     const { data: existingPerson, error: fetchError } = await supabaseAdmin
       .from('user_networks')
-      .select('id, user_id')
+      .select('id, owner_id')
       .eq('id', personId)
       .single()
 
@@ -48,7 +48,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Person not found' }, { status: 404 })
     }
 
-    if (existingPerson.user_id !== user.userId) {
+    if (existingPerson.owner_id !== user.userId) {
       console.log('❌ NETWORK UPDATE API: Permission denied for person:', personId)
       return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
     }
@@ -142,7 +142,7 @@ export async function DELETE(
     // First, verify that this person belongs to the user
     const { data: existingPerson, error: fetchError } = await supabaseAdmin
       .from('user_networks')
-      .select('id, user_id')
+      .select('id, owner_id')
       .eq('id', personId)
       .single()
 
@@ -151,7 +151,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Person not found' }, { status: 404 })
     }
 
-    if (existingPerson.user_id !== user.userId) {
+    if (existingPerson.owner_id !== user.userId) {
       console.log('❌ NETWORK DELETE API: Permission denied for person:', personId)
       return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
     }
