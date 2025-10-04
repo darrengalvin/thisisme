@@ -456,9 +456,9 @@ describe('Conversations API Integration Tests', () => {
       // parseInt should handle invalid input and use NaN, which becomes defaults
       // The defaults (0, 9) should be used
       expect(rangeMock).toHaveBeenCalled();
-      const callArgs = rangeMock.mock.calls[0];
-      expect(typeof callArgs[0]).toBe('number');
-      expect(typeof callArgs[1]).toBe('number');
+      const callArgs = rangeMock.mock.calls[0] as any;
+      expect(typeof callArgs?.[0]).toBe('number');
+      expect(typeof callArgs?.[1]).toBe('number');
     });
   });
 });

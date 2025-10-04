@@ -384,11 +384,11 @@ describe('Support Tickets API Integration Tests', () => {
       await ticketsPOST(request);
 
       // Should have been called with default values
-      const insertedData = insertMock.mock.calls[0][0];
-      expect(insertedData.priority).toBe('medium');
-      expect(insertedData.category).toBe('question');
-      expect(insertedData.status).toBe('open');
-      expect(insertedData.stage).toBe('backlog');
+      const insertedData = (insertMock.mock.calls as any)[0]?.[0];
+      expect(insertedData?.priority).toBe('medium');
+      expect(insertedData?.category).toBe('question');
+      expect(insertedData?.status).toBe('open');
+      expect(insertedData?.stage).toBe('backlog');
     });
   });
 

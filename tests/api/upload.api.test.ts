@@ -315,7 +315,7 @@ describe('Upload API Integration Tests', () => {
 
       // Verify upload was called with user-specific path
       expect(uploadMock).toHaveBeenCalled();
-      const uploadPath = uploadMock.mock.calls[0][0];
+      const uploadPath = (uploadMock.mock.calls as any)[0]?.[0];
       expect(uploadPath).toContain(`uploads/${userId}/`);
     });
 
@@ -423,7 +423,7 @@ describe('Upload API Integration Tests', () => {
       await uploadPOST(request);
 
       // The file should be uploaded with a safe UUID path
-      const uploadPath = uploadMock.mock.calls[0][0];
+      const uploadPath = (uploadMock.mock.calls as any)[0]?.[0];
       expect(uploadPath).not.toContain('../');
       expect(uploadPath).toContain('uploads/user-123/');
     });

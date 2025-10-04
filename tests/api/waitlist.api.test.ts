@@ -173,8 +173,8 @@ describe('Waitlist API Integration Tests', () => {
 
       // Verify insert was called with lowercase email
       expect(insertMock).toHaveBeenCalled();
-      const insertedData = insertMock.mock.calls[0][0][0];
-      expect(insertedData.email).toBe('test@example.com');
+      const insertedData = (insertMock.mock.calls as any)[0]?.[0]?.[0] as any;
+      expect(insertedData?.email).toBe('test@example.com');
     });
 
     it('should reject duplicate emails', async () => {
@@ -281,8 +281,8 @@ describe('Waitlist API Integration Tests', () => {
       await waitlistPOST(request);
 
       // Verify status was set to 'pending'
-      const insertedData = insertMock.mock.calls[0][0][0];
-      expect(insertedData.status).toBe('pending');
+      const insertedData = (insertMock.mock.calls as any)[0]?.[0]?.[0] as any;
+      expect(insertedData?.status).toBe('pending');
     });
 
     it('should handle database insertion errors', async () => {
@@ -460,8 +460,8 @@ describe('Waitlist API Integration Tests', () => {
       await waitlistPOST(request);
 
       // Verify created_at was set
-      const insertedData = insertMock.mock.calls[0][0][0];
-      expect(insertedData.created_at).toBeDefined();
+      const insertedData = (insertMock.mock.calls as any)[0]?.[0]?.[0] as any;
+      expect(insertedData?.created_at).toBeDefined();
     });
   });
 

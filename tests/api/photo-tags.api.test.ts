@@ -429,9 +429,9 @@ describe('Photo Tags API Integration Tests', () => {
 
       await photoTagsPOST(request, { params: { mediaId: 'media-123' } });
 
-      const insertedData = insertMock.mock.calls[0][0];
-      expect(insertedData[0].tag_width).toBe(10);
-      expect(insertedData[0].tag_height).toBe(10);
+      const insertedData = (insertMock.mock.calls as any)[0]?.[0];
+      expect(insertedData?.[0]?.tag_width).toBe(10);
+      expect(insertedData?.[0]?.tag_height).toBe(10);
     });
 
     it('should handle admin impersonation', async () => {
@@ -596,11 +596,11 @@ describe('Photo Tags API Integration Tests', () => {
       await photoTagsPOST(request, { params: { mediaId: 'media-123' } });
 
       // Verify positions are preserved
-      const insertedData = insertMock.mock.calls[0][0];
-      expect(insertedData[0].x_position).toBe(50);
-      expect(insertedData[0].y_position).toBe(75);
-      expect(insertedData[0].tag_width).toBe(15);
-      expect(insertedData[0].tag_height).toBe(20);
+      const insertedData = (insertMock.mock.calls as any)[0]?.[0];
+      expect(insertedData?.[0]?.x_position).toBe(50);
+      expect(insertedData?.[0]?.y_position).toBe(75);
+      expect(insertedData?.[0]?.tag_width).toBe(15);
+      expect(insertedData?.[0]?.tag_height).toBe(20);
     });
 
     it('should delete only user own tags before inserting new ones', async () => {
