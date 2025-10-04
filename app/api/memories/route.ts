@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 import { v4 as uuidv4 } from 'uuid'
 import { getFileType } from '@/lib/utils'
 import { cookies } from 'next/headers'
+import { z } from 'zod'
+import { formatZodErrors, sanitizeInput } from '@/lib/validation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -119,24 +121,100 @@ export async function POST(request: NextRequest) {
     console.log('Creating memory for user:', user.userId)
 
     const formData = await request.formData()
-    const title = formData.get('title') as string
-    const textContent = formData.get('textContent') as string
-    const timeZoneId = formData.get('timeZoneId') as string
-    const customDate = formData.get('customDate') as string
-    const datePrecision = formData.get('datePrecision') as string
-    const approximateDate = formData.get('approximateDate') as string
-    const taggedPeopleJson = formData.get('taggedPeople') as string
-    const taggedPeople = taggedPeopleJson ? JSON.parse(taggedPeopleJson) : []
+    
+    // 🛡️ VALIDATION: Extract and validate form data
+    const rawTitle = formData.get('title') as string
+    const rawTextContent = formData.get('textContent') as string
+    const rawTimeZoneId = formData.get('timeZoneId') as string
+    const rawCustomDate = formData.get('customDate') as string
+    const rawDatePrecision = formData.get('datePrecision') as string
+    const rawApproximateDate = formData.get('approximateDate') as string
+    const rawTaggedPeopleJson = formData.get('taggedPeople') as string
     const files = formData.getAll('media') as File[]
 
-    console.log('Form data received:', {
+    // Parse tagged people JSON
+    let taggedPeople: string[] = [];
+    if (rawTaggedPeopleJson) {
+      try {
+        const parsed = JSON.parse(rawTaggedPeopleJson);
+        taggedPeople = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid tagged people format' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate input data
+    const memoryDataSchema = z.object({
+      title: z.string().max(200, 'Title too long (max 200 characters)').optional(),
+      textContent: z.string().min(1, 'Content is required').max(10000, 'Content too long (max 10,000 characters)'),
+      timeZoneId: z.string().uuid('Invalid chapter ID').optional(),
+      customDate: z.string().optional(),
+      datePrecision: z.enum(['exact', 'month', 'year', 'approximate']).optional(),
+      approximateDate: z.string().max(100, 'Approximate date too long').optional(),
+      taggedPeople: z.array(z.string()).max(50, 'Too many tagged people (max 50)').optional(),
+    });
+
+    // Validate all data
+    let validatedData;
+    try {
+      validatedData = memoryDataSchema.parse({
+        title: rawTitle || undefined,
+        textContent: rawTextContent,
+        timeZoneId: rawTimeZoneId || undefined,
+        customDate: rawCustomDate || undefined,
+        datePrecision: rawDatePrecision || undefined,
+        approximateDate: rawApproximateDate || undefined,
+        taggedPeople: taggedPeople.length > 0 ? taggedPeople : undefined,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = formatZodErrors(error);
+        console.error('❌ Validation error:', errorMessages);
+        return NextResponse.json(
+          { success: false, error: 'Invalid input', details: errorMessages },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+
+    // Sanitize text inputs to prevent XSS
+    const title = validatedData.title ? sanitizeInput(validatedData.title, 200) : null;
+    const textContent = sanitizeInput(validatedData.textContent, 10000);
+    const timeZoneId = validatedData.timeZoneId || null;
+    const customDate = validatedData.customDate || null;
+    const datePrecision = validatedData.datePrecision || null;
+    const approximateDate = validatedData.approximateDate ? sanitizeInput(validatedData.approximateDate, 100) : null;
+
+    // Validate file uploads
+    if (files.length > 10) {
+      return NextResponse.json(
+        { success: false, error: 'Too many files (max 10 per memory)' },
+        { status: 400 }
+      );
+    }
+
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        return NextResponse.json(
+          { success: false, error: `File ${file.name} is too large (max 10MB per file)` },
+          { status: 400 }
+        );
+      }
+    }
+
+    console.log('✅ Validated form data:', {
       title,
       textContent: textContent?.length || 0,
       timeZoneId,
       customDate,
       datePrecision,
       approximateDate,
-      filesCount: files.length
+      filesCount: files.length,
+      taggedPeopleCount: taggedPeople.length
     })
 
     // Verify user exists in database using service role client
