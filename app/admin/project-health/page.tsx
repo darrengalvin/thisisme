@@ -28,7 +28,8 @@ import {
   Target,
   Sparkles,
   PlayCircle,
-  GitBranch
+  GitBranch,
+  Ticket
 } from 'lucide-react'
 
 interface ScoreCardItem {
@@ -71,6 +72,13 @@ interface Improvement {
 export default function ProjectHealthPage() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
   const [expandedIssue, setExpandedIssue] = useState<number | null>(null)
+  const [loadingTickets, setLoadingTickets] = useState(false)
+  const [recentTickets, setRecentTickets] = useState<any[]>([])
+  const [ticketStats, setTicketStats] = useState({
+    resolvedThisWeek: 0,
+    resolvedThisMonth: 0,
+    criticalResolved: 0
+  })
 
   const overallScore = 8.7
   const overallGrade = '🟢 A-'

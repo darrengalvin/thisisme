@@ -20,7 +20,7 @@ export function createMockRequest(options: {
     cookies = {},
   } = options;
 
-  const requestInit: RequestInit = {
+  const requestInit: any = {
     method,
     headers: {
       'Content-Type': 'application/json',
