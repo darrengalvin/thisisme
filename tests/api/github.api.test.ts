@@ -92,8 +92,27 @@ describe('GitHub OAuth API Integration Tests', () => {
       NODE_ENV: 'test',
     });
 
-    fetchMock = global.fetch = vi.fn();
     vi.clearAllMocks();
+    
+    fetchMock = global.fetch = vi.fn();
+    
+    // Reset default mocks after clearAllMocks
+    vi.mocked(auth.verifyToken).mockResolvedValue({
+      userId: 'user-123',
+      email: 'test@example.com',
+    });
+    
+    vi.mocked(cookies).mockReturnValue({
+      get: vi.fn((name) => {
+        if (name === 'auth-token') {
+          return { value: 'valid-token' };
+        }
+        if (name === 'github_oauth_state') {
+          return { value: 'valid-state-123' };
+        }
+        return null;
+      }),
+    } as any);
   });
 
   afterEach(() => {

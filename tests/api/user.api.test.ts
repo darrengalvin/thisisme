@@ -53,6 +53,30 @@ describe('User Management API Integration Tests', () => {
     });
 
     vi.clearAllMocks();
+    
+    // Reset default mocks after clearAllMocks
+    vi.mocked(auth.verifyToken).mockResolvedValue({
+      userId: 'user-123',
+      email: 'test@example.com',
+    });
+    
+    vi.mocked(createClient).mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+            maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
+          })),
+        })),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => ({
+              maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
+            })),
+          })),
+        })),
+      })),
+    } as any);
   });
 
   afterEach(() => {

@@ -51,6 +51,30 @@ describe('Upload API Integration Tests', () => {
     });
 
     vi.clearAllMocks();
+    
+    // Reset default mocks after clearAllMocks
+    vi.mocked(auth.verifyToken).mockResolvedValue({
+      userId: 'user-123',
+      email: 'test@example.com',
+    });
+    
+    vi.mocked(cookies).mockReturnValue({
+      get: vi.fn((name) => {
+        if (name === 'auth-token') {
+          return { value: 'valid-token' };
+        }
+        return null;
+      }),
+    } as any);
+    
+    vi.mocked(createClient).mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(() => Promise.resolve({ data: { path: 'test-path' }, error: null })),
+          getPublicUrl: vi.fn(() => ({ data: { publicUrl: 'https://test.com/file.jpg' } })),
+        })),
+      },
+    } as any);
   });
 
   afterEach(() => {
