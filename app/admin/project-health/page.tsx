@@ -159,12 +159,12 @@ export default function ProjectHealthPage() {
 
   const scoreCard: ScoreCardItem[] = [
     { category: 'Performance', score: 8, grade: 'B', icon: Zap, color: 'text-green-600' },
-    { category: 'Security', score: 8, grade: 'B', icon: Shield, color: 'text-green-600' },
-    { category: 'Testing', score: 6, grade: 'C+', icon: TestTube, color: 'text-yellow-600' },
+    { category: 'Security', score: 6, grade: 'C+', icon: Shield, color: 'text-yellow-600' },
+    { category: 'Testing', score: 4, grade: 'D', icon: TestTube, color: 'text-orange-600' },
     { category: 'UI/UX', score: 7, grade: 'B-', icon: Palette, color: 'text-green-600' },
     { category: 'Code Quality', score: 7, grade: 'B-', icon: Code, color: 'text-green-600' },
     { category: 'Documentation', score: 6, grade: 'C+', icon: BookOpen, color: 'text-yellow-600' },
-    { category: 'Monitoring', score: 7, grade: 'B-', icon: Activity, color: 'text-green-600' },
+    { category: 'Monitoring', score: 4, grade: 'D', icon: Activity, color: 'text-orange-600' },
     { category: 'Accessibility', score: 4, grade: 'D', icon: Eye, color: 'text-orange-600' },
     { category: 'Mobile', score: 6, grade: 'C+', icon: Smartphone, color: 'text-yellow-600' },
     { category: 'Architecture', score: 7, grade: 'B-', icon: Box, color: 'text-green-600' },
@@ -190,68 +190,45 @@ const ratelimit = new Ratelimit({
 export async function middleware(request: NextRequest) {
   const { success } = await ratelimit.limit(ip)
   if (!success) return new Response('Too Many Requests', { status: 429 })
-}
-  const { email, password } = await request.json()
-  // ...
-}`,
-        good: `// middleware.ts
-import { Ratelimit } from "@upstash/ratelimit"
-import { Redis } from "@upstash/redis"
-
-const ratelimit = new Ratelimit({
-  redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(10, "10 s"),
-})
-
-export async function middleware(request: Request) {
-  const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1"
-  const { success } = await ratelimit.limit(ip)
-  
-  if (!success) {
-    return new Response("Too many requests", { status: 429 })
-  }
 }`
       }
     },
     {
-      title: '✅ COMPLETED: Input Validation',
+      title: '⚠️ PARTIAL: Input Validation',
       priority: 'critical',
       category: 'Security',
-      description: '✅ DONE: Zod validation schemas implemented for all API inputs.',
-      impact: 'Protected: SQL injection, XSS, data corruption prevented',
-      location: 'lib/validation.ts, app/api/memories/route.ts',
-      fix: '✅ Completed - Zod schemas with sanitization',
+      description: '⚠️ PARTIAL: Zod schemas created but NOT USED in API routes yet.',
+      impact: 'lib/validation.ts exists with schemas, but APIs still accept unvalidated input',
+      location: 'lib/validation.ts (created), app/api/memories/route.ts (NOT using it)',
+      fix: '🔨 TODO: Import and use validation schemas in all API routes',
       codeExample: {
-        bad: ``,
-        good: `// lib/validation.ts - IMPLEMENTED ✅
-import { z } from 'zod'
-
-const MemorySchema = z.object({
-  title: z.string().max(200).optional(),
-  textContent: z.string().min(1).max(10000),
-  timeZoneId: z.string().uuid().optional()
-})
+        bad: `// Current state - validation.ts exists but unused
+// app/api/memories/route.ts
+const formData = await request.formData()
+const title = formData.get('title') // NO VALIDATION`,
+        good: `// Need to implement
+import { MemorySchema } from '@/lib/validation'
 
 const data = MemorySchema.parse(await request.json())`
       }
     },
     {
-      title: '✅ COMPLETED: Error Monitoring',
+      title: '⚠️ PARTIAL: Error Monitoring',
       priority: 'critical',
       category: 'Monitoring',
-      description: '✅ DONE: Sentry error tracking configured for client, server, and edge.',
-      impact: 'Full visibility: Production errors tracked with context and user sessions',
-      location: 'sentry.client.config.ts, sentry.server.config.ts',
-      fix: '✅ Completed - Sentry installed (needs DSN)',
+      description: '⚠️ PARTIAL: Sentry config files created but DSN NOT configured.',
+      impact: 'Code ready but NOT ACTIVE - no errors being tracked yet',
+      location: 'sentry.client.config.ts (created), .env.local (DSN MISSING)',
+      fix: '🔨 TODO: Sign up for Sentry and add NEXT_PUBLIC_SENTRY_DSN to environment',
       codeExample: {
-        good: `// sentry.client.config.ts - IMPLEMENTED ✅
-import * as Sentry from '@sentry/nextjs'
-
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  tracesSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
-})`
+        bad: `// Current state - config exists but no DSN
+// .env.local - MISSING:
+# NEXT_PUBLIC_SENTRY_DSN=not-set`,
+        good: `// Need to add to .env.local:
+NEXT_PUBLIC_SENTRY_DSN=https://abc123@o123.ingest.sentry.io/456
+SENTRY_AUTH_TOKEN=your-token
+SENTRY_ORG=your-org
+SENTRY_PROJECT=your-project`
       }
     },
     {
