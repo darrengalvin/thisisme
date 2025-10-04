@@ -3,6 +3,100 @@
 import { useState } from 'react'
 
 const PRESET_TICKETS = [
+  // ============ CRITICAL INFRASTRUCTURE ISSUES ============
+  {
+    title: 'Implement API Rate Limiting',
+    description: `**Problem:** No rate limiting on API endpoints. Vulnerable to DDoS attacks and API abuse.
+
+**Impact:** Attackers can make unlimited requests, risk of server overload and downtime, potential cost explosion from malicious traffic.
+
+**Solution:**
+- Install Upstash Redis and @upstash/ratelimit
+- Implement rate limiting middleware
+- Set limit: 10 requests per 10 seconds per IP
+- Add 429 Too Many Requests responses
+
+**Files to Update:** middleware.ts, package.json`,
+    priority: "critical",
+    category: "security"
+  },
+  {
+    title: 'Add Input Validation with Zod',
+    description: `**Problem:** API endpoints accept unvalidated input. Risk of SQL injection, XSS, and data corruption.
+
+**Impact:** Attackers can inject malicious code, data corruption from oversized inputs, server crashes from malformed data.
+
+**Solution:**
+- Install Zod validation library
+- Create validation schemas for all API inputs
+- Add max lengths, type checks, and sanitization
+- Return 400 Bad Request for invalid inputs
+
+**Example:** z.object({ title: z.string().max(200), textContent: z.string().max(10000) })`,
+    priority: "critical",
+    category: "security"
+  },
+  {
+    title: 'Install Sentry Error Tracking',
+    description: `**Problem:** No error monitoring service configured. Flying blind in production.
+
+**Impact:** No visibility into production errors, can't track error trends, difficult to reproduce bugs, poor UX.
+
+**Solution:**
+- Sign up for Sentry (free tier)
+- Install @sentry/nextjs
+- Add Sentry config files
+- Configure error tracking and source maps
+- Set up alerts for critical errors`,
+    priority: "critical",
+    category: "monitoring"
+  },
+  {
+    title: 'Fix N+1 Query in MyPeopleEnhanced',
+    description: `**Problem:** Loading people list makes 1 query + N queries for each person's chapters. Extremely slow.
+
+**Location:** components/MyPeopleEnhanced.tsx
+
+**Impact:** Page load time scales with people count, database overload, poor UX, increased costs.
+
+**Solution:** Use Supabase joins to fetch all data in single query:
+.select('*, chapters:timezone_members(timezone:timezones(id, title))')`,
+    priority: "critical",
+    category: "performance"
+  },
+  {
+    title: 'Set Up Automated Testing with Vitest',
+    description: `**Problem:** No automated tests. Every deploy is a gamble.
+
+**Impact:** Regressions go unnoticed, fear of refactoring, difficult onboarding, higher costs, production bugs.
+
+**Solution:**
+- Install Vitest and @testing-library/react
+- Set up test configuration
+- Write tests for: Memory CRUD, Auth flows, Invitation system, Chapter management
+- Add CI/CD integration
+
+**Coverage Goals:** Memory 80%+, Auth 90%+, API 70%+`,
+    priority: "critical",
+    category: "testing"
+  },
+  {
+    title: 'Add Secret Key Rotation Policy',
+    description: `**Problem:** No secret key rotation policy. If SUPABASE_SERVICE_ROLE_KEY is compromised, no easy way to rotate.
+
+**Impact:** Compromised keys valid indefinitely, no audit trail, difficult revocation, compliance issues.
+
+**Solution:**
+- Document key rotation procedure (every 90 days)
+- Create backup admin accounts
+- Set up key rotation scripts
+- Add key usage logging
+- Create SECURITY.md with policies`,
+    priority: "high",
+    category: "security"
+  },
+  
+  // ============ EXISTING UX/BUG ISSUES ============
   {
     title: "Memory Edit Modal: Can't scroll to save button",
     description: "The edit memory modal is too large for smaller screens and users cannot scroll down to reach the save button. The modal should be redesigned to fit on screen without requiring scrolling, or proper scrolling should be implemented.",
@@ -104,12 +198,20 @@ export default function BulkTicketsPage() {
 
   return (
     <div className="container mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-8">Bulk Create Support Tickets</h1>
+      <h1 className="text-3xl font-bold mb-4">Bulk Create Support Tickets</h1>
+      <p className="text-gray-600 mb-8">
+        Create {PRESET_TICKETS.length} tickets: 6 critical infrastructure issues + {PRESET_TICKETS.length - 6} UX/bug fixes
+      </p>
+      
+      <div className="mb-8 bg-red-50 border border-red-200 rounded-lg p-4">
+        <h2 className="font-semibold text-red-900 mb-2">⚠️ Critical Issues First!</h2>
+        <p className="text-red-800 text-sm">
+          The first 6 tickets are CRITICAL infrastructure issues (rate limiting, validation, monitoring, testing) 
+          that must be addressed before production. These are prioritized over UX improvements.
+        </p>
+      </div>
       
       <div className="mb-8">
-        <p className="text-gray-600 mb-4">
-          This page will create {PRESET_TICKETS.length} support tickets for the reported issues.
-        </p>
         
         <button
           onClick={createTickets}
@@ -128,12 +230,13 @@ export default function BulkTicketsPage() {
               <h3 className="font-semibold">{ticket.title}</h3>
               <p className="text-sm text-gray-600 mt-1">{ticket.description}</p>
               <div className="flex gap-2 mt-2">
-                <span className={`px-2 py-1 rounded text-xs ${
+                <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                  ticket.priority === 'critical' ? 'bg-red-600 text-white' :
                   ticket.priority === 'high' ? 'bg-red-100 text-red-800' :
                   ticket.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                   'bg-green-100 text-green-800'
                 }`}>
-                  {ticket.priority}
+                  {ticket.priority.toUpperCase()}
                 </span>
                 <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
                   {ticket.category}
