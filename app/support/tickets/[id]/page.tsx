@@ -730,7 +730,7 @@ export default function TicketDetailPage() {
               <h2 className="font-semibold text-gray-900 mb-4">Activity</h2>
               
               <div className="space-y-3">
-                {ticket.history.length === 0 ? (
+                {!ticket.history || ticket.history.length === 0 ? (
                   <p className="text-gray-500 text-sm">No activity yet</p>
                 ) : (
                   ticket.history.slice(0, 10).map((entry) => (

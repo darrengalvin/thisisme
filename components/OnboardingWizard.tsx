@@ -889,8 +889,13 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
         isOpen={showExistingUserModal}
         type="info"
         title="Account Already Exists!"
-        message={
-          <div className="text-center">
+        message={`You already have an account with ${userData.email}. Choose what you'd like to do.`}
+        onClose={() => setShowExistingUserModal(false)}
+      />
+      {showExistingUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center">
             <p className="mb-3">You already have an account with <strong>{userData.email}</strong></p>
             <p className="text-sm text-gray-600 mb-4">Choose what you'd like to do:</p>
             <div className="space-y-2">
@@ -928,11 +933,8 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               </button>
             </div>
           </div>
-        }
-        actionText=""
-        onAction={() => {}}
-        onClose={() => setShowExistingUserModal(false)}
-      />
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes fadeIn {

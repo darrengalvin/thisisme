@@ -616,7 +616,7 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
         // Reset form
         setTitle('')
         setContent('')
-        setMemoryDate('')
+        setMemoryDate(null)
         setMemoryTime('')
         setApproximateDate('')
         setApproximateYear('')
@@ -1000,22 +1000,6 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
                           scrollableYearDropdown
                           maxDate={new Date()}
                           popperPlacement="bottom-start"
-                          popperModifiers={[
-                            {
-                              name: 'offset',
-                              options: {
-                                offset: [0, 8],
-                              },
-                            },
-                            {
-                              name: 'preventOverflow',
-                              options: {
-                                rootBoundary: 'viewport',
-                                tether: false,
-                                altAxis: true,
-                              },
-                            },
-                          ]}
                           required
                         />
                       </div>

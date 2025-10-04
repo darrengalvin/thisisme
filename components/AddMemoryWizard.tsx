@@ -507,22 +507,6 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                           scrollableYearDropdown
                           maxDate={new Date()}
                           popperPlacement="bottom-start"
-                          popperModifiers={[
-                            {
-                              name: 'offset',
-                              options: {
-                                offset: [0, 8],
-                              },
-                            },
-                            {
-                              name: 'preventOverflow',
-                              options: {
-                                rootBoundary: 'viewport',
-                                tether: false,
-                                altAxis: true,
-                              },
-                            },
-                          ]}
                           dayClassName={(date) => {
                             const today = new Date()
                             const isToday = date.toDateString() === today.toDateString()
@@ -585,22 +569,6 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                           yearDropdownItemNumber={100}
                           maxDate={new Date()}
                           popperPlacement="bottom-start"
-                          popperModifiers={[
-                            {
-                              name: 'offset',
-                              options: {
-                                offset: [0, 8],
-                              },
-                            },
-                            {
-                              name: 'preventOverflow',
-                              options: {
-                                rootBoundary: 'viewport',
-                                tether: false,
-                                altAxis: true,
-                              },
-                            },
-                          ]}
                         />
                       </div>
                       <div className="mt-2 text-xs text-slate-500">
