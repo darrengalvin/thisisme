@@ -803,6 +803,139 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
           )}
         </div>
 
+        {/* Active Development - Work in Progress */}
+        <div className="mb-8">
+          <button
+            onClick={() => toggleSection('active')}
+            className="w-full bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 flex items-center justify-between hover:bg-yellow-100 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <PlayCircle className="text-yellow-600 w-7 h-7" />
+              <div className="text-left">
+                <h2 className="text-xl font-bold text-yellow-900 flex items-center gap-2">
+                  Active Development
+                  <Clock className="w-5 h-5 text-yellow-600 animate-pulse" />
+                </h2>
+                <p className="text-sm text-yellow-700">
+                  Currently in progress • Feature branches • Testing phase
+                </p>
+              </div>
+            </div>
+            {expandedSection === 'active' ? <ChevronUp /> : <ChevronDown />}
+          </button>
+
+          {expandedSection === 'active' && (
+            <div className="mt-4 space-y-4">
+              {/* Active Work Banner */}
+              <div className="bg-gradient-to-r from-yellow-100 to-amber-100 border border-yellow-300 rounded-lg p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <Code className="w-6 h-6 text-yellow-700" />
+                  <h3 className="text-lg font-bold text-yellow-900">Work in Progress</h3>
+                </div>
+                <p className="text-yellow-800 text-sm leading-relaxed">
+                  These features are currently being developed on separate branches to ensure stability. 
+                  They will be merged to main after thorough testing.
+                </p>
+              </div>
+
+              {/* Rate Limiting - In Progress */}
+              <div className="bg-white rounded-lg shadow-md border-2 border-yellow-300 overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="bg-gradient-to-r from-yellow-50 to-white p-4 border-b border-yellow-200">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-red-100 text-red-800 border-red-300">
+                          CRITICAL
+                        </span>
+                        <span className="text-xs text-slate-500">security</span>
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-300">
+                          IN PROGRESS
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-1">🚦 Implement API Rate Limiting</h3>
+                      <p className="text-sm text-slate-600">
+                        Adding Upstash Redis-based rate limiting to protect against brute force attacks, 
+                        DDoS, and API abuse. Prevents cost explosion and improves security.
+                      </p>
+                    </div>
+                    <PlayCircle className="text-yellow-500 w-8 h-8 flex-shrink-0 animate-pulse" />
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-3">
+                  {/* Branch Info */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <GitBranch className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-semibold text-blue-900">Branch: feature/rate-limiting</span>
+                    </div>
+                    <p className="text-xs text-blue-700">
+                      Safe to test without affecting production • Merge after verification
+                    </p>
+                  </div>
+
+                  {/* Implementation Details */}
+                  <div>
+                    <div className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      What's Being Added:
+                    </div>
+                    <ul className="text-sm text-slate-600 bg-slate-50 p-3 rounded border border-slate-200 space-y-1">
+                      <li>✅ Upstash Redis integration (@upstash/ratelimit)</li>
+                      <li>✅ Standard rate limit: 60 requests/minute</li>
+                      <li>✅ Auth rate limit: 5 requests/15 minutes (prevents brute force)</li>
+                      <li>✅ Rate limit headers (X-RateLimit-*)</li>
+                      <li>✅ Graceful fallback for development</li>
+                      <li>✅ Complete setup documentation</li>
+                    </ul>
+                  </div>
+
+                  {/* Protected Endpoints */}
+                  <div>
+                    <div className="text-sm font-semibold text-red-700 mb-1 flex items-center gap-2">
+                      <Lock className="w-4 h-4" />
+                      Protected Endpoints:
+                    </div>
+                    <div className="text-sm text-slate-700 bg-red-50 p-3 rounded border border-red-200">
+                      <code className="text-xs">
+                        /api/auth/login • /api/auth/register • /api/auth/reset-password • All other APIs
+                      </code>
+                    </div>
+                  </div>
+
+                  {/* Next Steps */}
+                  <div>
+                    <div className="text-sm font-semibold text-green-700 mb-1 flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      Next Steps:
+                    </div>
+                    <ol className="text-sm text-slate-600 bg-green-50 p-3 rounded border border-green-200 space-y-1 list-decimal list-inside">
+                      <li>Sign up for Upstash (free tier)</li>
+                      <li>Create Redis database</li>
+                      <li>Add credentials to environment</li>
+                      <li>Test rate limiting locally</li>
+                      <li>Merge to main after verification</li>
+                    </ol>
+                  </div>
+
+                  {/* Documentation Link */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <a 
+                      href="https://github.com/darrengalvin/thisisme/blob/feature/rate-limiting/RATE_LIMITING_SETUP.md"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+                    >
+                      <FileCode className="w-4 h-4" />
+                      View Setup Documentation →
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Recently Resolved Tickets - Dynamic from Support System */}
         <div className="mb-8">
           <button
