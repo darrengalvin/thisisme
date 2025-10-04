@@ -99,14 +99,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Get the current ticket to record old stage
-    const { data: currentTicket } = await supabase
-      .from('tickets')
-      .select('stage')
-      .eq('id', ticketId)
-      .single();
-
     // Update ticket stage
+    // The database trigger will automatically log history
+    // (trigger uses creator_id as fallback when auth.uid() is null)
     const { data: ticket, error } = await supabase
       .from('tickets')
       .update({ 
@@ -120,22 +115,6 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Error updating ticket stage:', error);
       return NextResponse.json({ error: 'Failed to update ticket stage' }, { status: 500 });
-    }
-
-    // Log history entry with user_id
-    try {
-      await supabase
-        .from('ticket_history')
-        .insert({
-          ticket_id: ticketId,
-          user_id: userInfo.userId,
-          action: 'stage_move',
-          old_value: currentTicket?.stage || null,
-          new_value: newStage
-        });
-    } catch (historyError) {
-      console.error('Error logging ticket history:', historyError);
-      // Don't fail the request if history logging fails
     }
 
     return NextResponse.json({ ticket });
