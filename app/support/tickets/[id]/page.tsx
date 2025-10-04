@@ -574,6 +574,188 @@ export default function TicketDetailPage() {
               </div>
             </div>
 
+            {/* Quick Actions */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <h2 className="font-semibold text-gray-900 mb-4">Quick Actions</h2>
+              
+              <div className="space-y-4">
+                {/* Status Dropdown */}
+                <div>
+                  <label className="text-sm text-gray-500 block mb-2">Status</label>
+                  <select
+                    value={ticket.status}
+                    onChange={async (e) => {
+                      try {
+                        const response = await fetch(`/api/support/tickets/${params.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: e.target.value }),
+                        });
+                        if (response.ok) {
+                          fetchTicket();
+                        }
+                      } catch (error) {
+                        console.error('Error updating status:', error);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="review">In Review</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+
+                {/* Stage Dropdown */}
+                <div>
+                  <label className="text-sm text-gray-500 block mb-2">Stage</label>
+                  <select
+                    value={(ticket as any).stage || 'backlog'}
+                    onChange={async (e) => {
+                      try {
+                        const response = await fetch(`/api/admin/support/kanban`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ 
+                            ticketId: params.id, 
+                            newStage: e.target.value 
+                          }),
+                        });
+                        if (response.ok) {
+                          fetchTicket();
+                        }
+                      } catch (error) {
+                        console.error('Error updating stage:', error);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="backlog">Backlog</option>
+                    <option value="todo">To Do</option>
+                    <option value="doing">In Progress</option>
+                    <option value="testing">Testing</option>
+                    <option value="done">Done</option>
+                  </select>
+                </div>
+
+                {/* Priority Dropdown */}
+                <div>
+                  <label className="text-sm text-gray-500 block mb-2">Priority</label>
+                  <select
+                    value={ticket.priority}
+                    onChange={async (e) => {
+                      try {
+                        const response = await fetch(`/api/support/tickets/${params.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ priority: e.target.value }),
+                        });
+                        if (response.ok) {
+                          fetchTicket();
+                        }
+                      } catch (error) {
+                        console.error('Error updating priority:', error);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+
+                {/* Quick Action Buttons */}
+                <div className="pt-4 border-t border-gray-200 space-y-2">
+                  {ticket.status !== 'resolved' && (ticket as any).stage !== 'done' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          // Update both status and stage
+                          await fetch(`/api/support/tickets/${params.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: 'resolved' }),
+                          });
+                          await fetch(`/api/admin/support/kanban`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ 
+                              ticketId: params.id, 
+                              newStage: 'done' 
+                            }),
+                          });
+                          fetchTicket();
+                        } catch (error) {
+                          console.error('Error marking as done:', error);
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Mark as Done
+                    </button>
+                  )}
+                  
+                  {ticket.status !== 'in_progress' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await fetch(`/api/support/tickets/${params.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: 'in_progress' }),
+                          });
+                          await fetch(`/api/admin/support/kanban`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ 
+                              ticketId: params.id, 
+                              newStage: 'doing' 
+                            }),
+                          });
+                          fetchTicket();
+                        } catch (error) {
+                          console.error('Error starting work:', error);
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <PlayCircle className="w-4 h-4" />
+                      Start Working
+                    </button>
+                  )}
+                  
+                  {(ticket.status === 'resolved' || ticket.status === 'in_progress') && ticket.status !== 'closed' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await fetch(`/api/support/tickets/${params.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: 'closed' }),
+                          });
+                          fetchTicket();
+                        } catch (error) {
+                          console.error('Error closing ticket:', error);
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      Close Ticket
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="font-semibold text-gray-900 mb-4">Activity</h2>
               
