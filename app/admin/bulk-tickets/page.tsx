@@ -96,49 +96,6 @@ const PRESET_TICKETS = [
     category: "security"
   },
   
-  // ============ EXISTING UX/BUG ISSUES ============
-  {
-    title: "Memory Edit Modal: Can't scroll to save button",
-    description: "The edit memory modal is too large for smaller screens and users cannot scroll down to reach the save button. The modal should be redesigned to fit on screen without requiring scrolling, or proper scrolling should be implemented.",
-    priority: "high",
-    category: "bug"
-  },
-    {
-    title: "Replace view dropdown with toggle buttons",
-    description: "The current view selection uses a dropdown menu. Users would prefer toggle buttons for easier view switching between different memory layouts (grid, timeline, feed, etc.).",
-    priority: "medium",
-    category: "improvement"
-  },
-  {
-    title: "Chapter view memories not sorting chronologically",
-    description: "In the chapter view, memories are not being sorted in chronological order. Users expect memories to be displayed from oldest to newest or with proper chronological organization.",
-    priority: "high",
-    category: "bug"
-  },
-  {
-    title: "Prevent closing chapter without saving changes",
-    description: "Users can close a chapter (using X button) without saving their changes, resulting in data loss. There should be a confirmation dialog or auto-save functionality to prevent accidental loss of unsaved work.",
-    priority: "high",
-    category: "bug"
-  },
-  {
-    title: "Allow creating memories without requiring pictures",
-    description: "The memory creation process currently requires a picture to be uploaded. Users should be able to create text-only memories without being forced to add images.",
-    priority: "medium",
-    category: "improvement"
-  },
-  {
-    title: "Enable multiple picture uploads for memories",
-    description: "Currently users can only upload one picture per memory. The system should support multiple image uploads so users can add several photos to a single memory entry.",
-    priority: "medium",
-    category: "improvement"
-  },
-  {
-    title: "Restore/implement dictation feature",
-    description: "The dictation feature for voice-to-text memory creation is not available. This feature should be implemented or restored to allow users to create memories using voice input.",
-    priority: "medium",
-    category: "feature"
-  }
 ]
 
 export default function BulkTicketsPage() {
@@ -200,14 +157,14 @@ export default function BulkTicketsPage() {
     <div className="container mx-auto p-8">
       <h1 className="text-3xl font-bold mb-4">Bulk Create Support Tickets</h1>
       <p className="text-gray-600 mb-8">
-        Create {PRESET_TICKETS.length} tickets: 6 critical infrastructure issues + {PRESET_TICKETS.length - 6} UX/bug fixes
+        Create {PRESET_TICKETS.length} critical infrastructure tickets from project health analysis
       </p>
       
       <div className="mb-8 bg-red-50 border border-red-200 rounded-lg p-4">
-        <h2 className="font-semibold text-red-900 mb-2">⚠️ Critical Issues First!</h2>
+        <h2 className="font-semibold text-red-900 mb-2">⚠️ Production-Blocking Issues</h2>
         <p className="text-red-800 text-sm">
-          The first 6 tickets are CRITICAL infrastructure issues (rate limiting, validation, monitoring, testing) 
-          that must be addressed before production. These are prioritized over UX improvements.
+          These {PRESET_TICKETS.length} tickets are CRITICAL security, performance, and monitoring issues 
+          identified in the project health analysis. They must be addressed before production deployment.
         </p>
       </div>
       
