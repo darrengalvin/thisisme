@@ -39,6 +39,25 @@ describe('Waitlist API Integration Tests', () => {
     });
 
     vi.clearAllMocks();
+    
+    // Reset default Supabase mock after clearAllMocks
+    vi.mocked(createClient).mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+          })),
+        })),
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(() => Promise.resolve({ 
+              data: { id: 'waitlist-1', email: 'test@example.com', status: 'pending' }, 
+              error: null 
+            })),
+          })),
+        })),
+      })),
+    } as any);
   });
 
   afterEach(() => {
