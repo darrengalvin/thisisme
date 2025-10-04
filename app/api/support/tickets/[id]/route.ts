@@ -98,7 +98,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { title, description, category, priority, screenshot_url, metadata } = body;
+    const { title, description, category, priority, status, stage, screenshot_url, metadata } = body;
 
     // Get existing ticket to check permissions
     const { data: existingTicket, error: fetchError } = await supabase
@@ -124,18 +124,21 @@ export async function PATCH(
       return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
     }
 
+    // Build update object with only provided fields
+    const updateData: any = { updated_at: new Date().toISOString() };
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (category !== undefined) updateData.category = category;
+    if (priority !== undefined) updateData.priority = priority;
+    if (status !== undefined) updateData.status = status;
+    if (stage !== undefined) updateData.stage = stage;
+    if (screenshot_url !== undefined) updateData.screenshot_url = screenshot_url;
+    if (metadata !== undefined) updateData.metadata = metadata;
+
     // Update ticket
     const { data: updatedTicket, error: updateError } = await supabase
       .from('tickets')
-      .update({
-        title,
-        description,
-        category,
-        priority,
-        screenshot_url,
-        metadata,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', params.id)
       .select(`
         *,
