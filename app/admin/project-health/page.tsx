@@ -27,7 +27,9 @@ import {
   Award,
   Target,
   Sparkles,
-  Ticket
+  Ticket,
+  PlayCircle,
+  GitBranch
 } from 'lucide-react'
 
 interface ScoreCardItem {
