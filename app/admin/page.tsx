@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Settings, Ticket, BarChart3, Plus, Shield, Users, Brain, Mail, TestTube } from 'lucide-react'
+import { Settings, Ticket, BarChart3, Plus, Shield, Users, Brain, Mail, TestTube, Activity, Sparkles } from 'lucide-react'
 
 export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
@@ -115,6 +115,33 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Project Health - FEATURED */}
+          <Link href="/admin/project-health" className="group md:col-span-2 lg:col-span-1">
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg shadow-md border-2 border-green-300 p-6 hover:shadow-lg transition-shadow relative overflow-hidden">
+              <div className="absolute top-2 right-2">
+                <Sparkles className="w-5 h-5 text-yellow-500" />
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <Activity className="w-8 h-8 text-green-600 mr-3" />
+                  <h3 className="text-lg font-semibold text-gray-900">Project Health</h3>
+                </div>
+                <span className="text-green-600 group-hover:text-green-700 font-bold">→</span>
+              </div>
+              <p className="text-gray-700 font-medium mb-2">
+                Comprehensive platform analysis & improvements
+              </p>
+              <div className="flex gap-2 text-xs">
+                <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full font-semibold">
+                  4 Improvements Done
+                </span>
+                <span className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full font-semibold">
+                  Critical Issues Tracked
+                </span>
+              </div>
+            </div>
+          </Link>
+
           {/* Support Management */}
           <Link href="/admin/support" className="group">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">

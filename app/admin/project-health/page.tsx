@@ -67,9 +67,32 @@ interface Improvement {
 
 export default function ProjectHealthPage() {
   const [expandedSection, setExpandedSection] = useState<string | null>('critical')
+  const [generatingTickets, setGeneratingTickets] = useState(false)
+  const [ticketResult, setTicketResult] = useState<string | null>(null)
 
   const overallScore = 5.9
   const overallGrade = '🟡 C'
+  
+  const generateTickets = async () => {
+    setGeneratingTickets(true)
+    setTicketResult(null)
+    try {
+      const response = await fetch('/api/admin/generate-health-tickets', {
+        method: 'POST',
+        credentials: 'include'
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setTicketResult(`✅ Success! Created ${data.created} tickets, skipped ${data.skipped} existing ones.`)
+      } else {
+        setTicketResult(`❌ Error: ${data.error}`)
+      }
+    } catch (error) {
+      setTicketResult(`❌ Error: ${error}`)
+    } finally {
+      setGeneratingTickets(false)
+    }
+  }
 
   const scoreCard: ScoreCardItem[] = [
     { category: 'Performance', score: 6, grade: 'C+', icon: Zap, color: 'text-yellow-600' },
@@ -378,6 +401,30 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
               <div className="text-4xl font-bold text-yellow-600">{overallScore}/10</div>
               <div className="text-lg font-semibold text-yellow-700">{overallGrade}</div>
             </div>
+          </div>
+          
+          {/* Action Bar */}
+          <div className="mt-6 flex items-center justify-between">
+            <div>
+              <button
+                onClick={generateTickets}
+                disabled={generatingTickets}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Ticket className="w-5 h-5" />
+                {generatingTickets ? 'Creating Tickets...' : 'Generate Support Tickets from Critical Issues'}
+              </button>
+              {ticketResult && (
+                <p className="mt-2 text-sm">{ticketResult}</p>
+              )}
+            </div>
+            <a
+              href="/admin/support"
+              className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+            >
+              View All Tickets
+              <ChevronRight className="w-4 h-4" />
+            </a>
           </div>
         </div>
       </div>
