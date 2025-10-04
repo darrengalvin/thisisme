@@ -4,13 +4,20 @@ import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
 // Create rate limiter instances
-// Note: These will only work if UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are set
+// Note: These will work with either Vercel KV or Upstash Redis
 let ratelimit: Ratelimit | null = null;
 let strictRatelimit: Ratelimit | null = null;
 
-// Initialize rate limiters only if environment variables are present
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  const redis = Redis.fromEnv();
+// Initialize rate limiters if environment variables are present
+// Supports both Vercel KV (KV_REST_API_URL) and Upstash (UPSTASH_REDIS_REST_URL)
+const redisUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+const redisToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+
+if (redisUrl && redisToken) {
+  const redis = new Redis({
+    url: redisUrl,
+    token: redisToken,
+  });
 
   // Standard rate limit: 60 requests per minute
   ratelimit = new Ratelimit({
@@ -30,9 +37,9 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
 }
 
 export async function middleware(request: NextRequest) {
-  // Skip rate limiting if Upstash is not configured (development mode)
+  // Skip rate limiting if Redis is not configured (development mode)
   if (!ratelimit || !strictRatelimit) {
-    console.warn('⚠️ Rate limiting disabled: Upstash Redis not configured');
+    console.warn('⚠️ Rate limiting disabled: Vercel KV or Upstash Redis not configured');
     return NextResponse.next();
   }
 
