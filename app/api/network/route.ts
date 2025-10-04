@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { verifyToken } from '@/lib/auth'
+import { addPersonSchema, formatZodErrors, sanitizeInput } from '@/lib/validation'
+import { z } from 'zod'
+import * as Sentry from '@sentry/nextjs'
 
 // Get user's personal network
 export async function GET(request: NextRequest) {
@@ -51,6 +54,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('❌ NETWORK API: Failed to fetch user network:', error)
+    // 🛡️ SECURITY: Track errors in Sentry
+    Sentry.captureException(error, {
+      tags: { api: 'network' },
+      extra: { message: 'Failed to fetch user network' }
+    })
     return NextResponse.json(
       { error: 'Failed to fetch network' },
       { status: 500 }
@@ -74,13 +82,28 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { person_name, person_email, person_phone, relationship, notes, photo_url, selectedChapters = [] } = body
     
-    // Note: person_phone is not stored in the database schema, so we'll ignore it for now
-
-    if (!person_name?.trim()) {
-      return NextResponse.json({ error: 'Person name is required' }, { status: 400 })
+    // 🛡️ SECURITY: Validate and sanitize input with Zod
+    let validatedData
+    try {
+      validatedData = addPersonSchema.parse(body)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = formatZodErrors(error)
+        return NextResponse.json(
+          { error: 'Invalid input', details: errorMessages },
+          { status: 400 }
+        )
+      }
+      throw error
     }
+
+    const { person_name, person_email, person_phone, relationship, notes, photo_url, selectedChapters = [] } = validatedData
+    
+    // Sanitize text inputs to prevent XSS
+    const sanitizedName = sanitizeInput(person_name, 100)
+    const sanitizedRelationship = relationship ? sanitizeInput(relationship, 50) : null
+    const sanitizedNotes = notes ? sanitizeInput(notes, 1000) : null
 
     // Check if person with this email is already a platform user
     let person_user_id = null
@@ -96,15 +119,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 🛡️ SECURITY: Use sanitized data for database insert
     const { data: newPerson, error } = await supabaseAdmin
       .from('user_networks')
       .insert({
         owner_id: user.userId,
-        person_name: person_name.trim(),
+        person_name: sanitizedName,
         person_email: person_email?.toLowerCase(),
-        relationship: relationship?.trim(),
-        photo_url: photo_url?.trim(),
-        pending_chapter_invitations: selectedChapters
+        relationship: sanitizedRelationship,
+        photo_url: photo_url,
+        pending_chapter_invitations: selectedChapters,
+        person_user_id
       })
       .select()
       .single()
@@ -117,6 +142,11 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Failed to add person to network:', error)
+    // 🛡️ SECURITY: Track errors in Sentry
+    Sentry.captureException(error, {
+      tags: { api: 'network/post' },
+      extra: { message: 'Failed to add person to network' }
+    })
     return NextResponse.json(
       { 
         error: 'Failed to add person',

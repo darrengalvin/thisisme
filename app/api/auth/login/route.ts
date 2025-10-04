@@ -1,26 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyPassword, generateToken } from '@/lib/auth'
-import { validateEmail } from '@/lib/utils'
+import { loginSchema, formatZodErrors } from '@/lib/validation'
+import { z } from 'zod'
+import * as Sentry from '@sentry/nextjs'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const body = await request.json()
 
-    // Validation
-    if (!email || !password) {
-      return NextResponse.json(
-        { success: false, error: 'Email and password are required' },
-        { status: 400 }
-      )
+    // 🛡️ SECURITY: Validate input with Zod
+    let validatedData
+    try {
+      validatedData = loginSchema.parse(body)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = formatZodErrors(error)
+        return NextResponse.json(
+          { success: false, error: 'Invalid input', details: errorMessages },
+          { status: 400 }
+        )
+      }
+      throw error
     }
 
-    if (!validateEmail(email)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid email format' },
-        { status: 400 }
-      )
-    }
+    const { email, password } = validatedData
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -65,6 +69,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Login error:', error)
+    // 🛡️ SECURITY: Track errors in Sentry for monitoring
+    Sentry.captureException(error, {
+      tags: { api: 'auth/login' },
+      extra: { message: 'User login failed' }
+    })
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

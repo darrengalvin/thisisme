@@ -49,6 +49,16 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // Skip rate limiting for test/debug endpoints
+  if (
+    pathname.startsWith('/api/test-sentry') ||
+    pathname.startsWith('/api/debug') ||
+    pathname.startsWith('/api/admin/project-health') ||
+    pathname.startsWith('/sentry-example-page')
+  ) {
+    return NextResponse.next();
+  }
+
   // Determine which rate limiter to use based on the endpoint
   let limiter = ratelimit;
   let limitType = 'standard';

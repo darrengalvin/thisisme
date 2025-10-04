@@ -1,39 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { hashPassword, generateToken } from '@/lib/auth'
-import { validateEmail, validatePassword } from '@/lib/utils'
 import { TIMEZONE_TYPES, MEMBER_ROLES } from '@/lib/types'
+import { registerSchema, formatZodErrors, sanitizeInput } from '@/lib/validation'
+import { z } from 'zod'
+import * as Sentry from '@sentry/nextjs'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, confirmPassword } = await request.json()
+    const body = await request.json()
 
-    // Validation
-    if (!email || !password || !confirmPassword) {
-      return NextResponse.json(
-        { success: false, error: 'All fields are required' },
-        { status: 400 }
-      )
+    // 🛡️ SECURITY: Validate and sanitize input with Zod
+    const registerDataSchema = registerSchema.extend({
+      confirmPassword: z.string().min(1, 'Confirm password is required')
+    })
+
+    let validatedData
+    try {
+      validatedData = registerDataSchema.parse(body)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = formatZodErrors(error)
+        return NextResponse.json(
+          { success: false, error: 'Invalid input', details: errorMessages },
+          { status: 400 }
+        )
+      }
+      throw error
     }
 
-    if (!validateEmail(email)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid email format' },
-        { status: 400 }
-      )
-    }
+    const { email, password, confirmPassword } = validatedData
 
+    // Check password match
     if (password !== confirmPassword) {
       return NextResponse.json(
         { success: false, error: 'Passwords do not match' },
-        { status: 400 }
-      )
-    }
-
-    const passwordValidation = validatePassword(password)
-    if (!passwordValidation.isValid) {
-      return NextResponse.json(
-        { success: false, error: passwordValidation.errors[0] },
         { status: 400 }
       )
     }
@@ -101,6 +102,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Registration error:', error)
+    // 🛡️ SECURITY: Track errors in Sentry for monitoring
+    Sentry.captureException(error, {
+      tags: { api: 'auth/register' },
+      extra: { message: 'User registration failed' }
+    })
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
