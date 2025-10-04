@@ -39,7 +39,11 @@ export default function AdminDashboard() {
       setSetupResult('Setting up admin access...')
       const response = await fetch('/api/admin/setup-admin', {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
       })
       
       const data = await response.json()

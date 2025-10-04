@@ -4,7 +4,17 @@ import { createClient } from '@supabase/supabase-js'
 // This endpoint sets up any email as an admin user
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // Try to parse JSON body, but don't fail if it's empty
+    let body: any = {}
+    try {
+      const text = await request.text()
+      if (text) {
+        body = JSON.parse(text)
+      }
+    } catch (e) {
+      // Empty body is fine
+    }
+    
     const { email } = body
     
     // If no email provided, default to dgalvin@yourcaio.co.uk for backwards compatibility
