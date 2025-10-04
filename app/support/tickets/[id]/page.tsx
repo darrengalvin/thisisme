@@ -702,7 +702,7 @@ export default function TicketDetailPage() {
                     </button>
                   )}
                   
-                  {(ticket.status === 'resolved' || ticket.status === 'in_progress') && ticket.status !== 'closed' && (
+                  {(ticket.status === 'resolved' || ticket.status === 'in_progress') && (
                     <button
                       onClick={async () => {
                         try {
