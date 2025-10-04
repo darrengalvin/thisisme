@@ -18,9 +18,14 @@ import {
   Filter,
   Plus,
   ChevronRight,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Edit,
+  Trash2,
+  ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
+import CreateTicketModal from '@/components/CreateTicketModal';
+import EditTicketModal from '@/components/EditTicketModal';
 
 interface Ticket {
   id: string;
@@ -73,11 +78,54 @@ export default function UnifiedSupportPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState<Ticket | null>(null);
+  const [deletingTicket, setDeletingTicket] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     fetchKanbanData();
   }, []);
+
+  const handleEditTicket = (ticket: Ticket) => {
+    setEditingTicket(ticket);
+    setShowEditModal(true);
+    setSelectedTicket(null); // Close detail modal
+  };
+
+  const handleDeleteTicket = (ticket: Ticket) => {
+    setTicketToDelete(ticket);
+    setShowDeleteConfirm(true);
+    setSelectedTicket(null); // Close detail modal
+  };
+
+  const confirmDeleteTicket = async () => {
+    if (!ticketToDelete) return;
+    
+    setDeletingTicket(ticketToDelete.id);
+    try {
+      const response = await fetch(`/api/support/tickets/${ticketToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchKanbanData(); // Refresh
+        setShowDeleteConfirm(false);
+        setTicketToDelete(null);
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete ticket: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting ticket:', error);
+      alert('Failed to delete ticket');
+    } finally {
+      setDeletingTicket(null);
+    }
+  };
 
   const fetchKanbanData = async () => {
     try {
@@ -217,9 +265,20 @@ export default function UnifiedSupportPage() {
               </p>
             </div>
             
-            {/* View Toggle */}
-            <div className="flex items-center gap-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              {/* Create Ticket Button */}
               <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                <Plus className="w-5 h-5" />
+                Create Ticket
+              </button>
+              
+              {/* View Toggle */}
+              <div className="flex items-center gap-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+                <button
                 onClick={() => setView('kanban')}
                 className={`flex items-center gap-2 px-4 py-2 rounded transition-colors ${
                   view === 'kanban' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
@@ -237,6 +296,7 @@ export default function UnifiedSupportPage() {
                 <List className="w-4 h-4" />
                 List
               </button>
+              </div>
             </div>
           </div>
 
@@ -529,18 +589,115 @@ export default function UnifiedSupportPage() {
               </div>
             </div>
 
-            <div className="border-t border-gray-200 p-6 bg-gray-50 flex justify-between items-center">
-              <Link
-                href={`/support/tickets/${selectedTicket.id}`}
-                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-              >
-                View Full Details →
-              </Link>
+            <div className="border-t border-gray-200 p-6 bg-gray-50">
+              <div className="flex justify-between items-center mb-4">
+                <Link
+                  href={`/support/tickets/${selectedTicket.id}`}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  View Full Details
+                </Link>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEditTicket(selectedTicket)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTicket(selectedTicket)}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setSelectedTicket(null)}
+                    className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Ticket Modal */}
+      <CreateTicketModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          setShowCreateModal(false);
+          fetchKanbanData();
+        }}
+      />
+
+      {/* Edit Ticket Modal */}
+      {editingTicket && (
+        <EditTicketModal
+          ticket={editingTicket}
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingTicket(null);
+          }}
+          onSuccess={() => {
+            setShowEditModal(false);
+            setEditingTicket(null);
+            fetchKanbanData();
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && ticketToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Ticket</h3>
+                <p className="text-gray-600 text-sm">
+                  Are you sure you want to delete "<strong>{ticketToDelete.title}</strong>"? 
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3">
               <button
-                onClick={() => setSelectedTicket(null)}
-                className="bg-gray-900 text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setTicketToDelete(null);
+                }}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                disabled={deletingTicket !== null}
               >
-                Close
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteTicket}
+                disabled={deletingTicket !== null}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400 flex items-center gap-2"
+              >
+                {deletingTicket ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </>
+                )}
               </button>
             </div>
           </div>
