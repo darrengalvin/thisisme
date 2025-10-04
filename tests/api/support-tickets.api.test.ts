@@ -66,6 +66,22 @@ describe('Support Tickets API Integration Tests', () => {
     });
 
     vi.clearAllMocks();
+    
+    // Reset default cookies mock after clearAllMocks
+    vi.mocked(cookies).mockReturnValue({
+      get: vi.fn((name) => {
+        if (name === 'auth-token') {
+          return { value: 'valid-token' };
+        }
+        return null;
+      }),
+    } as any);
+    
+    // Reset default auth mock
+    vi.mocked(auth.verifyToken).mockResolvedValue({ 
+      userId: 'user-123', 
+      email: 'test@example.com' 
+    });
   });
 
   afterEach(() => {

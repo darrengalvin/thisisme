@@ -16,6 +16,12 @@ vi.mock('@/lib/db', () => ({
       findUnique: vi.fn(),
       create: vi.fn(),
     },
+    timeZone: {
+      create: vi.fn(),
+    },
+    timeZoneMember: {
+      create: vi.fn(),
+    },
   },
 }));
 
@@ -67,6 +73,25 @@ describe('Authentication API Integration Tests', () => {
         single: vi.fn(() => Promise.resolve({ data: null, error: null })),
       })),
     }));
+    
+    // Setup default Prisma mocks for timezone creation
+    vi.mocked(prisma.timeZone.create).mockResolvedValue({
+      id: 'timezone-123',
+      title: 'My Personal Memories',
+      description: 'Your private collection of memories',
+      type: 'private',
+      creatorId: 'new-user-id',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
+    
+    vi.mocked(prisma.timeZoneMember.create).mockResolvedValue({
+      id: 'member-123',
+      timeZoneId: 'timezone-123',
+      userId: 'new-user-id',
+      role: 'creator',
+      joinedAt: new Date(),
+    } as any);
   });
 
   afterEach(() => {
