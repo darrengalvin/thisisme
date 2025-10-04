@@ -6,25 +6,12 @@ import CreateTicketModal from '@/components/CreateTicketModal';
 import EditTicketModal from '@/components/EditTicketModal';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import type { Ticket as TicketType } from '@/types/support';
 
-interface Ticket {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  category: 'bug' | 'feature' | 'question' | 'improvement';
-  created_at: string;
-  updated_at: string;
-  creator: { email: string };
-  assignee?: { email: string };
-  comments?: { count: number }[];
-  screenshot_url?: string;
-  metadata?: {
-    has_screenshot?: boolean;
-    screenshot_url?: string;
-    visual_context?: string;
-  };
+type Ticket = TicketType & {
+  creator: { id: string; email: string };
+  assignee?: { id: string; email: string };
+  comments_count?: number;
 }
 
 export default function SupportPage() {

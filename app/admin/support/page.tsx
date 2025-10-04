@@ -35,25 +35,11 @@ import type {
   TicketCategory 
 } from '@/types/support';
 
-// Using imported types with local interface for additional fields
-interface Ticket extends TicketType {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  priority: string;
-  category: string;
-  stage: string;
-  created_at: string;
-  updated_at?: string;
-  creator: { email: string };
-  assignee?: { email: string };
+// Using imported types - TicketType already has all fields we need
+type Ticket = TicketType & {
+  creator: { id: string; email: string };
+  assignee?: { id: string; email: string };
   comments?: { count: number }[];
-  screenshot_url?: string;
-  metadata?: {
-    has_screenshot?: boolean;
-    screenshot_url?: string;
-  };
 }
 
 interface KanbanData {
@@ -174,7 +160,7 @@ export default function UnifiedSupportPage() {
     let ticket: Ticket | undefined;
     
     for (const [stage, tickets] of Object.entries(kanbanData)) {
-      ticket = tickets.find(t => t.id === draggedTicket);
+      ticket = tickets.find((t: Ticket) => t.id === draggedTicket);
       if (ticket) {
         sourceStage = stage;
         break;
@@ -191,7 +177,7 @@ export default function UnifiedSupportPage() {
       .filter(t => t.id !== draggedTicket);
     newKanbanData[targetStage as keyof KanbanData] = [
       ...newKanbanData[targetStage as keyof KanbanData],
-      { ...ticket, stage: targetStage }
+      { ...ticket, stage: targetStage as TicketStage }
     ];
           
           setKanbanData(newKanbanData);
@@ -517,124 +503,7 @@ export default function UnifiedSupportPage() {
         )}
       </div>
 
-      {/* Ticket Detail Modal - Removed, now goes directly to full detail page */}
-      {false && selectedTicket && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-start justify-between p-6 border-b border-gray-200">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className={`text-xs px-3 py-1 rounded-full font-semibold ${getPriorityColor(selectedTicket.priority)}`}>
-                    {selectedTicket.priority.toUpperCase()}
-                  </span>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
-                    {selectedTicket.category}
-                  </span>
-                  <span className="text-xs text-gray-500">#{selectedTicket.id.slice(0, 8)}</span>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900">{selectedTicket.title}</h2>
-              </div>
-              <button
-                onClick={() => setSelectedTicket(null)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
-                <div className="prose prose-sm max-w-none text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
-                  {selectedTicket.description}
-                </div>
-              </div>
-
-              {selectedTicket.metadata?.screenshot_url && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Screenshot</h3>
-                  <img 
-                    src={selectedTicket.metadata.screenshot_url} 
-                    alt="Ticket screenshot" 
-                    className="rounded-lg border border-gray-200 max-w-full"
-                  />
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Created By</h3>
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">{selectedTicket.creator.email}</span>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Created</h3>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">
-                      {new Date(selectedTicket.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Current Status</h3>
-                <div className="flex items-center gap-2">
-                  {STAGES.find(s => s.id === selectedTicket.stage)?.icon && (
-                    <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded">
-                      {(() => {
-                        const StageIcon = STAGES.find(s => s.id === selectedTicket.stage)!.icon;
-                        return <StageIcon className="w-4 h-4 text-gray-600" />;
-                      })()}
-                      <span className="text-sm font-medium text-gray-700">
-                        {STAGES.find(s => s.id === selectedTicket.stage)?.title}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <div className="border-t border-gray-200 p-6 bg-gray-50">
-              <div className="flex justify-between items-center mb-4">
-                <Link
-                  href={`/support/tickets/${selectedTicket.id}`}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  View Full Details
-                </Link>
-                
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleEditTicket(selectedTicket)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteTicket(selectedTicket)}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
-                  <button
-                    onClick={() => setSelectedTicket(null)}
-                    className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Ticket Detail Modal - Removed, now goes directly to full detail page via handleTicketClick */}
 
       {/* Create Ticket Modal */}
       <CreateTicketModal

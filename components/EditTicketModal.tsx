@@ -3,21 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Upload, Image as ImageIcon, AlertCircle, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-
-interface Ticket {
-  id: string
-  title: string
-  description: string
-  category: 'bug' | 'feature' | 'question' | 'improvement'
-  priority: 'low' | 'medium' | 'high' | 'critical'
-  status: string
-  screenshot_url?: string
-  metadata?: {
-    has_screenshot?: boolean
-    screenshot_url?: string
-    visual_context?: string
-  }
-}
+import type { Ticket, TicketCategory, TicketPriority } from '@/types/support'
 
 interface EditTicketModalProps {
   ticket: Ticket | null
@@ -29,8 +15,8 @@ interface EditTicketModalProps {
 export default function EditTicketModal({ ticket, isOpen, onClose, onSuccess }: EditTicketModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState<'bug' | 'feature' | 'question' | 'improvement'>('bug')
-  const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium')
+  const [category, setCategory] = useState<TicketCategory>('bug')
+  const [priority, setPriority] = useState<TicketPriority>('medium')
   const [screenshot, setScreenshot] = useState<File | null>(null)
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
   const [existingScreenshot, setExistingScreenshot] = useState<string | null>(null)
@@ -219,6 +205,10 @@ export default function EditTicketModal({ ticket, isOpen, onClose, onSuccess }: 
                   <option value="feature">✨ Feature Request</option>
                   <option value="question">❓ Question</option>
                   <option value="improvement">🔧 Improvement</option>
+                  <option value="security">🔒 Security</option>
+                  <option value="performance">⚡ Performance</option>
+                  <option value="monitoring">📊 Monitoring</option>
+                  <option value="testing">🧪 Testing</option>
                 </select>
               </div>
               

@@ -100,7 +100,7 @@ export default function ImprovedSupportPage() {
     let ticket: Ticket | undefined;
     
     for (const [stage, tickets] of Object.entries(kanbanData)) {
-      ticket = tickets.find(t => t.id === draggedTicket);
+      ticket = tickets.find((t: Ticket) => t.id === draggedTicket);
       if (ticket) {
         sourceStage = stage;
         break;
