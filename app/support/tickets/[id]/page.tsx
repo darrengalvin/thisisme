@@ -4,31 +4,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Send, Paperclip, Clock, User, Tag, AlertCircle, GitBranch, ExternalLink, CheckCircle, TestTube, XCircle, PlayCircle, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
-
-interface Ticket {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  priority: string;
-  category: string;
-  created_at: string;
-  updated_at: string;
-  resolved_at?: string;
-  creator: { id: string; email: string };
-  assignee?: { id: string; email: string };
-  comments: Comment[];
-  history: HistoryEntry[];
-  screenshot_url?: string;
-  metadata?: {
-    ai_pr_url?: string;
-    ai_pr_number?: number;
-    ai_analysis_id?: string;
-    validation_passed?: boolean;
-    validation_notes?: string;
-    validated_at?: string;
-  };
-}
+import type { 
+  Ticket, 
+  TicketComment, 
+  TicketHistoryEntry, 
+  TicketStatus, 
+  TicketStage, 
+  TicketPriority 
+} from '@/types/support';
 
 interface AIAnalysis {
   id: string;
@@ -64,22 +47,9 @@ interface AIFix {
   created_at: string;
 }
 
-interface Comment {
-  id: string;
-  comment: string;
-  is_internal: boolean;
-  created_at: string;
-  user: { id: string; email: string };
-}
-
-interface HistoryEntry {
-  id: string;
-  action: string;
-  old_value?: string;
-  new_value?: string;
-  created_at: string;
-  user: { id: string; email: string };
-}
+// Using TicketComment and TicketHistoryEntry from @/types/support
+// Keeping local Comment type for backward compatibility
+interface Comment extends TicketComment {}
 
 export default function TicketDetailPage() {
   const params = useParams();

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
+import {
   X, 
   User, 
   Clock, 
@@ -26,8 +26,17 @@ import {
 import Link from 'next/link';
 import CreateTicketModal from '@/components/CreateTicketModal';
 import EditTicketModal from '@/components/EditTicketModal';
+import type { 
+  Ticket as TicketType, 
+  TicketListItem, 
+  TicketStatus, 
+  TicketStage, 
+  TicketPriority,
+  TicketCategory 
+} from '@/types/support';
 
-interface Ticket {
+// Using imported types with local interface for additional fields
+interface Ticket extends TicketType {
   id: string;
   title: string;
   description: string;
@@ -184,21 +193,21 @@ export default function UnifiedSupportPage() {
       ...newKanbanData[targetStage as keyof KanbanData],
       { ...ticket, stage: targetStage }
     ];
-    
-    setKanbanData(newKanbanData);
+          
+          setKanbanData(newKanbanData);
     setDraggedTicket(null);
-
-    try {
-      await fetch('/api/admin/support/kanban', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+          
+          try {
+            await fetch('/api/admin/support/kanban', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
+              body: JSON.stringify({
           ticketId: draggedTicket,
           newStage: targetStage,
-        }),
-      });
-    } catch (error) {
+              }),
+            });
+          } catch (error) {
       console.error('Error updating ticket:', error);
       fetchKanbanData();
     }
@@ -309,7 +318,7 @@ export default function UnifiedSupportPage() {
                 <div key={stage.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                   <div className="flex items-center gap-3">
                     <Icon className={`w-5 h-5 text-${stage.color}-600`} />
-                    <div>
+                <div>
                       <div className="text-2xl font-bold text-gray-900">{count}</div>
                       <div className="text-xs text-gray-600">{stage.title}</div>
                     </div>
@@ -383,7 +392,7 @@ export default function UnifiedSupportPage() {
                   onDrop={() => handleDrop(stage.id)}
                 >
                   <div className={`p-4 border-b border-gray-200 bg-${stage.color}-50`}>
-                    <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Icon className={`w-5 h-5 text-${stage.color}-600`} />
                         <h3 className={`font-semibold text-${stage.color}-900`}>
@@ -532,7 +541,7 @@ export default function UnifiedSupportPage() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-
+            
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
@@ -588,7 +597,7 @@ export default function UnifiedSupportPage() {
                 </div>
               </div>
             </div>
-
+            
             <div className="border-t border-gray-200 p-6 bg-gray-50">
               <div className="flex justify-between items-center mb-4">
                 <Link
