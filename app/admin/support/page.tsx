@@ -402,7 +402,7 @@ export default function UnifiedSupportPage() {
                         key={ticket.id}
                         draggable
                         onDragStart={() => handleDragStart(ticket.id)}
-                        onClick={() => setSelectedTicket(ticket)}
+                        onClick={() => router.push(`/support/tickets/${ticket.id}`)}
                         className={`
                           bg-white border-2 rounded-lg p-3 cursor-pointer
                           hover:shadow-md transition-all
@@ -461,7 +461,7 @@ export default function UnifiedSupportPage() {
               filteredTickets.map((ticket) => (
                 <div
                   key={ticket.id}
-                  onClick={() => setSelectedTicket(ticket)}
+                  onClick={() => router.push(`/support/tickets/${ticket.id}`)}
                   className={`bg-white rounded-lg shadow-sm border-l-4 ${getPriorityBorderColor(ticket.priority)} p-6 cursor-pointer hover:shadow-md transition-shadow`}
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -508,8 +508,8 @@ export default function UnifiedSupportPage() {
         )}
       </div>
 
-      {/* Ticket Detail Modal */}
-      {selectedTicket && (
+      {/* Ticket Detail Modal - Removed, now goes directly to full detail page */}
+      {false && selectedTicket && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-start justify-between p-6 border-b border-gray-200">
