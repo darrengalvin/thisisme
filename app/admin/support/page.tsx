@@ -151,7 +151,8 @@ export default function AdminSupportPage() {
   });
   const [loading, setLoading] = useState(true);
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const sensors = useSensors(
@@ -167,21 +168,35 @@ export default function AdminSupportPage() {
 
   const checkAdminAndFetchData = async () => {
     try {
-      const response = await fetch('/api/admin/support/kanban');
+      console.log('🔍 Fetching kanban data...');
+      const response = await fetch('/api/admin/support/kanban', {
+        credentials: 'include'
+      });
+      
+      console.log('📡 Kanban API response:', { status: response.status, ok: response.ok });
       
       if (response.status === 403) {
+        console.log('❌ Not admin, redirecting to /support');
         router.push('/support');
         return;
       }
       
       const data = await response.json();
+      console.log('📦 Kanban data:', data);
       
       if (response.ok) {
         setKanbanData(data.kanban);
         setIsAdmin(true);
+        console.log('✅ Admin verified, kanban data loaded');
+      } else {
+        console.error('❌ API error:', data);
+        setError(data.error || 'Failed to load kanban data');
+        setIsAdmin(false);
       }
     } catch (error) {
-      console.error('Error fetching kanban data:', error);
+      console.error('❌ Error fetching kanban data:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load kanban data');
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
