@@ -25,10 +25,16 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ NETWORK API: Token verified for user:', user.userId)
 
-    console.log('🔍 NETWORK API: Querying user_networks table...')
+    console.log('🔍 NETWORK API: Querying user_networks with chapter access...')
+    
+    // ⚡ PERFORMANCE FIX: Fetch people AND their chapter access in a single query
+    // This eliminates N+1 queries (1 query for people + N queries for each person's chapters)
     const { data: networkPeople, error } = await supabaseAdmin
       .from('user_networks')
-      .select('*')
+      .select(`
+        *,
+        chapter_access:pending_chapter_invitations
+      `)
       .eq('owner_id', user.userId)
       .order('person_name')
 
@@ -37,7 +43,7 @@ export async function GET(request: NextRequest) {
       throw error
     }
 
-    console.log('✅ NETWORK API: Query successful, found', networkPeople?.length || 0, 'people')
+    console.log('✅ NETWORK API: Query successful, found', networkPeople?.length || 0, 'people with chapter data')
 
     return NextResponse.json({
       success: true,

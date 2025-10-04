@@ -6,54 +6,67 @@ import { Users, Plus, Mail, User, X, Calendar, BookOpen, ArrowLeft, Shield, User
 import AccessManagement from './AccessManagement'
 import toast from 'react-hot-toast'
 
+// ✨ Improved TypeScript interfaces for better type safety
 interface NetworkPerson {
-  id: string
-  person_name: string
-  person_email?: string
-  person_phone?: string
-  relationship?: string
-  person_user_id?: string
-  photo_url?: string
-  created_at: string
-  personType?: 'living' | 'legacy'
-  tagged_memories_count?: number
-  recent_memories?: Array<{
-    id: string
-    title: string
-    image_url: string
-    date: string
-    chapter: string
-  }>
-  permissions?: {
-    can_view_memories: boolean
-    can_add_text: boolean
-    can_add_images: boolean
-    can_comment: boolean
-    chapters_access: Array<{
-      chapter_name: string
-      permissions: string[]
-    }>
-    memory_access?: Array<{
-      memory_title: string
-      count?: number
-      permissions: string[]
-    }>
-  }
-  collaboration_stats?: {
-    contributions_made: number
-    memories_shared: number
-    last_active: string
-  }
+  id: string;
+  person_name: string;
+  person_email?: string | null;
+  person_phone?: string | null;
+  relationship?: string | null;
+  person_user_id?: string | null;
+  photo_url?: string | null;
+  created_at: string;
+  personType?: 'living' | 'legacy';
+  tagged_memories_count?: number;
+  chapter_access?: string[]; // ⚡ NEW: Chapter IDs from single query
+  pending_chapter_invitations?: string[]; // Array of chapter UUIDs
+  recent_memories?: RecentMemory[];
+  permissions?: PersonPermissions;
+  collaboration_stats?: CollaborationStats;
+}
+
+interface RecentMemory {
+  id: string;
+  title: string;
+  image_url: string;
+  date: string;
+  chapter: string;
+}
+
+interface PersonPermissions {
+  can_view_memories: boolean;
+  can_add_text: boolean;
+  can_add_images: boolean;
+  can_comment: boolean;
+  chapters_access: ChapterAccess[];
+  memory_access?: MemoryAccess[];
+}
+
+interface ChapterAccess {
+  chapter_name: string;
+  permissions: string[];
+}
+
+interface MemoryAccess {
+  memory_title: string;
+  count?: number;
+  permissions: string[];
+}
+
+interface CollaborationStats {
+  contributions_made: number;
+  memories_shared: number;
+  last_active: string;
 }
 
 interface TaggedMemory {
-  id: string
-  title: string
-  description: string
-  memory_date: string
-  tagged_at: string
-  chapter: string
-  image_url?: string
+  id: string;
+  title: string;
+  description: string;
+  memory_date: string;
+  tagged_at: string;
+  chapter: string;
+  image_url?: string;
 }
 
 export default function MyPeopleEnhanced() {
