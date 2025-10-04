@@ -16,10 +16,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth');
+    const userInfo = await verifyToken(token);
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const { data: userData } = await supabase
       .from('users')
       .select('is_admin')
-      .eq('id', token)
+      .eq('id', userInfo.userId)
       .single();
 
     if (!userData?.is_admin) {
