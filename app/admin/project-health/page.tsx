@@ -25,7 +25,8 @@ import {
   Bug,
   Award,
   Target,
-  Sparkles
+  Sparkles,
+  Ticket
 } from 'lucide-react'
 
 interface ScoreCardItem {
