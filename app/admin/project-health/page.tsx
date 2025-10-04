@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   AlertTriangle, 
   CheckCircle, 
@@ -17,6 +17,7 @@ import {
   Box,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Clock,
   Zap,
   Lock,
@@ -70,9 +71,68 @@ export default function ProjectHealthPage() {
   const [expandedSection, setExpandedSection] = useState<string | null>('critical')
   const [generatingTickets, setGeneratingTickets] = useState(false)
   const [ticketResult, setTicketResult] = useState<string | null>(null)
+  const [recentTickets, setRecentTickets] = useState<any[]>([])
+  const [loadingTickets, setLoadingTickets] = useState(true)
+  const [ticketStats, setTicketStats] = useState({ 
+    resolvedThisWeek: 0, 
+    resolvedThisMonth: 0,
+    criticalResolved: 0 
+  })
 
   const overallScore = 5.9
   const overallGrade = '🟡 C'
+  
+  // Fetch recently resolved tickets
+  useEffect(() => {
+    const fetchRecentTickets = async () => {
+      try {
+        const response = await fetch('/api/support/tickets', {
+          credentials: 'include'
+        })
+        if (response.ok) {
+          const data = await response.json()
+          const tickets = data.tickets || []
+          
+          // Filter resolved tickets
+          const resolved = tickets.filter((t: any) => t.status === 'resolved')
+          
+          // Sort by resolved_at date (most recent first)
+          const sorted = resolved.sort((a: any, b: any) => 
+            new Date(b.resolved_at || b.updated_at).getTime() - 
+            new Date(a.resolved_at || a.updated_at).getTime()
+          )
+          
+          // Get last 10
+          setRecentTickets(sorted.slice(0, 10))
+          
+          // Calculate stats
+          const now = new Date()
+          const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+          const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+          
+          const resolvedThisWeek = resolved.filter((t: any) => 
+            new Date(t.resolved_at || t.updated_at) >= oneWeekAgo
+          ).length
+          
+          const resolvedThisMonth = resolved.filter((t: any) => 
+            new Date(t.resolved_at || t.updated_at) >= oneMonthAgo
+          ).length
+          
+          const criticalResolved = resolved.filter((t: any) => 
+            t.priority === 'critical'
+          ).length
+          
+          setTicketStats({ resolvedThisWeek, resolvedThisMonth, criticalResolved })
+        }
+      } catch (error) {
+        console.error('Error fetching tickets:', error)
+      } finally {
+        setLoadingTickets(false)
+      }
+    }
+    
+    fetchRecentTickets()
+  }, [])
   
   const generateTickets = async () => {
     setGeneratingTickets(true)
@@ -736,6 +796,105 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                       <h3 className="font-semibold text-slate-900 mb-1">{strength.title}</h3>
                       <p className="text-sm text-slate-600">{strength.description}</p>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recently Resolved Tickets - Dynamic from Support System */}
+        <div className="mb-8">
+          <button
+            onClick={() => toggleSection('recent')}
+            className="w-full bg-blue-50 border-2 border-blue-300 rounded-xl p-4 flex items-center justify-between hover:bg-blue-100 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Ticket className="text-blue-600 w-7 h-7" />
+              <div className="text-left">
+                <h2 className="text-xl font-bold text-blue-900 flex items-center gap-2">
+                  Recently Resolved Tickets
+                  <span className="text-sm font-normal text-blue-700">(Live from Support System)</span>
+                </h2>
+                <p className="text-sm text-blue-700">
+                  {ticketStats.resolvedThisWeek} this week • {ticketStats.resolvedThisMonth} this month • {ticketStats.criticalResolved} critical issues resolved
+                </p>
+              </div>
+            </div>
+            {expandedSection === 'recent' ? <ChevronUp /> : <ChevronDown />}
+          </button>
+
+          {expandedSection === 'recent' && (
+            <div className="mt-4 space-y-4">
+              {/* Live Stats Banner */}
+              <div className="bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-300 rounded-lg p-6">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-3xl font-bold text-blue-900">{ticketStats.resolvedThisWeek}</div>
+                    <div className="text-sm text-blue-700">Resolved This Week</div>
+                  </div>
+                  <div>
+                    <div className="text-3xl font-bold text-blue-900">{ticketStats.resolvedThisMonth}</div>
+                    <div className="text-sm text-blue-700">Resolved This Month</div>
+                  </div>
+                  <div>
+                    <div className="text-3xl font-bold text-red-900">{ticketStats.criticalResolved}</div>
+                    <div className="text-sm text-red-700">Critical Issues Fixed</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Loading State */}
+              {loadingTickets && (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-slate-600 mt-4">Loading recent tickets...</p>
+                </div>
+              )}
+
+              {/* Tickets List */}
+              {!loadingTickets && recentTickets.length === 0 && (
+                <div className="text-center py-8 bg-slate-50 rounded-lg border border-slate-200">
+                  <Ticket className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                  <p className="text-slate-600">No resolved tickets yet</p>
+                </div>
+              )}
+
+              {!loadingTickets && recentTickets.map((ticket: any) => (
+                <div key={ticket.id} className="bg-white rounded-lg shadow-md border-2 border-blue-200 overflow-hidden hover:shadow-lg transition-shadow">
+                  <div className="bg-gradient-to-r from-blue-50 to-white p-4 border-b border-blue-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                            ticket.priority === 'critical' ? 'bg-red-100 text-red-800 border-red-300' :
+                            ticket.priority === 'high' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                            ticket.priority === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                            'bg-green-100 text-green-800 border-green-300'
+                          }`}>
+                            {ticket.priority.toUpperCase()}
+                          </span>
+                          <span className="text-xs text-slate-500">{ticket.category}</span>
+                          <span className="text-xs text-slate-400">
+                            • Resolved {new Date(ticket.resolved_at || ticket.updated_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-1">{ticket.title}</h3>
+                        <p className="text-sm text-slate-600 line-clamp-2">{ticket.description}</p>
+                      </div>
+                      <CheckCircle className="text-blue-500 w-8 h-8 flex-shrink-0" />
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <a 
+                      href={`/support/tickets/${ticket.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+                    >
+                      View Full Ticket Details →
+                    </a>
                   </div>
                 </div>
               ))}
