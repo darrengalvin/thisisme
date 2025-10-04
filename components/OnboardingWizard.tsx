@@ -896,41 +896,42 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="text-center">
-            <p className="mb-3">You already have an account with <strong>{userData.email}</strong></p>
-            <p className="text-sm text-gray-600 mb-4">Choose what you'd like to do:</p>
-            <div className="space-y-2">
-              <button
-                onClick={() => {
-                  setShowExistingUserModal(false)
-                  window.location.href = '/auth/login'
-                }}
-                className="w-full bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
-              >
-                Sign In to Your Account
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    const { supabase } = await import('@/lib/supabase')
-                    const { error } = await supabase.auth.resetPasswordForEmail(userData.email, {
-                      redirectTo: `${window.location.origin}/auth/reset-password`
-                    })
-                    
-                    if (error) {
-                      console.error('Reset password error:', error)
-                    } else {
-                      setShowExistingUserModal(false)
-                      // Show success message
-                      alert('Password reset email sent! Check your inbox.')
+              <p className="mb-3">You already have an account with <strong>{userData.email}</strong></p>
+              <p className="text-sm text-gray-600 mb-4">Choose what you'd like to do:</p>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    setShowExistingUserModal(false)
+                    window.location.href = '/auth/login'
+                  }}
+                  className="w-full bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  Sign In to Your Account
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const { supabase } = await import('@/lib/supabase')
+                      const { error } = await supabase.auth.resetPasswordForEmail(userData.email, {
+                        redirectTo: `${window.location.origin}/auth/reset-password`
+                      })
+                      
+                      if (error) {
+                        console.error('Reset password error:', error)
+                      } else {
+                        setShowExistingUserModal(false)
+                        // Show success message
+                        alert('Password reset email sent! Check your inbox.')
+                      }
+                    } catch (error) {
+                      console.error('Failed to send reset email:', error)
                     }
-                  } catch (error) {
-                    console.error('Failed to send reset email:', error)
-                  }
-                }}
-                className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Forgot Password? Reset It
-              </button>
+                  }}
+                  className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Forgot Password? Reset It
+                </button>
+              </div>
             </div>
           </div>
         </div>
