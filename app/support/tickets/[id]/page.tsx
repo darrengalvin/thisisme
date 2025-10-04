@@ -451,7 +451,7 @@ export default function TicketDetailPage() {
                 <h2 className="font-semibold text-gray-900 mb-4">Comments</h2>
                 
                 <div className="space-y-4 mb-6">
-                  {ticket.comments.length === 0 ? (
+                  {!ticket.comments || ticket.comments.length === 0 ? (
                     <p className="text-gray-500 text-center py-4">No comments yet</p>
                   ) : (
                     ticket.comments.map((comment) => (
