@@ -1,8 +1,8 @@
 'use client'
 
-import { Home, BarChart3, BookOpen, Users } from 'lucide-react'
+import { Home, BarChart3, BookOpen, Users, Share2 } from 'lucide-react'
 
-type TabType = 'home' | 'timeline' | 'timezones' | 'people'
+type TabType = 'home' | 'timeline' | 'timezones' | 'people' | 'collaborative'
 
 interface TabNavigationProps {
   activeTab: TabType
@@ -42,6 +42,12 @@ const tabs: Tab[] = [
     label: 'My People',
     icon: Users,
     description: 'Manage your personal network for @ tagging'
+  },
+  {
+    id: 'collaborative',
+    label: 'Shared',
+    icon: Share2,
+    description: 'Collaborative memories and invitations'
   }
 ]
 

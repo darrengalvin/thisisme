@@ -37,7 +37,7 @@ export async function GET(
       .from('user_networks')
       .select('*')
       .eq('id', personId)
-      .eq('user_id', user.userId)
+      .eq('owner_id', user.userId)
       .single()
 
     if (personError || !person) {
@@ -66,6 +66,7 @@ export async function GET(
       .eq('tagged_person_id', personId)
       .order('created_at', { ascending: false })
       
+    console.log('🔍 PERSON MEMORIES API: Found', taggedMemories?.length || 0, 'tagged memories')
     console.log('🔍 PERSON MEMORIES API: Query result:', { taggedMemories, memoriesError })
 
     if (memoriesError) {

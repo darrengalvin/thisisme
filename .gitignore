@@ -55,3 +55,4 @@ public/uploads/*
 
 # TypeScript
 *.tsbuildinfo
+.env*.local

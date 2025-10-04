@@ -66,7 +66,7 @@ export async function sendTicketNotification(
   recipientEmail: string,
   additionalData?: Record<string, any>
 ) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const appUrl = process.env.NEXT_PUBLIC_URL || 'https://thisisme-three.vercel.app';
   const ticketUrl = `${appUrl}/support/tickets/${ticketData.id}`;
 
   const subjects = {

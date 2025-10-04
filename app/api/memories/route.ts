@@ -248,7 +248,8 @@ export async function POST(request: NextRequest) {
         chapter_id: finalTimeZoneId || null,
         date_precision: datePrecision || null,
         approximate_date: approximateDate || null,
-        created_at: memoryDate.toISOString(),
+        memory_date: memoryDate.toISOString(), // When the actual memory event happened
+        created_at: new Date().toISOString(),   // When the record was created in the system
         updated_at: new Date().toISOString()
       })
       .select()

@@ -935,9 +935,9 @@ export default function TimelineView({
 
       {/* Mobile Floating Add Button - Alternative for small screens */}
       <button
-        onClick={() => onStartCreating?.()}
+        onClick={() => onStartCreating?.(selectedChapterId || undefined, selectedChapter?.title)}
         className="sm:hidden fixed bottom-6 right-6 bg-sky-600 hover:bg-sky-700 text-white w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center z-10"
-        title="Add Memory"
+        title={selectedChapter ? `Add Memory to ${selectedChapter.title}` : "Add Memory"}
       >
         <Plus size={20} />
       </button>

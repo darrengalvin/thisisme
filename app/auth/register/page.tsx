@@ -37,29 +37,166 @@ export default function RegisterPage() {
         return
       }
 
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+      // Use Supabase auth for registration
+      const { supabase } = await import('@/lib/supabase')
+      
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
       })
 
-      const data = await response.json()
-
-      if (data.success) {
-        // Store token in cookie
-        document.cookie = `auth-token=${data.data.token}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=strict`
+      if (error) {
+        console.error('Sign up error:', error)
         
-        toast.success('Account created successfully!')
-        router.push('/')
+        // Handle specific error cases
+        if (error.message.includes('already registered') || error.message.includes('User already registered')) {
+          toast.error(
+            <div className="text-center">
+              <p className="font-medium">Account already exists!</p>
+              <p className="text-sm mt-1">This email is already registered.</p>
+              <div className="mt-2 space-x-2">
+                <Link 
+                  href="/auth/login" 
+                  className="text-primary-600 hover:text-primary-500 text-sm font-medium"
+                >
+                  Sign in instead
+                </Link>
+                <span className="text-gray-400">•</span>
+                <button
+                  onClick={() => handleForgotPassword(formData.email)}
+                  className="text-primary-600 hover:text-primary-500 text-sm font-medium"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            </div>,
+            { duration: 8000 }
+          )
+        } else {
+          toast.error(error.message || 'Registration failed')
+        }
+        return
+      }
+
+      if (data.user) {
+        console.log('✅ User signed up successfully:', data.user.email)
+        
+        // Check if email confirmation is required
+        if (data.user.email_confirmed_at) {
+          // User is immediately confirmed, create profile
+          try {
+            const profileResponse = await fetch('/api/auth/onboard', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: data.user.id,
+                email: data.user.email,
+                birthYear: null // Will be set during onboarding
+              })
+            })
+
+            if (profileResponse.ok) {
+              // Create JWT token for API compatibility
+              const tokenResponse = await fetch('/api/auth/token', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  userId: data.user.id,
+                  email: data.user.email
+                })
+              })
+              
+              if (tokenResponse.ok) {
+                const tokenData = await tokenResponse.json()
+                document.cookie = `auth-token=${tokenData.token}; path=/; max-age=604800` // 7 days
+              }
+
+              // Process any pending invitations for this user
+              try {
+                console.log('🔍 Checking for pending invitations...')
+                const inviteResponse = await fetch('/api/auth/process-invitation', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    userId: data.user.id,
+                    email: data.user.email
+                  })
+                })
+
+                if (inviteResponse.ok) {
+                  const inviteData = await inviteResponse.json()
+                  if (inviteData.chaptersAdded > 0) {
+                    console.log(`✅ Granted access to ${inviteData.chaptersAdded} chapter(s)`)
+                    toast.success(`Account created! You've been granted access to ${inviteData.chaptersAdded} chapter${inviteData.chaptersAdded > 1 ? 's' : ''}.`)
+                  } else {
+                    toast.success('Account created successfully!')
+                  }
+                } else {
+                  console.warn('⚠️ Failed to process invitations, but account created')
+                  toast.success('Account created successfully!')
+                }
+              } catch (inviteError) {
+                console.warn('⚠️ Error processing invitations:', inviteError)
+                toast.success('Account created successfully!')
+              }
+              
+              router.push('/')
+            } else {
+              toast.error('Account created but profile setup failed. Please try signing in.')
+              router.push('/auth/login')
+            }
+          } catch (profileError) {
+            console.error('Profile creation error:', profileError)
+            toast.error('Account created but profile setup failed. Please try signing in.')
+            router.push('/auth/login')
+          }
+        } else {
+          // Email confirmation required
+          toast.success(
+            <div className="text-center">
+              <p className="font-medium">Check your email!</p>
+              <p className="text-sm mt-1">We sent a confirmation link to {formData.email}</p>
+              <p className="text-xs mt-1 text-gray-600">Click the link to activate your account</p>
+            </div>,
+            { duration: 10000 }
+          )
+          router.push('/auth/login')
+        }
       } else {
-        toast.error(data.error || 'Registration failed')
+        toast.error('Registration failed - no user data received')
       }
     } catch (error) {
+      console.error('Registration error:', error)
       toast.error('Something went wrong. Please try again.')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async (email: string) => {
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`
+      })
+
+      if (error) {
+        toast.error(error.message)
+      } else {
+        toast.success('Password reset email sent! Check your inbox.')
+      }
+    } catch (error) {
+      toast.error('Failed to send reset email. Please try again.')
     }
   }
 

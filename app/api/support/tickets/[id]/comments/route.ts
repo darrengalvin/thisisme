@@ -150,11 +150,11 @@ export async function POST(
             to: recipientEmails,
             from: process.env.SENDGRID_FROM_EMAIL || 'support@yourapp.com',
             subject: `New comment on ticket: ${ticketData.title}`,
-            text: `${userData?.email} commented on ticket #${params.id}:\n\n${comment}\n\nView ticket: ${process.env.NEXT_PUBLIC_APP_URL}/support/tickets/${params.id}`,
+            text: `${userData?.email} commented on ticket #${params.id}:\n\n${comment}\n\nView ticket: ${process.env.NEXT_PUBLIC_URL}/support/tickets/${params.id}`,
             html: `
               <p><strong>${userData?.email}</strong> commented on ticket #${params.id}:</p>
               <blockquote>${comment}</blockquote>
-              <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/support/tickets/${params.id}">View ticket</a></p>
+              <p><a href="${process.env.NEXT_PUBLIC_URL}/support/tickets/${params.id}">View ticket</a></p>
             `
           });
 

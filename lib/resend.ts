@@ -43,7 +43,7 @@ export async function sendChapterInviteEmail(
   inviterName: string,
   customMessage?: string
 ) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const appUrl = process.env.NEXT_PUBLIC_URL || 'https://thisisme-three.vercel.app';
   
   const subject = `Collaborate on "${chapterTitle}" - This Is Me Chapter Invitation`;
   
@@ -128,24 +128,179 @@ Powered by YourCaio • If you didn't expect this invitation, you can safely ign
   });
 }
 
+export async function sendMemoryInviteEmail({
+  to,
+  memoryTitle,
+  memoryDescription,
+  memoryImageUrl,
+  inviterName,
+  inviterEmail,
+  message,
+  reason,
+  permissions,
+  memoryId
+}: {
+  to: string
+  memoryTitle: string
+  memoryDescription?: string
+  memoryImageUrl?: string
+  inviterName: string
+  inviterEmail: string
+  message?: string
+  reason?: string
+  permissions: string[]
+  memoryId: string
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_URL || 'https://thisisme-three.vercel.app'
+  
+  const subject = `Collaborate on "${memoryTitle}" - Memory Invitation`
+  
+  // Map permission IDs to descriptions
+  const permissionDescriptions: { [key: string]: string } = {
+    'view': 'View this memory and its content',
+    'comment': 'Add comments, additions, and corrections',
+    'text': 'Edit and add text descriptions',
+    'images': 'Upload and add photos to this memory'
+  }
+  
+  const enabledPermissions = permissions.map(p => permissionDescriptions[p] || p).filter(Boolean)
+  
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #2563eb; margin: 0;">This Is Me</h1>
+        <p style="color: #666; margin: 5px 0 0 0;">Memory Collaboration Platform by YourCaio</p>
+      </div>
+      
+      <div style="background: #f8fafc; padding: 30px; border-radius: 12px; margin-bottom: 30px;">
+        <h2 style="color: #1f2937; margin-top: 0;">Memory Collaboration Invitation</h2>
+        
+        <p style="color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
+          Hi there! ${inviterName} has invited you to collaborate on their memory:
+        </p>
+        
+        <div style="background: white; padding: 20px; border-radius: 8px; border: 2px solid #e5e7eb; margin: 20px 0;">
+          <div style="display: flex; align-items: start; gap: 15px;">
+            ${memoryImageUrl ? `
+              <img src="${memoryImageUrl}" alt="${memoryTitle}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; flex-shrink: 0;">
+            ` : ''}
+            <div style="flex: 1;">
+              <h3 style="color: #2563eb; margin: 0 0 10px 0;">"${memoryTitle}"</h3>
+              ${memoryDescription ? `
+                <p style="color: #6b7280; margin: 0; font-size: 14px; line-height: 1.5;">${memoryDescription}</p>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+        
+        ${message ? `
+          <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #2563eb; margin: 20px 0;">
+            <p style="color: #374151; margin: 0; font-style: italic;">"${message}"</p>
+          </div>
+        ` : ''}
+        
+        ${reason ? `
+          <div style="background: white; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="color: #6b7280; margin: 0; font-size: 14px;"><strong>Reason:</strong> ${reason}</p>
+          </div>
+        ` : ''}
+        
+        <p style="color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
+          As a collaborator, you can:
+        </p>
+        
+        <ul style="color: #4b5563; line-height: 1.6; padding-left: 20px; margin: 0;">
+          ${enabledPermissions.map(permission => `<li>${permission}</li>`).join('')}
+        </ul>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${appUrl}/memories/${memoryId}?invited=true" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+          View and Contribute to Memory
+        </a>
+      </div>
+      
+      <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+        <p style="color: #9ca3af; font-size: 14px; margin: 0;">
+          Invited by ${inviterName} via This Is Me
+        </p>
+        <p style="color: #9ca3af; font-size: 12px; margin: 5px 0 0 0;">
+          Powered by YourCaio • If you didn't expect this invitation, you can safely ignore this email.
+        </p>
+      </div>
+    </div>
+  `
+  
+  const text = `
+Hi there!
+
+${inviterName} has invited you to collaborate on their memory: "${memoryTitle}"
+
+${memoryDescription ? `Description: ${memoryDescription}\n` : ''}
+
+${message ? `"${message}"\n` : ''}
+
+${reason ? `Reason: ${reason}\n` : ''}
+
+As a collaborator, you can:
+${enabledPermissions.map(permission => `• ${permission}`).join('\n')}
+
+View and contribute to this memory: ${appUrl}/memories/${memoryId}?invited=true
+
+This invitation was sent by ${inviterName} via This Is Me
+Powered by YourCaio • If you didn't expect this invitation, you can safely ignore this email.
+  `
+
+  return sendResendEmail({
+    to,
+    subject,
+    html,
+    text,
+  })
+}
+
 export async function sendPersonInviteEmail(
   personName: string,
   personEmail: string,
   inviterName: string,
   relationship: string,
   customMessage?: string,
-  selectedChapters?: string[]
+  selectedChapters?: string[],
+  inviteCode?: string
 ) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const appUrl = process.env.NEXT_PUBLIC_URL || 'https://thisisme-three.vercel.app';
+  
+  // Resolve chapter IDs to names
+  let chapterNames: string[] = [];
+  if (selectedChapters && selectedChapters.length > 0) {
+    try {
+      const { supabaseAdmin } = await import('@/lib/supabase-server');
+      const { data: chapters, error } = await supabaseAdmin
+        .from('timezones')
+        .select('id, title')
+        .in('id', selectedChapters);
+      
+      if (error) {
+        console.error('❌ EMAIL DEBUG: Error fetching chapter names:', error);
+        chapterNames = selectedChapters; // Fallback to IDs if fetch fails
+      } else {
+        chapterNames = chapters?.map(chapter => chapter.title) || selectedChapters;
+        console.log('📧 EMAIL DEBUG: Resolved chapter names:', chapterNames);
+      }
+    } catch (error) {
+      console.error('❌ EMAIL DEBUG: Error resolving chapter names:', error);
+      chapterNames = selectedChapters; // Fallback to IDs if fetch fails
+    }
+  }
   
   // Create contextual subject based on selected chapters
-  const subject = selectedChapters && selectedChapters.length > 0 
-    ? `Join me on This Is Me - Help with "${selectedChapters[0]}"${selectedChapters.length > 1 ? ` and ${selectedChapters.length - 1} other chapter${selectedChapters.length > 2 ? 's' : ''}` : ''}`
+  const subject = chapterNames.length > 0 
+    ? `Join me on This Is Me - Help with "${chapterNames[0]}"${chapterNames.length > 1 ? ` and ${chapterNames.length - 1} other chapter${chapterNames.length > 2 ? 's' : ''}` : ''}`
     : `Join me on This Is Me - Memory Collaboration Invitation`;
   
   // Create contextual opening based on selected chapters
   const getContextualOpening = () => {
-    if (!selectedChapters || selectedChapters.length === 0) {
+    if (!chapterNames || chapterNames.length === 0) {
       return `
         <p style="color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
           I hope this message finds you well! I've been using This Is Me to capture and organize my life memories, and I'd love to have you be part of this journey.
@@ -158,8 +313,8 @@ export async function sendPersonInviteEmail(
         <p style="color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
           I'd love to collaborate with you on specific chapters of my life story, where you can add your own memories, photos, and perspectives to help build a richer, more complete picture of our shared experiences.
         </p>`;
-    } else if (selectedChapters.length === 1) {
-      const chapter = selectedChapters[0];
+    } else if (chapterNames.length === 1) {
+      const chapter = chapterNames[0];
       return `
         <p style="color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
           Hi ${personName}! I hope this message finds you well. I've been working on a special chapter of my life story called <strong>"${chapter}"</strong> and I'd love for you to be part of it.
@@ -206,14 +361,14 @@ export async function sendPersonInviteEmail(
           </div>
         ` : ''}
         
-        ${selectedChapters && selectedChapters.length > 0 ? `
+        ${chapterNames.length > 0 ? `
           <div style="background: white; padding: 20px; border-radius: 8px; border: 2px solid #e5e7eb; margin: 20px 0;">
-            <h3 style="color: #2563eb; margin: 0 0 15px 0; font-size: 18px;">${selectedChapters.length === 1 ? 'The Chapter I\'d Love Your Help With:' : 'The Chapters I\'d Love Your Help With:'}</h3>
+            <h3 style="color: #2563eb; margin: 0 0 15px 0; font-size: 18px;">${chapterNames.length === 1 ? 'The Chapter I\'d Love Your Help With:' : 'The Chapters I\'d Love Your Help With:'}</h3>
             <ul style="color: #4b5563; line-height: 1.6; padding-left: 20px; margin: 0;">
-              ${selectedChapters.map(chapter => `<li style="margin-bottom: 8px;"><strong>${chapter}</strong></li>`).join('')}
+              ${chapterNames.map(chapter => `<li style="margin-bottom: 8px;"><strong>${chapter}</strong></li>`).join('')}
             </ul>
             <p style="color: #6b7280; font-size: 14px; margin: 15px 0 0 0;">
-              You'll be able to add your own memories, photos, and stories to ${selectedChapters.length === 1 ? 'this chapter' : 'these chapters'} once you join.
+              You'll be able to add your own memories, photos, and stories to ${chapterNames.length === 1 ? 'this chapter' : 'these chapters'} once you join.
             </p>
           </div>
         ` : ''}
@@ -238,6 +393,22 @@ export async function sendPersonInviteEmail(
         </a>
       </div>
       
+      ${inviteCode ? `
+        <div style="background: #f0f9ff; border: 2px solid #0ea5e9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="color: #0c4a6e; margin: 0 0 10px 0; font-weight: 600; font-size: 14px;">
+            Or use this invite code after signing up:
+          </p>
+          <div style="background: white; padding: 15px; border-radius: 6px; border: 2px dashed #0ea5e9;">
+            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #0369a1; letter-spacing: 2px; font-family: monospace;">
+              ${inviteCode}
+            </p>
+          </div>
+          <p style="color: #64748b; font-size: 12px; margin: 10px 0 0 0; line-height: 1.4;">
+            Already have an account or signing up with a different email? Go to Settings → Redeem Invite Code after logging in.
+          </p>
+        </div>
+      ` : ''}
+      
       <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
         <p style="color: #9ca3af; font-size: 14px; margin: 0;">
           This invitation was sent by ${inviterName} via This Is Me
@@ -251,14 +422,14 @@ export async function sendPersonInviteEmail(
   
   // Create contextual text version based on selected chapters
   const getContextualTextOpening = () => {
-    if (!selectedChapters || selectedChapters.length === 0) {
+    if (!chapterNames || chapterNames.length === 0) {
       return `I hope this message finds you well! I've been using This Is Me to capture and organize my life memories, and I'd love to have you be part of this journey.
 
 As my ${relationship}, you hold a special place in my life, and I believe your perspective and contributions would make my memory collection even more meaningful.
 
 I'd love to collaborate with you on specific chapters of my life story, where you can add your own memories, photos, and perspectives to help build a richer, more complete picture of our shared experiences.`;
-    } else if (selectedChapters.length === 1) {
-      const chapter = selectedChapters[0];
+    } else if (chapterNames.length === 1) {
+      const chapter = chapterNames[0];
       return `I hope this message finds you well. I've been working on a special chapter of my life story called "${chapter}" and I'd love for you to be part of it.
 
 As my ${relationship}, you have such an important perspective on this part of my life, and I believe your memories, photos, and stories would make this chapter so much richer and more complete.
@@ -280,11 +451,11 @@ ${getContextualTextOpening()}
 
 ${customMessage ? `\n"${customMessage}"\n` : ''}
 
-${selectedChapters && selectedChapters.length > 0 ? `
-${selectedChapters.length === 1 ? 'The Chapter I\'d Love Your Help With:' : 'The Chapters I\'d Love Your Help With:'}
-${selectedChapters.map(chapter => `• ${chapter}`).join('\n')}
+${chapterNames.length > 0 ? `
+${chapterNames.length === 1 ? 'The Chapter I\'d Love Your Help With:' : 'The Chapters I\'d Love Your Help With:'}
+${chapterNames.map(chapter => `• ${chapter}`).join('\n')}
 
-You'll be able to add your own memories, photos, and stories to ${selectedChapters.length === 1 ? 'this chapter' : 'these chapters'} once you join.
+You'll be able to add your own memories, photos, and stories to ${chapterNames.length === 1 ? 'this chapter' : 'these chapters'} once you join.
 
 ` : ''}
 
@@ -296,6 +467,16 @@ This Is Me allows us to:
 - Build richer, more complete life stories together
 
 Join me: ${appUrl}/auth/register?invite=${encodeURIComponent(personEmail)}
+
+${inviteCode ? `
+---
+OR USE THIS INVITE CODE AFTER SIGNING UP:
+${inviteCode}
+
+Already have an account or signing up with a different email? 
+Go to Settings → Redeem Invite Code after logging in.
+---
+` : ''}
 
 This invitation was sent by ${inviterName} via This Is Me
 Powered by YourCaio • If you didn't expect this invitation, you can safely ignore this email.
@@ -309,21 +490,3 @@ Powered by YourCaio • If you didn't expect this invitation, you can safely ign
   });
 }
 
-export async function sendPersonInviteSMS(
-  personName: string,
-  personPhone: string,
-  inviterName: string,
-  relationship: string,
-  customMessage?: string,
-  selectedChapters?: string[]
-) {
-  // This will be implemented with Twilio
-  const chapterText = selectedChapters && selectedChapters.length > 0 
-    ? ` I'd love your help with these chapters: ${selectedChapters.join(', ')}.`
-    : '';
-  const message = `Hi ${personName}! ${inviterName} (your ${relationship}) invited you to join This Is Me - a memory collaboration platform.${chapterText} ${customMessage ? `"${customMessage}" ` : ''}Join: ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}`;
-  
-  // For now, return a placeholder - this will be implemented with Twilio
-  console.log('SMS would be sent:', { to: personPhone, message });
-  return { success: true, message: 'SMS placeholder' };
-}

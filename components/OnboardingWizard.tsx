@@ -248,8 +248,14 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
         errorMessage: signUpError?.message
       })
 
-      // Handle user already exists
-      if (signUpError && signUpError.message === 'User already registered') {
+      // Handle user already exists - check for various error messages
+      if (signUpError && (
+        signUpError.message.includes('already registered') ||
+        signUpError.message.includes('User already registered') ||
+        signUpError.message.includes('already exists') ||
+        signUpError.message.includes('duplicate') ||
+        signUpError.status === 422 // Supabase returns 422 for existing users
+      )) {
         console.log('👤 User already exists - showing nice modal')
         
         // Show nice modal instead of ugly alert
@@ -882,12 +888,49 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
       <SystemMessageModal
         isOpen={showExistingUserModal}
         type="info"
-        title="Welcome Back!"
-        message={`You already have an account with ${userData.email}. Please sign in using your existing password.`}
-        actionText="Go to Sign In"
-        onAction={() => {
-          window.location.href = '/auth/login'
-        }}
+        title="Account Already Exists!"
+        message={
+          <div className="text-center">
+            <p className="mb-3">You already have an account with <strong>{userData.email}</strong></p>
+            <p className="text-sm text-gray-600 mb-4">Choose what you'd like to do:</p>
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  setShowExistingUserModal(false)
+                  window.location.href = '/auth/login'
+                }}
+                className="w-full bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                Sign In to Your Account
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const { supabase } = await import('@/lib/supabase')
+                    const { error } = await supabase.auth.resetPasswordForEmail(userData.email, {
+                      redirectTo: `${window.location.origin}/auth/reset-password`
+                    })
+                    
+                    if (error) {
+                      console.error('Reset password error:', error)
+                    } else {
+                      setShowExistingUserModal(false)
+                      // Show success message
+                      alert('Password reset email sent! Check your inbox.')
+                    }
+                  } catch (error) {
+                    console.error('Failed to send reset email:', error)
+                  }
+                }}
+                className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Forgot Password? Reset It
+              </button>
+            </div>
+          </div>
+        }
+        actionText=""
+        onAction={() => {}}
         onClose={() => setShowExistingUserModal(false)}
       />
 

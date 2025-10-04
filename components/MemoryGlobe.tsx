@@ -289,7 +289,7 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
     }, 1000)
   }
 
-  if (!visible || memories.length === 0) {
+  if (!visible) {
     return null
   }
 
@@ -352,26 +352,46 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
         </div>
         
         {/* Floating memories with 3D positioning and rotation */}
-        {memories.slice(0, 15).map((memory, index) => {
-          const position = memoryPositions[index]
-          if (!position) return null
-          
-          return (
-            <FloatingMemory
-              key={memory.id}
-              memory={memory}
-              position={position}
-              index={index}
-              globeHovered={globeHovered}
-              rotationX={rotationX}
-              rotationY={rotationY}
-              onToggleView={onToggleView}
-              onMemoryClick={onMemoryClick}
-              onMemoryHoverStart={handleMemoryHoverStart}
-              onMemoryHoverEnd={handleMemoryHoverEnd}
-            />
-          )
-        })}
+        {memories.length > 0 ? (
+          memories.slice(0, 15).map((memory, index) => {
+            const position = memoryPositions[index]
+            if (!position) return null
+            
+            return (
+              <FloatingMemory
+                key={memory.id}
+                memory={memory}
+                position={position}
+                index={index}
+                globeHovered={globeHovered}
+                rotationX={rotationX}
+                rotationY={rotationY}
+                onToggleView={onToggleView}
+                onMemoryClick={onMemoryClick}
+                onMemoryHoverStart={handleMemoryHoverStart}
+                onMemoryHoverEnd={handleMemoryHoverEnd}
+              />
+            )
+          })
+        ) : (
+          /* Empty state inside the globe */
+          <div 
+            className="absolute"
+            style={{
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 200,
+              textAlign: 'center',
+              pointerEvents: 'none'
+            }}
+          >
+            <div className="text-4xl mb-2 opacity-70">📝</div>
+            <div className="text-sm font-medium text-slate-600 whitespace-nowrap">
+              No memories yet
+            </div>
+          </div>
+        )}
           </div>
         </>
       ) : (
@@ -450,7 +470,7 @@ export default function MemoryGlobe({ memories, chapterTitle, visible, chapterCo
             title={`Add new memory to ${chapterTitle}`}
           >
             <span className="text-sm">+</span>
-            <span>Add Memory</span>
+            <span>Add to Chapter</span>
           </button>
         )}
         

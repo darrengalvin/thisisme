@@ -7,7 +7,7 @@ import EditMemoryModal from './EditMemoryModal'
 import ShareMemoryModal from './ShareMemoryModal'
 import ImageCropper from './ImageCropper'
 import PhotoTagDisplay from './PhotoTagDisplay'
-import MemoryContributions from './MemoryContributions'
+import MemoryCollaboration from './MemoryCollaboration'
 import toast from 'react-hot-toast'
 
 interface ViewMemoryModalProps {
@@ -190,11 +190,13 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
             </div>
           )}
 
-          {/* Memory Contributions */}
+          {/* Memory Collaboration */}
           <div className="border-t border-slate-200 pt-6 mt-6">
-            <MemoryContributions 
+            <MemoryCollaboration 
               memoryId={memory.id}
               memoryTitle={memory.title || 'this memory'}
+              permissions={['view', 'comment', 'add_text', 'add_images']} // Owner has full access
+              isOwner={true}
             />
           </div>
 
@@ -218,16 +220,7 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
         </div>
 
         {/* Footer actions */}
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-between items-center">
-          <div className="flex space-x-3">
-            <button 
-              onClick={() => setShowShareModal(true)}
-              className="flex items-center space-x-2 text-slate-600 hover:text-blue-500 transition-colors"
-            >
-              <Share2 className="w-4 h-4" />
-              <span className="text-sm">Share Memory</span>
-            </button>
-          </div>
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end items-center">
           <div className="flex space-x-3">
             <button
               onClick={onClose}

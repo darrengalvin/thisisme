@@ -160,6 +160,12 @@ export default function MemoryInviteSystem({
   const sendInvite = async () => {
     if (!user || !selectedPerson) return
 
+    // Check if person has email
+    if (!selectedPerson.person_email) {
+      toast.error('This person doesn\'t have an email address. Please add their email first.')
+      return
+    }
+
     setSending(true)
     try {
       // Get JWT token
@@ -175,6 +181,8 @@ export default function MemoryInviteSystem({
       }
 
       const { token } = await tokenResponse.json()
+
+      console.log('📧 MEMORY INVITE: Sending invite for memory:', memoryId, 'to:', selectedPerson.person_email)
 
       // Send memory-specific invitation
       const response = await fetch('/api/memories/invite', {
@@ -204,6 +212,7 @@ export default function MemoryInviteSystem({
         }
       } else {
         const errorData = await response.json()
+        console.error('📧 MEMORY INVITE ERROR:', errorData)
         toast.error(errorData.error || 'Failed to send invitation')
       }
     } catch (error) {

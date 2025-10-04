@@ -7,6 +7,9 @@ import { TimeZoneWithRelations, MemoryWithRelations } from '@/lib/types'
 import ImageCropper from '@/components/ImageCropper'
 import VoiceRecorder from '@/components/VoiceRecorder'
 import UpgradeModal from '@/components/UpgradeModal'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+import '@/styles/datepicker.css'
 
 interface EditChapterModalProps {
   chapter: TimeZoneWithRelations | null
@@ -704,21 +707,88 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-900 mb-2">Start Date</label>
-              <input
-                type="date"
-                value={editingChapter.startDate}
-                onChange={(e) => setEditingChapter({ ...editingChapter, startDate: e.target.value })}
-                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-              />
+              <div className="bg-white border border-slate-300 rounded-xl shadow-sm">
+                <DatePicker
+                  selected={editingChapter.startDate ? new Date(editingChapter.startDate) : null}
+                  onChange={(date) => {
+                    if (date) {
+                      setEditingChapter({ ...editingChapter, startDate: date.toISOString().split('T')[0] })
+                    }
+                  }}
+                  dateFormat="MMMM d, yyyy"
+                  showPopperArrow={false}
+                  placeholderText="Select start date"
+                  className="w-full px-4 py-3 text-slate-900 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  wrapperClassName="w-full"
+                  calendarClassName="shadow-lg border border-slate-200 rounded-lg"
+                  showMonthDropdown
+                  showYearDropdown
+                  dropdownMode="select"
+                  yearDropdownItemNumber={100}
+                  scrollableYearDropdown
+                  maxDate={new Date()}
+                  popperPlacement="bottom-start"
+                  popperModifiers={[
+                    {
+                      name: 'offset',
+                      options: {
+                        offset: [0, 8],
+                      },
+                    },
+                    {
+                      name: 'preventOverflow',
+                      options: {
+                        rootBoundary: 'viewport',
+                        tether: false,
+                        altAxis: true,
+                      },
+                    },
+                  ] as any}
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-900 mb-2">End Date</label>
-              <input
-                type="date"
-                value={editingChapter.endDate}
-                onChange={(e) => setEditingChapter({ ...editingChapter, endDate: e.target.value })}
-                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-              />
+              <div className="bg-white border border-slate-300 rounded-xl shadow-sm">
+                <DatePicker
+                  selected={editingChapter.endDate ? new Date(editingChapter.endDate) : null}
+                  onChange={(date) => {
+                    if (date) {
+                      setEditingChapter({ ...editingChapter, endDate: date.toISOString().split('T')[0] })
+                    }
+                  }}
+                  dateFormat="MMMM d, yyyy"
+                  showPopperArrow={false}
+                  placeholderText="Select end date"
+                  minDate={editingChapter.startDate ? new Date(editingChapter.startDate) : undefined}
+                  className="w-full px-4 py-3 text-slate-900 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  wrapperClassName="w-full"
+                  calendarClassName="shadow-lg border border-slate-200 rounded-lg"
+                  showMonthDropdown
+                  showYearDropdown
+                  dropdownMode="select"
+                  yearDropdownItemNumber={100}
+                  scrollableYearDropdown
+                  maxDate={new Date()}
+                  popperPlacement="bottom-start"
+                  popperModifiers={[
+                    {
+                      name: 'offset',
+                      options: {
+                        offset: [0, 8],
+                      },
+                    },
+                    {
+                      name: 'preventOverflow',
+                      options: {
+                        rootBoundary: 'viewport',
+                        tether: false,
+                        altAxis: true,
+                      },
+                    },
+                  ] as any}
+                />
+              </div>
             </div>
           </div>
 

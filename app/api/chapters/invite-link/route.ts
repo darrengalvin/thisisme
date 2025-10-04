@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Store the invite token (you might want to create an invite_tokens table)
     // For now, we'll create a simple invite link
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://thisisme-three.vercel.app'
     const inviteLink = `${baseUrl}/join/${chapterId}?token=${inviteToken}&expires=${expiresAt.getTime()}`
 
     console.log('🔗 INVITE LINK API: Generated invite link:', inviteLink)

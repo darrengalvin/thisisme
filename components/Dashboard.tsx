@@ -20,13 +20,14 @@ import TabNavigation from './TabNavigation'
 import MyPeopleEnhanced from './MyPeopleEnhanced'
 import NotificationBell from './NotificationBell'
 import AccessManagement from './AccessManagement'
+import CollaborativeMemories from './CollaborativeMemories'
 
 import VoiceChatButton from './VoiceChatButton'
 import { MemoryWithRelations } from '@/lib/types'
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates'
 
-type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support' | 'people'
-type MainTabType = 'home' | 'timeline' | 'timezones' | 'people'
+type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support' | 'people' | 'collaborative'
+type MainTabType = 'home' | 'timeline' | 'timezones' | 'people' | 'collaborative'
 
 interface UserType {
   id: string
@@ -1169,6 +1170,8 @@ export default function Dashboard() {
         return <CreateTimeZone onSuccess={() => { setActiveTab('timezones'); fetchMemories(); }} onCancel={() => setActiveTab('timezones')} />
       case 'people':
         return <MyPeopleEnhanced />
+      case 'collaborative':
+        return <CollaborativeMemories user={user} />
       default:
         return <div className="flex items-center justify-center h-full"><p>Select a view from the navigation</p></div>
     }

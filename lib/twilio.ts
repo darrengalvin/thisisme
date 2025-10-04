@@ -95,17 +95,61 @@ export async function sendPersonInviteSMS(
   inviterName: string,
   relationship: string,
   customMessage?: string,
-  selectedChapters?: string[]
+  selectedChapters?: string[],
+  inviteCode?: string
 ) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const appUrl = process.env.NEXT_PUBLIC_URL || 'https://thisisme-three.vercel.app';
   
-  const chapterText = selectedChapters && selectedChapters.length > 0 
-    ? ` I'd love your help with these chapters: ${selectedChapters.join(', ')}.`
+  // Format phone number for Twilio (E.164 format)
+  let formattedPhone = personPhone.trim();
+  if (formattedPhone.startsWith('0')) {
+    // UK number starting with 0, replace with +44
+    formattedPhone = '+44' + formattedPhone.substring(1);
+  } else if (!formattedPhone.startsWith('+')) {
+    // Add + if missing
+    formattedPhone = '+' + formattedPhone;
+  }
+  
+  console.log('📱 SMS DEBUG: Phone number formatting:', {
+    original: personPhone,
+    formatted: formattedPhone
+  });
+  
+  // Resolve chapter IDs to names
+  let chapterNames: string[] = [];
+  if (selectedChapters && selectedChapters.length > 0) {
+    try {
+      const { supabaseAdmin } = await import('@/lib/supabase-server');
+      const { data: chapters, error } = await supabaseAdmin
+        .from('timezones')
+        .select('id, title')
+        .in('id', selectedChapters);
+      
+      if (error) {
+        console.error('❌ SMS DEBUG: Error fetching chapter names:', error);
+        chapterNames = selectedChapters; // Fallback to IDs if fetch fails
+      } else {
+        chapterNames = chapters?.map(chapter => chapter.title) || selectedChapters;
+        console.log('📱 SMS DEBUG: Resolved chapter names:', chapterNames);
+      }
+    } catch (error) {
+      console.error('❌ SMS DEBUG: Error resolving chapter names:', error);
+      chapterNames = selectedChapters; // Fallback to IDs if fetch fails
+    }
+  }
+  
+  const chapterText = chapterNames.length > 0
+    ? ` I'd love your help with these chapters: ${chapterNames.join(', ')}.`
     : '';
-  const message = `Hi ${personName}! ${inviterName} (your ${relationship}) invited you to join This Is Me - a memory collaboration platform.${chapterText} ${customMessage ? `"${customMessage}" ` : ''}Join: ${appUrl}`;
+  
+  const inviteCodeText = inviteCode 
+    ? ` Invite code: ${inviteCode} (save this to join later or if using a different phone/email)`
+    : '';
+  
+  const message = `Hi ${personName}! ${inviterName} (your ${relationship}) invited you to join This Is Me - a memory collaboration platform.${chapterText} ${customMessage ? `"${customMessage}" ` : ''}Join: ${appUrl}${inviteCodeText}`;
 
   return sendSMS({
-    to: personPhone,
+    to: formattedPhone,
     body: message,
   });
 }

@@ -1655,29 +1655,47 @@ With love and remembrance,
                         <span className="ml-2 text-sm text-gray-600">Loading chapters...</span>
                       </div>
                     ) : availableChapters.length > 0 ? (
-                      <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                        {availableChapters.map((chapter) => (
-                          <label key={chapter.id} className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                            <input
-                              type="checkbox"
-                              checked={newPersonSelectedChapters.includes(chapter.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setNewPersonSelectedChapters(prev => [...prev, chapter.id])
-                                } else {
-                                  setNewPersonSelectedChapters(prev => prev.filter(id => id !== chapter.id))
-                                }
-                              }}
-                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                            <div className="flex-1">
-                              <span className="text-sm font-medium text-gray-900">{chapter.title}</span>
-                              {chapter.description && (
-                                <p className="text-xs text-gray-500 mt-1">{chapter.description}</p>
-                              )}
-                            </div>
-                          </label>
-                        ))}
+                      <div className="space-y-2">
+                        {/* Do this later option */}
+                        <label className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                          <input
+                            type="radio"
+                            name="chapterSelection"
+                            checked={newPersonSelectedChapters.length === 0}
+                            onChange={() => setNewPersonSelectedChapters([])}
+                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">Do this later</div>
+                            <div className="text-xs text-gray-500">Add to chapters after creating the person</div>
+                          </div>
+                        </label>
+                        
+                        {/* Chapter selection */}
+                        <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                          {availableChapters.map((chapter) => (
+                            <label key={chapter.id} className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={newPersonSelectedChapters.includes(chapter.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setNewPersonSelectedChapters(prev => [...prev, chapter.id])
+                                  } else {
+                                    setNewPersonSelectedChapters(prev => prev.filter(id => id !== chapter.id))
+                                  }
+                                }}
+                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                              <div className="flex-1">
+                                <span className="text-sm font-medium text-gray-900">{chapter.title}</span>
+                                {chapter.description && (
+                                  <p className="text-xs text-gray-500 mt-1">{chapter.description}</p>
+                                )}
+                              </div>
+                            </label>
+                          ))}
+                        </div>
                       </div>
                     ) : (
                       <div className="text-center py-4 text-gray-500">
@@ -1686,9 +1704,13 @@ With love and remembrance,
                         <p className="text-xs">Create a chapter first to add people to it</p>
                       </div>
                     )}
-                    {newPersonSelectedChapters.length > 0 && (
+                    {newPersonSelectedChapters.length > 0 ? (
                       <p className="text-xs text-green-600 mt-2">
                         ✓ {newPersonSelectedChapters.length} chapter{newPersonSelectedChapters.length > 1 ? 's' : ''} selected
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-500 mt-2">
+                        ℹ️ No chapters selected - you can add them later
                       </p>
                     )}
                   </div>
@@ -2418,14 +2440,38 @@ With love and remembrance,
 
       {/* Invite Person Modal */}
       {showInviteModal && invitingPerson && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Send Invitation</h2>
-              <p className="text-sm text-gray-600 mt-1">Invite {invitingPerson.person_name} to join This Is Me</p>
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isInviting) {
+              setShowInviteModal(false)
+              setInvitingPerson(null)
+              setInviteMessage('')
+              setSelectedChapters([])
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex items-start justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Send Invitation</h2>
+                <p className="text-sm text-gray-600 mt-1">Invite {invitingPerson.person_name} to join This Is Me</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowInviteModal(false)
+                  setInvitingPerson(null)
+                  setInviteMessage('')
+                  setSelectedChapters([])
+                }}
+                className="ml-4 p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                disabled={isInviting}
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               {/* Platform Invitation Method */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Platform Invitation Method</label>
@@ -2647,13 +2693,14 @@ With love and remembrance,
               )}
             </div>
             
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-2xl">
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-2xl flex-shrink-0">
               <div className="flex items-center justify-end space-x-3">
                 <button
                   onClick={() => {
                     setShowInviteModal(false)
                     setInvitingPerson(null)
                     setInviteMessage('')
+                    setSelectedChapters([])
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
                   disabled={isInviting}

@@ -1,459 +1,267 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
-import { createClient } from '@supabase/supabase-js'
-import { unlink } from 'fs/promises'
-import { join } from 'path'
-import { writeFile } from 'fs/promises'
-import { v4 as uuidv4 } from 'uuid'
-import { getFileType } from '@/lib/utils'
+import { supabaseAdmin } from '@/lib/supabase-server'
 
-
-
-export async function PUT(
+export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = extractTokenFromHeader(request.headers.get('authorization') || undefined)
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
-
-    const user = await verifyToken(token)
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      )
-    }
-
     const memoryId = params.id
+    console.log('🔍 MEMORY API: Request for memory:', memoryId)
     
-    // Create Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
+    // Try to get token from request
+    const token = extractTokenFromHeader(request.headers.get('authorization') || undefined)
+    console.log('🔍 MEMORY API: Token present:', !!token)
     
-    // Get existing memory to check ownership
-    const { data: existingMemory, error: fetchError } = await supabase
-      .from('memories')
-      .select(`
-        *,
-        media(*)
-      `)
-      .eq('id', memoryId)
-      .single()
-
-    if (fetchError || !existingMemory) {
-      return NextResponse.json(
-        { success: false, error: 'Memory not found' },
-        { status: 404 }
-      )
-    }
-
-    // Check if user owns the memory
-    if (existingMemory.user_id !== user.userId) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied' },
-        { status: 403 }
-      )
-    }
-
-    // Parse form data
-    const formData = await request.formData()
-    const title = formData.get('title') as string
-    const textContent = formData.get('textContent') as string
-    const chapterId = formData.get('timeZoneId') as string // Keep timeZoneId for backward compatibility
-    const taggedPeopleJson = formData.get('taggedPeople') as string
-    const taggedPeople = taggedPeopleJson ? JSON.parse(taggedPeopleJson) : []
-    const mediaToDelete = formData.getAll('deleteMedia') as string[]
-    const newMediaFiles = formData.getAll('media') as File[]
-
-    // Delete specified media files
-    for (const mediaId of mediaToDelete) {
-      const mediaToRemove = existingMemory.media.find((m: any) => m.id === mediaId)
-      if (mediaToRemove) {
-        // Delete physical files
-        try {
-          if (mediaToRemove.storage_url) {
-            if (mediaToRemove.storage_url.startsWith('http')) {
-              // Supabase Storage file - extract path and delete from Supabase
-              const urlParts = mediaToRemove.storage_url.split('/object/public/files/')
-              if (urlParts.length > 1) {
-                const storagePath = urlParts[1]
-                const { error: deleteError } = await supabase.storage
-                  .from('files')
-                  .remove([storagePath])
-                
-                if (deleteError) {
-                  console.error('⚠️ EDIT API: Failed to delete Supabase file:', deleteError)
-                } else {
-                  console.log('🗑️ EDIT API: Deleted Supabase file:', mediaToRemove.file_name)
-                }
-              }
-            } else {
-              // Local file - delete from filesystem
-              const filePath = join(process.cwd(), 'public', mediaToRemove.storage_url)
-              await unlink(filePath)
-              console.log('🗑️ EDIT API: Deleted local file:', mediaToRemove.file_name)
-            }
-          }
-          if (mediaToRemove.thumbnail_url && mediaToRemove.thumbnail_url !== mediaToRemove.storage_url) {
-            if (mediaToRemove.thumbnail_url.startsWith('http')) {
-              // Supabase Storage thumbnail
-              const urlParts = mediaToRemove.thumbnail_url.split('/object/public/files/')
-              if (urlParts.length > 1) {
-                const storagePath = urlParts[1]
-                await supabase.storage.from('files').remove([storagePath])
-              }
-            } else {
-              // Local thumbnail
-              const thumbnailPath = join(process.cwd(), 'public', mediaToRemove.thumbnail_url)
-              await unlink(thumbnailPath)
-            }
-          }
-        } catch (error) {
-          console.log('File deletion error (file may not exist):', error)
-        }
-        
-        // Delete from database using Supabase
-        await supabase
-          .from('media')
-          .delete()
-          .eq('id', mediaId)
-      }
-    }
-
-    // Upload new media files to Supabase Storage
-    const newMediaRecords = []
-
-    for (const file of newMediaFiles) {
-      if (file instanceof File && file.size > 0) {
-        try {
-          // Generate unique filename for Supabase Storage
-          const fileId = uuidv4()
-          const fileExtension = file.name.split('.').pop()
-          const fileName = `${fileId}.${fileExtension}`
-          const filePath = `uploads/${user.userId}/${fileName}`
-
-          console.log('💾 EDIT API: Uploading to Supabase Storage:', { fileName, filePath })
-
-          // Upload file to Supabase Storage
-          const bytes = await file.arrayBuffer()
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('files')
-            .upload(filePath, bytes, {
-              cacheControl: '3600',
-              upsert: false,
-              contentType: file.type
-            })
-
-          if (uploadError) {
-            console.error('❌ EDIT API: Supabase Storage upload failed:', uploadError)
-            continue
-          }
-
-          // Get public URL
-          const { data: { publicUrl } } = supabase.storage
-            .from('files')
-            .getPublicUrl(filePath)
-
-          console.log('✅ EDIT API: File uploaded to Supabase:', { path: uploadData.path, publicUrl })
-
-          // Determine media type
-          const mediaType = getFileType(file.type)
-          console.log('🎯 EDIT API: Media type:', mediaType, 'from MIME:', file.type)
-          
-          // Create media record using Supabase
-          const { data: mediaRecord, error: mediaError } = await supabase
-            .from('media')
-            .insert({
-              memory_id: memoryId,
-              type: mediaType,
-              storage_url: publicUrl,
-              thumbnail_url: mediaType === 'IMAGE' ? publicUrl : null,
-              file_size: file.size,
-              mime_type: file.type,
-              file_name: file.name
-            })
-            .select()
-            .single()
-
-          if (mediaError) {
-            console.error('❌ EDIT API: Media record creation failed:', mediaError)
-            continue
-          }
-          
-          newMediaRecords.push(mediaRecord)
-        } catch (error) {
-          console.error('❌ EDIT API: Error uploading file:', error)
-          continue
-        }
-      }
-    }
-
-    // Update memory using Supabase
-    const { error: updateError } = await supabase
-      .from('memories')
-      .update({
-        title: title || null,
-        text_content: textContent || null,
-        chapter_id: chapterId || null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', memoryId)
-
-    if (updateError) {
-      console.error('❌ EDIT API: Failed to update memory:', updateError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to update memory' },
-        { status: 500 }
-      )
-    }
-
-    // Handle tagged people updates
-    if (taggedPeople && taggedPeople.length > 0) {
-      // First, delete existing tags for this memory
-      await supabase
-        .from('memory_tags')
-        .delete()
-        .eq('memory_id', memoryId)
-
-      // Add new tags
-      for (const personName of taggedPeople) {
-        // Find or create person in user's network
-        let { data: networkPerson } = await supabase
-          .from('user_networks')
-          .select('id')
-          .eq('owner_id', user.userId)
-          .eq('person_name', personName)
+    if (token) {
+      // User is authenticated - check if they have access
+      const user = await verifyToken(token)
+      console.log('🔍 MEMORY API: User verified:', user ? user.userId : 'null')
+      if (user) {
+        // First, check if user owns this memory
+        const { data: ownedMemory, error: ownedMemoryError } = await supabaseAdmin
+          .from('memories')
+          .select(`
+            id,
+            title,
+            text_content,
+            image_url,
+            user_id,
+            created_at,
+            media(*)
+          `)
+          .eq('id', memoryId)
+          .eq('user_id', user.userId)
           .single()
 
-        if (!networkPerson) {
-          // Create new person in network
-          const { data: newPerson } = await supabase
-            .from('user_networks')
-            .insert({
-              owner_id: user.userId,
-              person_name: personName
-            })
-            .select('id')
-            .single()
-          
-          networkPerson = newPerson
-        }
-
-        if (networkPerson) {
-          // Create memory tag
-          await supabase
+        if (!ownedMemoryError && ownedMemory) {
+          // Fetch memory tags separately to avoid relationship issues
+          const { data: memoryTags } = await supabaseAdmin
             .from('memory_tags')
-            .insert({
-              memory_id: memoryId,
-              tagged_person_id: networkPerson.id,
-              tagged_by_user_id: user.userId
-            })
+            .select(`
+              id,
+              tagged_person_id,
+              user_networks(
+                id,
+                person_name,
+                person_email,
+                relationship
+              )
+            `)
+            .eq('memory_id', memoryId)
+
+          // Add tags to memory object
+          const memoryWithTags = {
+            ...ownedMemory,
+            memory_tags: memoryTags || []
+          }
+
+          // User owns this memory
+          return NextResponse.json({ 
+            memory: memoryWithTags,
+            permissions: ['view', 'comment', 'add_text', 'add_images'], // Full access for owner
+            isOwner: true
+          })
         }
+
+        // Check for collaboration permissions (including pending invitations)
+        console.log('🔍 MEMORY API: Checking collaboration for user:', user.userId, 'memory:', memoryId)
+        const { data: collaboration, error: collaborationError } = await supabaseAdmin
+          .from('memory_collaborations')
+          .select('permissions, status')
+          .eq('memory_id', memoryId)
+          .eq('collaborator_id', user.userId)
+          .single()
+
+        console.log('🔍 MEMORY API: Collaboration query result:', { 
+          hasData: !!collaboration, 
+          error: collaborationError?.message,
+          status: collaboration?.status,
+          permissions: collaboration?.permissions
+        })
+
+        if (!collaborationError && collaboration) {
+        // User has collaboration access (accepted or pending)
+        const { data: collaborativeMemory, error: collaborativeMemoryError } = await supabaseAdmin
+          .from('memories')
+          .select(`
+            id,
+            title,
+            text_content,
+            image_url,
+            user_id,
+            created_at,
+            media(*)
+          `)
+          .eq('id', memoryId)
+          .single()
+
+          if (!collaborativeMemoryError && collaborativeMemory) {
+            // Fetch memory tags separately to avoid relationship issues
+            const { data: memoryTags } = await supabaseAdmin
+              .from('memory_tags')
+              .select(`
+                id,
+                tagged_person_id,
+                user_networks(
+                  id,
+                  person_name,
+                  person_email,
+                  relationship
+                )
+              `)
+              .eq('memory_id', memoryId)
+
+            // Add tags to memory object
+            const memoryWithTags = {
+              ...collaborativeMemory,
+              memory_tags: memoryTags || []
+            }
+
+            const permissions = collaboration.status === 'accepted' ? ['view', 'comment', 'add_text', 'add_images'] : ['view']
+            console.log('🔍 MEMORY API: Collaborative memory access, permissions:', permissions)
+            return NextResponse.json({ 
+              memory: memoryWithTags,
+              permissions: permissions,
+              isOwner: false,
+              isCollaboration: true,
+              collaborationStatus: collaboration.status
+            })
+          }
+        }
+
+        // If no ownership or collaboration, check if this is a public invitation
+        // For now, let's allow access to any authenticated user for testing
+        console.log('🔍 MEMORY API: No ownership or collaboration found, checking for public memory access')
+        const { data: publicMemory, error: publicMemoryError } = await supabaseAdmin
+          .from('memories')
+          .select(`
+            id,
+            title,
+            text_content,
+            image_url,
+            user_id,
+            created_at,
+            media(*)
+          `)
+          .eq('id', memoryId)
+          .single()
+
+        console.log('🔍 MEMORY API: Public memory query result:', { 
+          hasData: !!publicMemory, 
+          error: publicMemoryError?.message,
+          memoryId: publicMemory?.id 
+        })
+
+        if (!publicMemoryError && publicMemory) {
+          // Fetch memory tags separately to avoid relationship issues
+          const { data: memoryTags } = await supabaseAdmin
+            .from('memory_tags')
+            .select(`
+              id,
+              tagged_person_id,
+              user_networks(
+                id,
+                person_name,
+                person_email,
+                relationship
+              )
+            `)
+            .eq('memory_id', memoryId)
+
+          // Add tags to memory object
+          const memoryWithTags = {
+            ...publicMemory,
+            memory_tags: memoryTags || []
+          }
+
+          // Allow view access for authenticated users (for testing)
+          console.log('🔍 MEMORY API: Returning public memory access')
+          console.log('🔍 MEMORY API: Permissions being sent:', ['view', 'comment', 'add_text', 'add_images'])
+          return NextResponse.json({ 
+            memory: memoryWithTags,
+            permissions: ['view', 'comment', 'add_text', 'add_images'],
+            isOwner: false,
+            isCollaboration: false,
+            isPublicView: true
+          })
+        }
+
+        // Memory not found
+        console.log('🔍 MEMORY API: Memory not found, error:', publicMemoryError?.message)
+        return NextResponse.json(
+          { error: 'Memory not found' },
+          { status: 404 }
+        )
       }
-    } else {
-      // If no tagged people, remove all existing tags
-      await supabase
+    }
+
+    // No authentication or invalid token
+    // Check if this is an invitation link
+    const url = new URL(request.url)
+    const isInvited = url.searchParams.get('invited') === 'true'
+    
+    if (isInvited) {
+      // This is an invitation - return limited memory info for preview
+      const { data: memory, error: memoryError } = await supabaseAdmin
+        .from('memories')
+        .select(`
+          id,
+          title,
+          text_content,
+          image_url,
+          created_at,
+          media(*)
+        `)
+        .eq('id', memoryId)
+        .single()
+
+      if (memoryError || !memory) {
+        return NextResponse.json(
+          { error: 'Memory not found' },
+          { status: 404 }
+        )
+      }
+
+      // Fetch memory tags separately to avoid relationship issues
+      const { data: memoryTags } = await supabaseAdmin
         .from('memory_tags')
-        .delete()
+        .select(`
+          id,
+          tagged_person_id,
+          user_networks(
+            id,
+            person_name,
+            person_email,
+            relationship
+          )
+        `)
         .eq('memory_id', memoryId)
+
+      // Return invitation preview (no sensitive data)
+      return NextResponse.json({
+        memory: {
+          ...memory,
+          memory_tags: memoryTags || [],
+          // Don't include user_id for invitations
+        },
+        permissions: ['view', 'comment', 'add_text', 'add_images'], // Default permissions for invitations
+        isInvitation: true
+      })
     }
 
-    // Get complete updated memory with relations
-    const { data: updatedMemory, error: fetchUpdatedError } = await supabase
-      .from('memories')
-      .select(`
-        *,
-        user:users!memories_user_id_fkey(id, email),
-        chapter:chapters!memories_chapter_id_fkey(id, title, type),
-        media(*)
-      `)
-      .eq('id', memoryId)
-      .single()
-
-    if (fetchUpdatedError) {
-      console.error('❌ EDIT API: Failed to fetch updated memory:', fetchUpdatedError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch updated memory' },
-        { status: 500 }
-      )
-    }
-
-    // Transform data to match expected format
-    const transformedMemory = {
-      ...updatedMemory,
-      id: updatedMemory.id,
-      title: updatedMemory.title,
-      textContent: updatedMemory.text_content,
-      userId: updatedMemory.user_id,
-      timeZoneId: updatedMemory.chapter_id, // Keep timeZoneId for backward compatibility
-      datePrecision: updatedMemory.date_precision,
-      approximateDate: updatedMemory.approximate_date,
-      createdAt: updatedMemory.created_at,
-      updatedAt: updatedMemory.updated_at,
-      user: updatedMemory.user,
-      timeZone: updatedMemory.chapter, // Keep timeZone for backward compatibility
-      media: updatedMemory.media || []
-    }
-
-    return NextResponse.json({
-      success: true,
-      memory: transformedMemory
-    })
+    // Not authenticated and not an invitation
+    return NextResponse.json(
+      { error: 'Authentication required' },
+      { status: 401 }
+    )
 
   } catch (error) {
-    console.error('Update memory error:', error)
+    console.error('Error fetching memory:', error)
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { error: 'Failed to fetch memory' },
       { status: 500 }
     )
   }
 }
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const token = extractTokenFromHeader(request.headers.get('authorization') || undefined)
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
-
-    const user = await verifyToken(token)
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      )
-    }
-
-    const memoryId = params.id
-
-    // Use service role client to bypass RLS (same as GET route)
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
-
-    console.log('🗑️ DELETE API: Looking for memory in Supabase:', memoryId)
-
-    // Get memory with media from Supabase
-    const { data: memory, error: fetchError } = await supabase
-      .from('memories')
-      .select(`
-        *,
-        media(*)
-      `)
-      .eq('id', memoryId)
-      .eq('user_id', user.userId) // Ensure user owns the memory
-      .single()
-
-    if (fetchError || !memory) {
-      console.log('❌ DELETE API: Memory not found in Supabase:', fetchError)
-      return NextResponse.json(
-        { success: false, error: 'Memory not found' },
-        { status: 404 }
-      )
-    }
-
-    console.log('✅ DELETE API: Found memory in Supabase:', memory.title)
-
-    // Delete associated media files from storage
-    if (memory.media && memory.media.length > 0) {
-      for (const media of memory.media) {
-        try {
-          // Check if this is a Supabase Storage URL or local file
-          if (media.storage_url.startsWith('http')) {
-            // Supabase Storage file - extract path and delete from Supabase
-            const urlParts = media.storage_url.split('/object/public/files/')
-            if (urlParts.length > 1) {
-              const storagePath = urlParts[1]
-              const { error: deleteError } = await supabase.storage
-                .from('files')
-                .remove([storagePath])
-              
-              if (deleteError) {
-                console.error('⚠️ DELETE API: Failed to delete Supabase file:', deleteError)
-              } else {
-                console.log('🗑️ DELETE API: Deleted Supabase file:', media.file_name)
-              }
-            }
-          } else {
-            // Local file - delete from filesystem
-            const filePath = join(process.cwd(), 'public', media.storage_url)
-            await unlink(filePath)
-            console.log('🗑️ DELETE API: Deleted local file:', media.file_name)
-          }
-        } catch (fileError) {
-          console.error('⚠️ DELETE API: Failed to delete file:', fileError)
-          // Continue with deletion even if file removal fails
-        }
-      }
-    }
-
-    // Delete media records from Supabase
-    if (memory.media && memory.media.length > 0) {
-      const { error: mediaDeleteError } = await supabase
-        .from('media')
-        .delete()
-        .eq('memory_id', memoryId)
-
-      if (mediaDeleteError) {
-        console.error('⚠️ DELETE API: Failed to delete media records:', mediaDeleteError)
-        // Continue with memory deletion
-      }
-    }
-
-    // Delete memory from Supabase
-    const { error: deleteError } = await supabase
-      .from('memories')
-      .delete()
-      .eq('id', memoryId)
-      .eq('user_id', user.userId) // Double-check ownership
-
-    if (deleteError) {
-      console.error('❌ DELETE API: Failed to delete memory from Supabase:', deleteError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete memory' },
-        { status: 500 }
-      )
-    }
-
-    console.log('🎉 DELETE API: Successfully deleted memory from Supabase')
-
-    return NextResponse.json({
-      success: true,
-      message: 'Memory deleted successfully'
-    })
-
-  } catch (error) {
-    console.error('💥 DELETE API: Unexpected error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-} 

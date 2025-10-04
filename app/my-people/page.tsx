@@ -54,3 +54,5 @@ export default function MyPeoplePage() {
     </div>
   )
 }
+
+

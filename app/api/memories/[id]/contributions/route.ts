@@ -1,54 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyToken, extractTokenFromHeader } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase-server'
-import { verifyToken } from '@/lib/auth'
 
-// Get contributions for a memory
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get user from JWT token
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'No authorization header' }, { status: 401 })
+    const memoryId = params.id
+    console.log('💬 CONTRIBUTIONS API: Loading contributions for memory:', memoryId)
+    
+    // Get authentication token
+    const token = extractTokenFromHeader(request.headers.get('authorization') || undefined)
+    
+    if (!token) {
+      console.log('💬 CONTRIBUTIONS API: No auth token provided')
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
     }
 
-    const token = authHeader.replace('Bearer ', '')
+    // Verify user
     const user = await verifyToken(token)
     if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      console.log('💬 CONTRIBUTIONS API: Invalid token')
+      return NextResponse.json(
+        { error: 'Invalid authentication token' },
+        { status: 401 }
+      )
     }
 
-    const { id: memoryId } = params
+    console.log('💬 CONTRIBUTIONS API: User authenticated:', user.userId)
 
-    // Verify user can access this memory
-    const { data: memory } = await supabaseAdmin
+    // Check if user has access to this memory (owner or collaborator)
+    const { data: memory, error: memoryError } = await supabaseAdmin
       .from('memories')
-      .select(`
-        id,
-        user_id,
-        timezone_id,
-        timezones!inner(id)
-      `)
+      .select('id, user_id')
       .eq('id', memoryId)
       .single()
 
-    if (!memory) {
-      return NextResponse.json({ error: 'Memory not found' }, { status: 404 })
+    if (memoryError || !memory) {
+      console.log('💬 CONTRIBUTIONS API: Memory not found')
+      return NextResponse.json(
+        { error: 'Memory not found' },
+        { status: 404 }
+      )
     }
 
-    // Check if user can access this memory (owner or timezone member)
-    const canAccess = memory.user_id === user.userId || (
-      memory.timezone_id && await checkTimezoneMembership(memory.timezone_id, user.userId)
-    )
+    // Check if user owns the memory
+    const isOwner = memory.user_id === user.userId
 
-    if (!canAccess) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    // Check if user is a collaborator
+    const { data: collaboration, error: collaborationError } = await supabaseAdmin
+      .from('memory_collaborations')
+      .select('permissions, status')
+      .eq('memory_id', memoryId)
+      .eq('collaborator_id', user.userId)
+      .eq('status', 'accepted')
+      .single()
+
+    const isCollaborator = !collaborationError && collaboration
+
+    if (!isOwner && !isCollaborator) {
+      console.log('💬 CONTRIBUTIONS API: Access denied for user:', user.userId)
+      return NextResponse.json(
+        { error: 'Access denied' },
+        { status: 403 }
+      )
     }
 
-    // Get contributions with contributor details
-    const { data: contributions, error } = await supabaseAdmin
+    // Fetch contributions for this memory with media attachments
+    const { data: contributions, error: contributionsError } = await supabaseAdmin
       .from('memory_contributions')
       .select(`
         id,
@@ -57,89 +80,149 @@ export async function GET(
         contribution_type,
         content,
         created_at,
-        updated_at,
-        users!memory_contributions_contributor_id_fkey(
+        contributor:users(
           id,
           email
+        ),
+        contribution_media_attachments(
+          id,
+          media_id,
+          media:media(
+            id,
+            file_name,
+            storage_url,
+            type,
+            file_size
+          )
         )
       `)
       .eq('memory_id', memoryId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
 
-    if (error) throw error
+    if (contributionsError) {
+      console.error('💬 CONTRIBUTIONS API: Error fetching contributions:', contributionsError)
+      return NextResponse.json(
+        { error: 'Failed to fetch contributions' },
+        { status: 500 }
+      )
+    }
+
+    console.log('💬 CONTRIBUTIONS API: Found', contributions?.length || 0, 'contributions')
+
+    // Transform the contributions to include media attachments in the expected format
+    const transformedContributions = contributions?.map((contribution: any) => ({
+      ...contribution,
+      media_attachments: contribution.contribution_media_attachments?.map((attachment: any) => ({
+        id: attachment.media.id,
+        filename: attachment.media.filename,
+        storage_url: attachment.media.storage_url,
+        type: attachment.media.type,
+        file_size: attachment.media.file_size
+      })) || []
+    })) || []
+
+    // Remove the raw contribution_media_attachments from each contribution
+    transformedContributions.forEach((contribution: any) => {
+      delete contribution.contribution_media_attachments
+    })
 
     return NextResponse.json({
       success: true,
-      contributions: contributions || []
+      contributions: transformedContributions
     })
+
   } catch (error) {
-    console.error('Failed to fetch memory contributions:', error)
+    console.error('💬 CONTRIBUTIONS API: Error:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch contributions' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
 
-// Add contribution to a memory
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get user from JWT token
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'No authorization header' }, { status: 401 })
+    const memoryId = params.id
+    const body = await request.json()
+    const { contribution_type, content, media_attachment_ids } = body
+
+    console.log('💬 CONTRIBUTIONS API: Creating contribution:', { memoryId, contribution_type, content, media_attachment_ids })
+
+    // Validate input
+    if (!contribution_type || !content) {
+      return NextResponse.json(
+        { error: 'contribution_type and content are required' },
+        { status: 400 }
+      )
     }
 
-    const token = authHeader.replace('Bearer ', '')
+    if (!['COMMENT', 'ADDITION', 'CORRECTION'].includes(contribution_type)) {
+      return NextResponse.json(
+        { error: 'Invalid contribution_type. Must be COMMENT, ADDITION, or CORRECTION' },
+        { status: 400 }
+      )
+    }
+
+    // Get authentication token
+    const token = extractTokenFromHeader(request.headers.get('authorization') || undefined)
+    
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Verify user
     const user = await verifyToken(token)
     if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Invalid authentication token' },
+        { status: 401 }
+      )
     }
 
-    const { id: memoryId } = params
-    const body = await request.json()
-    const { contribution_type, content } = body
-
-    if (!contribution_type || !['COMMENT', 'ADDITION', 'CORRECTION'].includes(contribution_type)) {
-      return NextResponse.json({ error: 'Valid contribution_type is required' }, { status: 400 })
-    }
-
-    if (!content?.trim()) {
-      return NextResponse.json({ error: 'Content is required' }, { status: 400 })
-    }
-
-    // Verify memory exists and user can contribute
-    const { data: memory } = await supabaseAdmin
+    // Check if user has access to this memory (owner or collaborator with comment permission)
+    const { data: memory, error: memoryError } = await supabaseAdmin
       .from('memories')
-      .select('id, user_id, timezone_id')
+      .select('id, user_id')
       .eq('id', memoryId)
       .single()
 
-    if (!memory) {
-      return NextResponse.json({ error: 'Memory not found' }, { status: 404 })
+    if (memoryError || !memory) {
+      return NextResponse.json(
+        { error: 'Memory not found' },
+        { status: 404 }
+      )
     }
 
-    // Check if user can contribute
-    let canContribute = false
-    
-    // Memory owner can always contribute to their own memories
-    if (memory.user_id === user.userId) {
-      canContribute = true
-    }
-    // If memory is in a chapter, check if user is a member
-    else if (memory.timezone_id) {
-      canContribute = await checkTimezoneMembership(memory.timezone_id, user.userId)
-    }
-    
-    if (!canContribute) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    // Check if user owns the memory (owners can always comment)
+    const isOwner = memory.user_id === user.userId
+
+    // Check if user is a collaborator with comment permission
+    const { data: collaboration, error: collaborationError } = await supabaseAdmin
+      .from('memory_collaborations')
+      .select('permissions, status')
+      .eq('memory_id', memoryId)
+      .eq('collaborator_id', user.userId)
+      .eq('status', 'accepted')
+      .single()
+
+    const isCollaborator = !collaborationError && collaboration
+    const canComment = isOwner || (isCollaborator && collaboration.permissions.includes('comment'))
+
+    if (!canComment) {
+      return NextResponse.json(
+        { error: 'You do not have permission to add contributions to this memory' },
+        { status: 403 }
+      )
     }
 
-    // Create contribution
-    const { data: newContribution, error } = await supabaseAdmin
+    // Create the contribution
+    const { data: contribution, error: contributionError } = await supabaseAdmin
       .from('memory_contributions')
       .insert({
         memory_id: memoryId,
@@ -154,37 +237,105 @@ export async function POST(
         contribution_type,
         content,
         created_at,
-        updated_at,
-        users!memory_contributions_contributor_id_fkey(
+        contributor:users(
           id,
           email
         )
       `)
       .single()
 
-    if (error) throw error
+    if (contributionError) {
+      console.error('💬 CONTRIBUTIONS API: Error creating contribution:', contributionError)
+      return NextResponse.json(
+        { error: 'Failed to create contribution' },
+        { status: 500 }
+      )
+    }
+
+    console.log('💬 CONTRIBUTIONS API: Contribution created successfully:', contribution.id)
+
+    // Link media attachments if provided
+    if (media_attachment_ids && media_attachment_ids.length > 0) {
+      const attachmentInserts = media_attachment_ids.map((mediaId: string) => ({
+        contribution_id: contribution.id,
+        media_id: mediaId
+      }))
+
+      const { error: attachmentError } = await supabaseAdmin
+        .from('contribution_media_attachments')
+        .insert(attachmentInserts)
+
+      if (attachmentError) {
+        console.error('💬 CONTRIBUTIONS API: Error linking media attachments:', attachmentError)
+        // Don't fail the whole operation, just log the error
+      } else {
+        console.log('💬 CONTRIBUTIONS API: Media attachments linked successfully')
+      }
+    }
+
+    // Fetch the contribution with media attachments
+    const { data: contributionWithMedia, error: fetchError } = await supabaseAdmin
+      .from('memory_contributions')
+      .select(`
+        id,
+        memory_id,
+        contributor_id,
+        contribution_type,
+        content,
+        created_at,
+        contributor:users(
+          id,
+          email
+        ),
+        contribution_media_attachments(
+          id,
+          media_id,
+          media:media(
+            id,
+            file_name,
+            storage_url,
+            type,
+            file_size
+          )
+        )
+      `)
+      .eq('id', contribution.id)
+      .single()
+
+    if (fetchError) {
+      console.error('💬 CONTRIBUTIONS API: Error fetching contribution with media:', fetchError)
+      // Return the basic contribution if we can't fetch with media
+      return NextResponse.json({
+        success: true,
+        contribution
+      })
+    }
+
+    // Transform the media attachments to match the frontend interface
+    const transformedContribution = {
+      ...contributionWithMedia,
+      media_attachments: contributionWithMedia.contribution_media_attachments?.map((attachment: any) => ({
+        id: attachment.media.id,
+        filename: attachment.media.filename,
+        storage_url: attachment.media.storage_url,
+        type: attachment.media.type,
+        file_size: attachment.media.file_size
+      })) || []
+    }
+
+    // Remove the raw contribution_media_attachments from the response
+    delete (transformedContribution as any).contribution_media_attachments
 
     return NextResponse.json({
       success: true,
-      contribution: newContribution
+      contribution: transformedContribution
     })
+
   } catch (error) {
-    console.error('Failed to add memory contribution:', error)
+    console.error('💬 CONTRIBUTIONS API: Error:', error)
     return NextResponse.json(
-      { error: 'Failed to add contribution' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
-}
-
-// Helper function to check timezone membership
-async function checkTimezoneMembership(timezoneId: string, userId: string): Promise<boolean> {
-  const { data } = await supabaseAdmin
-    .from('timezone_members')
-    .select('id')
-    .eq('timezone_id', timezoneId)
-    .eq('user_id', userId)
-    .single()
-  
-  return !!data
 }

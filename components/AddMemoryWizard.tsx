@@ -9,6 +9,9 @@ import UpgradeModal from './UpgradeModal'
 import SystemMessageModal from './SystemMessageModal'
 import TaggingInput from './TaggingInput'
 import PhotoTagger from './PhotoTagger'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+import '@/styles/datepicker.css'
 
 interface AddMemoryWizardProps {
   chapterId: string | null
@@ -21,10 +24,10 @@ interface MemoryData {
   title: string
   description: string
   dateType: 'exact' | 'rough' | 'approximate' | 'estimated' | 'within-chapter'
-  exactDate?: string
-  roughDate?: string
+  exactDate?: Date | null
+  roughDate?: Date | null
   approximateDate?: string
-  estimatedDate?: string
+  estimatedDate?: Date | null
   files: File[]
 }
 
@@ -182,13 +185,16 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
 
       // Handle date based on type
       if (memoryData.dateType === 'exact' && memoryData.exactDate) {
-        formData.append('customDate', new Date(memoryData.exactDate).toISOString())
+        formData.append('customDate', memoryData.exactDate.toISOString())
         formData.append('datePrecision', 'exact')
+      } else if (memoryData.dateType === 'rough' && memoryData.roughDate) {
+        formData.append('customDate', memoryData.roughDate.toISOString())
+        formData.append('datePrecision', 'approximate')
       } else if (memoryData.dateType === 'estimated' && memoryData.estimatedDate) {
-        formData.append('customDate', new Date(memoryData.estimatedDate).toISOString())
+        formData.append('customDate', memoryData.estimatedDate.toISOString())
         formData.append('datePrecision', 'approximate')
       } else if (memoryData.dateType === 'within-chapter') {
-        formData.append('approximateDate', 'within-chapter')
+        formData.append('approximateDate', memoryData.approximateDate || 'within-chapter')
         formData.append('datePrecision', 'era')
       }
 
@@ -437,102 +443,216 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
           {/* Step 2: When did this happen? */}
           {currentStep === 2 && (
             <div className="space-y-4">
-              <div className="grid gap-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <Calendar className="w-5 h-5 text-blue-600 mt-0.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-blue-900 mb-1">Choose how specific you want to be</h3>
+                    <p className="text-sm text-blue-700">
+                      The more specific you can be, the better we can organize your memory on your timeline.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid gap-4">
                 {/* Exact Date */}
-                <label className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                <label className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
                   memoryData.dateType === 'exact' 
-                    ? 'border-slate-800 bg-slate-50' 
-                    : 'border-slate-200 hover:border-slate-300'
+                    ? 'border-slate-800 bg-slate-50 shadow-sm' 
+                    : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
                 }`}>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      memoryData.dateType === 'exact'
+                        ? 'border-slate-800 bg-slate-800'
+                        : 'border-slate-300 hover:border-slate-400'
+                    }`}>
+                      {memoryData.dateType === 'exact' && (
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      )}
+                    </div>
                     <input
                       type="radio"
                       name="dateType"
                       value="exact"
                       checked={memoryData.dateType === 'exact'}
                       onChange={(e) => setMemoryData(prev => ({ ...prev, dateType: 'exact' as const }))}
-                      className="w-4 h-4 text-slate-800"
+                      className="sr-only"
                     />
                     <div className="flex-1">
-                      <div className="font-medium text-slate-900">I know the exact date</div>
+                      <div className="font-semibold text-slate-900">I know the exact date</div>
                       <div className="text-sm text-slate-600">Pick the specific day this happened</div>
                     </div>
                     <Calendar size={20} className="text-slate-400" />
                   </div>
                   {memoryData.dateType === 'exact' && (
-                    <div className="mt-3 pl-7">
-                      <input
-                        type="date"
-                        value={memoryData.exactDate || ''}
-                        onChange={(e) => setMemoryData(prev => ({ ...prev, exactDate: e.target.value }))}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800"
-                      />
+                    <div className="mt-4 pl-7">
+                      <div className="bg-white border border-slate-300 rounded-lg shadow-sm">
+                        <DatePicker
+                          selected={memoryData.exactDate}
+                          onChange={(date) => setMemoryData(prev => ({ ...prev, exactDate: date }))}
+                          dateFormat="MMMM d, yyyy"
+                          showPopperArrow={false}
+                          placeholderText="Select the exact date"
+                          className="w-full px-4 py-3 text-slate-900 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800"
+                          wrapperClassName="w-full"
+                          calendarClassName="shadow-lg border border-slate-200 rounded-lg"
+                          showMonthDropdown
+                          showYearDropdown
+                          dropdownMode="select"
+                          yearDropdownItemNumber={100}
+                          scrollableYearDropdown
+                          maxDate={new Date()}
+                          popperPlacement="bottom-start"
+                          popperModifiers={[
+                            {
+                              name: 'offset',
+                              options: {
+                                offset: [0, 8],
+                              },
+                            },
+                            {
+                              name: 'preventOverflow',
+                              options: {
+                                rootBoundary: 'viewport',
+                                tether: false,
+                                altAxis: true,
+                              },
+                            },
+                          ]}
+                          dayClassName={(date) => {
+                            const today = new Date()
+                            const isToday = date.toDateString() === today.toDateString()
+                            return isToday ? 'bg-slate-800 text-white rounded-full' : 'hover:bg-slate-100 rounded-full'
+                          }}
+                        />
+                      </div>
+                      <div className="mt-2 text-xs text-slate-500">
+                        💡 Tip: Use the year dropdown to quickly jump to any year
+                      </div>
                     </div>
                   )}
                 </label>
 
                 {/* Rough Date */}
-                <label className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                <label className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
                   memoryData.dateType === 'rough' 
-                    ? 'border-slate-800 bg-slate-50' 
-                    : 'border-slate-200 hover:border-slate-300'
+                    ? 'border-slate-800 bg-slate-50 shadow-sm' 
+                    : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
                 }`}>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      memoryData.dateType === 'rough'
+                        ? 'border-slate-800 bg-slate-800'
+                        : 'border-slate-300 hover:border-slate-400'
+                    }`}>
+                      {memoryData.dateType === 'rough' && (
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      )}
+                    </div>
                     <input
                       type="radio"
                       name="dateType"
                       value="rough"
                       checked={memoryData.dateType === 'rough'}
                       onChange={(e) => setMemoryData(prev => ({ ...prev, dateType: 'rough' as const }))}
-                      className="w-4 h-4 text-slate-800"
+                      className="sr-only"
                     />
                     <div className="flex-1">
-                      <div className="font-medium text-slate-900">I know roughly when</div>
+                      <div className="font-semibold text-slate-900">I know roughly when</div>
                       <div className="text-sm text-slate-600">Pick a month and year</div>
                     </div>
                     <Clock size={20} className="text-slate-400" />
                   </div>
                   {memoryData.dateType === 'rough' && (
-                    <div className="mt-3 pl-7">
-                      <input
-                        type="month"
-                        value={memoryData.roughDate || ''}
-                        onChange={(e) => setMemoryData(prev => ({ ...prev, roughDate: e.target.value + '-01' }))}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800"
-                      />
+                    <div className="mt-4 pl-7">
+                      <div className="bg-white border border-slate-300 rounded-lg shadow-sm">
+                        <DatePicker
+                          selected={memoryData.roughDate}
+                          onChange={(date) => setMemoryData(prev => ({ ...prev, roughDate: date }))}
+                          dateFormat="MMMM yyyy"
+                          showMonthYearPicker
+                          showFullMonthYearPicker
+                          placeholderText="Select month and year"
+                          className="w-full px-4 py-3 text-slate-900 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800"
+                          wrapperClassName="w-full"
+                          calendarClassName="shadow-lg border border-slate-200 rounded-lg"
+                          showYearDropdown
+                          scrollableYearDropdown
+                          yearDropdownItemNumber={100}
+                          maxDate={new Date()}
+                          popperPlacement="bottom-start"
+                          popperModifiers={[
+                            {
+                              name: 'offset',
+                              options: {
+                                offset: [0, 8],
+                              },
+                            },
+                            {
+                              name: 'preventOverflow',
+                              options: {
+                                rootBoundary: 'viewport',
+                                tether: false,
+                                altAxis: true,
+                              },
+                            },
+                          ]}
+                        />
+                      </div>
+                      <div className="mt-2 text-xs text-slate-500">
+                        💡 Tip: Scroll through the years or type to search
+                      </div>
                     </div>
                   )}
                 </label>
 
                 {/* Approximate */}
-                <label className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                <label className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
                   memoryData.dateType === 'within-chapter' 
-                    ? 'border-slate-800 bg-slate-50' 
-                    : 'border-slate-200 hover:border-slate-300'
+                    ? 'border-slate-800 bg-slate-50 shadow-sm' 
+                    : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
                 }`}>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      memoryData.dateType === 'within-chapter'
+                        ? 'border-slate-800 bg-slate-800'
+                        : 'border-slate-300 hover:border-slate-400'
+                    }`}>
+                      {memoryData.dateType === 'within-chapter' && (
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      )}
+                    </div>
                     <input
                       type="radio"
                       name="dateType"
                       value="within-chapter"
                       checked={memoryData.dateType === 'within-chapter'}
                       onChange={(e) => setMemoryData(prev => ({ ...prev, dateType: 'within-chapter' as const }))}
-                      className="w-4 h-4 text-slate-800"
+                      className="sr-only"
                     />
                     <div className="flex-1">
-                      <div className="font-medium text-slate-900">Somewhere within this chapter</div>
+                      <div className="font-semibold text-slate-900">Somewhere within this chapter</div>
                       <div className="text-sm text-slate-600">Not exactly sure when, but it happened during this period</div>
                     </div>
                   </div>
                   {memoryData.dateType === 'within-chapter' && (
-                    <div className="mt-3 pl-7">
-                      <input
-                        type="text"
-                        placeholder={chapterTitle ? `e.g., Early in ${chapterTitle}, Near the end of this period, Midway through` : "e.g., Early in this chapter, Near the end, Midway through"}
-                        value={memoryData.approximateDate || ''}
-                        onChange={(e) => setMemoryData(prev => ({ ...prev, approximateDate: e.target.value }))}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800"
-                      />
+                    <div className="mt-4 pl-7">
+                      <div className="bg-white border border-slate-300 rounded-lg shadow-sm">
+                        <input
+                          type="text"
+                          placeholder={chapterTitle ? `e.g., Early in ${chapterTitle}, Near the end of this period, Midway through` : "e.g., Early in this chapter, Near the end, Midway through"}
+                          value={memoryData.approximateDate || ''}
+                          onChange={(e) => setMemoryData(prev => ({ ...prev, approximateDate: e.target.value }))}
+                          className="w-full px-4 py-3 text-slate-900 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 placeholder:text-slate-400"
+                        />
+                      </div>
+                      <div className="mt-2 text-xs text-slate-500">
+                        💡 Tip: Be as specific as you can remember - "Early 2023", "Summer months", "Around Christmas"
+                      </div>
                     </div>
                   )}
                 </label>

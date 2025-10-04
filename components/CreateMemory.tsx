@@ -5,6 +5,9 @@ import { Calendar, MapPin, Upload, X, Image as ImageIcon, Film, Mic, Plus, Crown
 import VoiceRecorder from './VoiceRecorder'
 import UpgradeModal from './UpgradeModal'
 import { useAuth } from './AuthProvider'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+import '@/styles/datepicker.css'
 
 interface Memory {
   id: string
@@ -35,7 +38,7 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
   const { user } = useAuth()
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [memoryDate, setMemoryDate] = useState('')
+  const [memoryDate, setMemoryDate] = useState<Date | null>(null)
   const [memoryTime, setMemoryTime] = useState('')
   const [datePrecision, setDatePrecision] = useState<'exact' | 'approximate' | 'era'>('exact')
   const [approximateDate, setApproximateDate] = useState('')
@@ -533,8 +536,13 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
       formData.append('textContent', content)  // Changed from 'content' to 'textContent'
       
       if (datePrecision === 'exact' && memoryDate) {
-        const dateTime = memoryTime ? `${memoryDate}T${memoryTime}` : `${memoryDate}T12:00`
-        const dateObj = new Date(dateTime)
+        const dateObj = new Date(memoryDate)
+        if (memoryTime) {
+          const [hours, minutes] = memoryTime.split(':')
+          dateObj.setHours(parseInt(hours), parseInt(minutes))
+        } else {
+          dateObj.setHours(12, 0) // Default to noon if no time specified
+        }
         if (isNaN(dateObj.getTime())) {
           alert('Invalid date selected. Please check your date and time.')
           return
@@ -972,24 +980,56 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
 
                 {/* Date Input Fields */}
                 {datePrecision === 'exact' && (
-                  <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                      <input
-                        type="date"
-                        value={memoryDate}
-                        onChange={(e) => setMemoryDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        required
-                      />
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
+                      <div className="bg-white border border-gray-300 rounded-lg shadow-sm">
+                        <DatePicker
+                          selected={memoryDate}
+                          onChange={(date) => setMemoryDate(date)}
+                          dateFormat="MMMM d, yyyy"
+                          showPopperArrow={false}
+                          placeholderText="Select the date"
+                          className="w-full px-4 py-3 text-gray-900 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          wrapperClassName="w-full"
+                          calendarClassName="shadow-lg border border-gray-200 rounded-lg"
+                          showMonthDropdown
+                          showYearDropdown
+                          dropdownMode="select"
+                          yearDropdownItemNumber={100}
+                          scrollableYearDropdown
+                          maxDate={new Date()}
+                          popperPlacement="bottom-start"
+                          popperModifiers={[
+                            {
+                              name: 'offset',
+                              options: {
+                                offset: [0, 8],
+                              },
+                            },
+                            {
+                              name: 'preventOverflow',
+                              options: {
+                                rootBoundary: 'viewport',
+                                tether: false,
+                                altAxis: true,
+                              },
+                            },
+                          ]}
+                          required
+                        />
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        💡 Use the month and year dropdowns to quickly navigate to any date in your lifetime
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Time (optional)</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Time (optional)</label>
                       <input
                         type="time"
                         value={memoryTime}
                         onChange={(e) => setMemoryTime(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                     </div>
                   </div>
