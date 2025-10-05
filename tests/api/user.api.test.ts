@@ -116,13 +116,24 @@ describe('User Management API Integration Tests', () => {
       };
 
       vi.mocked(createClient).mockReturnValue({
-        from: vi.fn(() => ({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn(() => Promise.resolve({ data: mockUserProfile, error: null })),
-            })),
-          })),
-        })),
+        from: vi.fn((table) => {
+          return {
+            select: vi.fn((columns: any, options?: any) => {
+              // Handle count query (with head: true)
+              if (options?.head === true) {
+                return {
+                  eq: vi.fn(() => Promise.resolve({ count: 1, error: null })),
+                };
+              }
+              // Handle regular select query
+              return {
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn(() => Promise.resolve({ data: mockUserProfile, error: null })),
+                })),
+              };
+            }),
+          };
+        }),
       } as any);
 
       const request = createMockRequest({
@@ -152,13 +163,24 @@ describe('User Management API Integration Tests', () => {
       vi.mocked(auth.verifyToken).mockResolvedValue(mockUser);
 
       vi.mocked(createClient).mockReturnValue({
-        from: vi.fn(() => ({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn(() => Promise.resolve({ data: null, error: null })),
-            })),
-          })),
-        })),
+        from: vi.fn((table) => {
+          return {
+            select: vi.fn((columns: any, options?: any) => {
+              // Handle count query (with head: true)
+              if (options?.head === true) {
+                return {
+                  eq: vi.fn(() => Promise.resolve({ count: 0, error: null })),
+                };
+              }
+              // Handle regular select query - return null for no profile
+              return {
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
+                })),
+              };
+            }),
+          };
+        }),
       } as any);
 
       const request = createMockRequest({
@@ -438,7 +460,7 @@ describe('User Management API Integration Tests', () => {
       const data = await extractJSON(response);
 
       expect(response.status).toBe(401);
-      expect(data.success).toBe(false);
+      expect(data.error).toBe('Unauthorized');
     });
 
     it('should return premium status for authenticated user', async () => {
@@ -453,7 +475,8 @@ describe('User Management API Integration Tests', () => {
         id: 'user-123',
         email: 'test@example.com',
         is_premium: true,
-        premium_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+        subscription_tier: 'premium',
+        subscription_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
       };
 
       vi.mocked(createClient).mockReturnValue({
@@ -478,8 +501,9 @@ describe('User Management API Integration Tests', () => {
       const data = await extractJSON(response);
 
       expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
       expect(data.isPremium).toBe(true);
+      expect(data.tier).toBe('premium');
+      expect(data.features).toBeDefined();
     });
 
     it('should handle non-premium users', async () => {
@@ -494,7 +518,8 @@ describe('User Management API Integration Tests', () => {
         id: 'user-123',
         email: 'test@example.com',
         is_premium: false,
-        premium_expires_at: null,
+        subscription_tier: 'free',
+        subscription_expires_at: null,
       };
 
       vi.mocked(createClient).mockReturnValue({
@@ -519,8 +544,9 @@ describe('User Management API Integration Tests', () => {
       const data = await extractJSON(response);
 
       expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
       expect(data.isPremium).toBe(false);
+      expect(data.tier).toBe('free');
+      expect(data.features).toBeDefined();
     });
   });
 
