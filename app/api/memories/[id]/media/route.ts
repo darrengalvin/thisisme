@@ -110,6 +110,7 @@ export async function POST(
             file_name: file.name,
             storage_url: urlData.publicUrl,
             type: fileType,
+            mime_type: file.type, // Add mime_type from the file
             file_size: file.size,
             created_at: new Date().toISOString()
           })
