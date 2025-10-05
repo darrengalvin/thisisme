@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { 
   AlertTriangle, 
   CheckCircle, 
@@ -80,12 +80,48 @@ export default function ProjectHealthPage() {
     resolvedThisMonth: 0,
     criticalResolved: 0
   })
+  const [testSuites, setTestSuites] = useState<any[]>([])
+  const [testDetails, setTestDetails] = useState<Record<string, { passing: any[], failing: any[] }>>({})
+  const [loadingTestSuites, setLoadingTestSuites] = useState(true)
 
   const overallScore = 8.7
   const overallGrade = '🟢 A-'
 
-  // Test Suite Details
-  const testSuiteDetails: Record<string, { passing: Array<{name: string, description: string}>, failing: Array<{name: string, description: string, issue: string}> }> = {
+  // Fetch test suites on mount
+  React.useEffect(() => {
+    async function fetchTestSuites() {
+      try {
+        const response = await fetch('/api/admin/test-suites');
+        const result = await response.json();
+        if (result.success) {
+          setTestSuites(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching test suites:', error);
+      } finally {
+        setLoadingTestSuites(false);
+      }
+    }
+    fetchTestSuites();
+  }, []);
+
+  // Fetch test details when expanding a suite
+  const fetchTestDetails = async (suiteKey: string) => {
+    if (testDetails[suiteKey]) return; // Already loaded
+    
+    try {
+      const response = await fetch(`/api/admin/test-suites/${suiteKey}`);
+      const result = await response.json();
+      if (result.success) {
+        setTestDetails(prev => ({ ...prev, [suiteKey]: result.data }));
+      }
+    } catch (error) {
+      console.error(`Error fetching test details for ${suiteKey}:`, error);
+    }
+  };
+
+  // OLD HARDCODED DATA (keeping for reference, will remove after testing)
+  const testSuiteDetails_OLD: Record<string, { passing: Array<{name: string, description: string}>, failing: Array<{name: string, description: string, issue: string}> }> = {
     'auth': {
       passing: [
         { name: 'Registration validation', description: 'Validates email format, password strength, required fields' },
@@ -108,6 +144,310 @@ export default function ProjectHealthPage() {
         { name: 'Timing attack prevention', description: 'Consistent response times', issue: 'Test assertion too strict for simulated delay' },
       ]
     },
+    'memories': {
+      passing: [
+        { name: 'Authentication required', description: 'Returns 401 without valid token' },
+        { name: 'Create memory validation', description: 'Validates title, content, date fields' },
+        { name: 'Invalid token handling', description: 'Rejects malformed JWT tokens' },
+        { name: 'Delete own memory', description: 'Users can delete their own memories' },
+        { name: 'Update own memory', description: 'Users can update their own memories' },
+        { name: 'Access control', description: 'Prevents access to other users memories' },
+        { name: 'Media attachment', description: 'Supports attaching images/videos' },
+        { name: 'Tag filtering', description: 'Filter memories by tags' },
+        { name: 'Date sorting', description: 'Sort memories by creation date' },
+        { name: 'Pagination', description: 'Paginate large memory lists' },
+      ],
+      failing: [
+        { name: 'Fetch user memories', description: 'Get all memories for authenticated user', issue: 'Returns 500 instead of 200 - Supabase mock chain broken' },
+        { name: 'Database error handling', description: 'Handle DB connection errors', issue: 'Returns "Internal server error" instead of "Database error"' },
+        { name: 'Public shared memory access', description: 'Allow access to shared memories', issue: 'Returns 500 - public access not mocked correctly' },
+        { name: 'Return memory for owner', description: 'Fetch specific memory by ID', issue: 'Returns undefined memoryId - mock data structure issue' },
+      ]
+    },
+    'user': {
+      passing: [
+        { name: 'Authentication required', description: 'Returns 401 without token' },
+        { name: 'Invalid token rejection', description: 'Rejects malformed tokens' },
+        { name: 'Profile update validation', description: 'Validates profile fields' },
+        { name: 'Privacy settings', description: 'Update user privacy preferences' },
+        { name: 'Email verification', description: 'Verify email addresses' },
+        { name: 'Avatar upload', description: 'Upload profile pictures' },
+        { name: 'Account deletion', description: 'Delete user accounts' },
+        { name: 'Password change', description: 'Update user passwords' },
+        { name: 'Security events', description: 'Log security-related events' },
+      ],
+      failing: [
+        { name: 'Fetch user profile', description: 'Get profile with valid token', issue: 'Returns 500 - Supabase mock not returning user data' },
+        { name: 'Return basic info when no profile', description: 'Handle users without profiles', issue: 'Returns 500 - mock expects profile to exist' },
+        { name: 'Premium status auth required', description: 'Check auth for premium status', issue: 'data.success is undefined - mock response missing field' },
+        { name: 'Return premium status', description: 'Get user premium subscription', issue: 'data.success is undefined - mock missing success flag' },
+        { name: 'Handle non-premium users', description: 'Return false for free users', issue: 'data.success is undefined - mock structure issue' },
+        { name: 'Security - prevent access to others', description: 'Block access to other user profiles', issue: 'Returns 500 instead of 403/404 - error handling issue' },
+      ]
+    },
+    'waitlist': {
+      passing: [
+        { name: 'Add valid email', description: 'Accept valid email addresses' },
+        { name: 'Email field required', description: 'Reject missing email' },
+        { name: 'Email format validation', description: 'Validate email format' },
+        { name: 'Plus addressing support', description: 'Accept email+tag@domain.com' },
+        { name: 'Subdomain support', description: 'Accept user@mail.domain.com' },
+      ],
+      failing: [
+        { name: 'Normalize email to lowercase', description: 'Convert emails to lowercase', issue: 'insertMock not called - module-level client issue' },
+        { name: 'Reject duplicate emails', description: 'Return 409 for existing emails', issue: 'Returns 200 instead of 409 - mock not detecting duplicates' },
+        { name: 'Case-insensitive duplicates', description: 'Block Test@example.com if test@example.com exists', issue: 'Returns 200 - duplicate check not working' },
+        { name: 'Set status as pending', description: 'Default status to "pending"', issue: 'data.status is undefined - mock not returning status' },
+        { name: 'Handle database errors', description: 'Return 500 on DB failure', issue: 'Returns 200 - error mock not being used' },
+        { name: 'Handle unexpected errors', description: 'Catch all errors', issue: 'Returns 200 - exception handling not triggered' },
+        { name: 'Include timestamp', description: 'Add created_at field', issue: 'data.created_at is undefined - mock missing field' },
+        { name: 'No DB error exposure', description: 'Hide DB errors from users', issue: 'Returns 200 - error scenarios not working' },
+        { name: 'SQL injection prevention', description: 'Sanitize email input', issue: 'Mock not being called - parameterized query test issue' },
+      ]
+    },
+    'uploads': {
+      passing: [
+        { name: 'Auth required', description: 'Returns 401 without token' },
+        { name: 'Invalid token rejection', description: 'Rejects bad tokens' },
+        { name: 'File required', description: 'Returns 400 with no file' },
+        { name: 'File size limits', description: 'Rejects files >10MB' },
+        { name: 'Invalid file types', description: 'Blocks .exe, .sh files' },
+        { name: 'Public URL generation', description: 'Returns accessible file URL' },
+        { name: 'Metadata storage', description: 'Stores filename, size, type' },
+      ],
+      failing: [
+        { name: 'Accept JPEG images', description: 'Upload .jpg files', issue: 'Returns 500 - FormData mock issue' },
+        { name: 'Accept PNG images', description: 'Upload .png files', issue: 'Returns 500 - file handling mock broken' },
+        { name: 'Accept WebP images', description: 'Upload .webp files', issue: 'Returns 500 - storage mock not configured' },
+        { name: 'Organize by user ID', description: 'Store in /uploads/userId/', issue: 'uploadMock not called - storage mock issue' },
+        { name: 'Prevent directory traversal', description: 'Block ../../../etc/passwd', issue: 'Assertion error - path sanitization test' },
+      ]
+    },
+    'support': {
+      passing: [
+        { name: 'Auth required', description: 'Returns 401 without token' },
+        { name: 'Create ticket validation', description: 'Validates title, description' },
+        { name: 'Priority validation', description: 'Only allows low/medium/high/critical' },
+        { name: 'Status validation', description: 'Only allows valid status values' },
+        { name: 'User isolation', description: 'Users only see their tickets' },
+        { name: 'Comment creation', description: 'Add comments to tickets' },
+        { name: 'Comment validation', description: 'Validates comment content' },
+        { name: 'Status updates', description: 'Update ticket status' },
+        { name: 'Assignment', description: 'Assign tickets to admins' },
+        { name: 'Filtering', description: 'Filter by status, priority' },
+      ],
+      failing: [
+        { name: 'Fetch tickets', description: 'Get all user tickets', issue: 'Returns 404 instead of 200 - Supabase query mock issue' },
+        { name: 'Admin see all tickets', description: 'Admins view all tickets', issue: 'Mock not called - admin check not working' },
+        { name: 'Filter by status', description: 'Get only "open" tickets', issue: 'Mock not called with correct params' },
+        { name: 'Set default priority', description: 'Default to "medium"', issue: 'insertedData is undefined - mock issue' },
+        { name: 'Return 404 for non-existent', description: 'Handle missing ticket', issue: 'Returns 500 instead of 404' },
+        { name: 'Reject unauthorized updates', description: 'Block non-owners', issue: 'Returns 404 instead of 403' },
+        { name: 'Allow creator updates', description: 'Let owners update their tickets', issue: 'Returns 404 - mock not finding ticket' },
+        { name: 'Prevent access to others tickets', description: 'Security isolation', issue: 'Mock not called - security test issue' },
+        { name: 'Validate ticket ID format', description: 'Check UUID format', issue: 'Returns 500 - validation test' },
+      ]
+    },
+    'admin': {
+      passing: [
+        { name: 'Auth required', description: 'Returns 401 without token' },
+        { name: 'Admin-only access', description: 'Only admins can access' },
+        { name: 'Enable premium validation', description: 'Validates user exists' },
+        { name: 'Feature flags', description: 'Enable/disable features' },
+        { name: 'User impersonation', description: 'View as another user' },
+        { name: 'Audit logging', description: 'Log admin actions' },
+        { name: 'Bulk operations', description: 'Process multiple users' },
+      ],
+      failing: [
+        { name: 'Simple premium enable', description: 'Grant premium access', issue: 'upsertData is undefined - mock call issue' },
+        { name: 'Set expiration date', description: '1 year from now', issue: 'Mock data structure - date calculation' },
+        { name: 'Setup admin by ID', description: 'Grant admin role', issue: 'updateData is undefined - mock issue' },
+        { name: 'Return 404 when not found', description: 'Handle missing user', issue: 'Returns 200 instead of 404' },
+        { name: 'Handle invalid user ID', description: 'Validate UUID format', issue: 'Returns 200 - validation bypass' },
+        { name: 'Require premium tier', description: 'Validate tier param', issue: 'Missing validation test' },
+        { name: 'Verify admin permissions', description: 'Check is_admin flag', issue: 'Auth check not enforced' },
+        { name: 'Setup admin by email', description: 'Find user by email', issue: 'Mock not called - client issue' },
+      ]
+    },
+    'github': {
+      passing: [
+        { name: 'Auth required', description: 'Returns 401 without token' },
+        { name: 'Generate OAuth URL', description: 'Create GitHub auth URL' },
+        { name: 'Include client ID', description: 'Add client_id param' },
+        { name: 'Include redirect URI', description: 'Add redirect_uri' },
+        { name: 'Generate state token', description: 'CSRF protection' },
+        { name: 'Store state in cookie', description: 'Save for verification' },
+        { name: 'Validate state param', description: 'Check CSRF token' },
+        { name: 'Handle missing code', description: 'Return error' },
+        { name: 'Return connection status', description: 'Check if connected' },
+      ],
+      failing: [
+        { name: 'Exchange code for token', description: 'Get access token', issue: 'Redirect missing "github=connected" - callback flow' },
+        { name: 'Handle token exchange failure', description: 'Handle API errors', issue: 'Redirect missing "error=callback_failed"' },
+        { name: 'Return user details', description: 'Include GitHub username', issue: 'Returns false instead of true - mock data' },
+        { name: 'HTTPS in production', description: 'Use https:// redirect', issue: 'Redirect URL doesn\'t contain https://' },
+        { name: 'No secret in errors', description: 'Hide client secret', issue: 'Error contains "GITHUB_CLIENT_SECRET"' },
+        { name: 'Validate token before storing', description: 'Check token validity', issue: 'Redirect missing "error=invalid_token"' },
+        { name: 'Disconnect GitHub', description: 'Remove connection', issue: 'Mock not working - delete operation' },
+        { name: 'Fetch repositories', description: 'List user repos', issue: 'Mock not returning repos' },
+      ]
+    },
+    'timezones': {
+      passing: [
+        { name: 'Auth required', description: 'Returns 401 without token' },
+        { name: 'Create chapter validation', description: 'Validates title, type, description' },
+        { name: 'Type validation', description: 'Only allows private/family/friend types' },
+        { name: 'Privacy settings', description: 'Enforces type-based privacy' },
+        { name: 'Member management', description: 'Add/remove members' },
+        { name: 'Role validation', description: 'Only creator/admin/member roles' },
+        { name: 'Update chapter', description: 'Modify chapter details' },
+        { name: 'Delete chapter', description: 'Remove chapters' },
+        { name: 'List user chapters', description: 'Get all user chapters' },
+        { name: 'Access control', description: 'Block non-members' },
+        { name: 'Invite members', description: 'Send chapter invites' },
+        { name: 'Accept invites', description: 'Join chapters' },
+        { name: 'Leave chapter', description: 'Remove self from chapter' },
+        { name: 'Transfer ownership', description: 'Change chapter creator' },
+      ],
+      failing: [
+        { name: 'Verify user exists', description: 'Check user profile exists before creating chapter', issue: 'Returns "Invalid time zone type" instead of "User profile not found" - validation order issue' },
+      ]
+    },
+    'phototags': {
+      passing: [
+        { name: 'Auth required', description: 'Returns 401 without token' },
+        { name: 'Fetch tags for media', description: 'Get all tags for image' },
+        { name: 'Create photo tags', description: 'Add new tags to photos' },
+        { name: 'Update tags', description: 'Modify existing tags' },
+        { name: 'Delete tags', description: 'Remove tags from photos' },
+        { name: 'Position validation', description: 'Validate x/y coordinates' },
+        { name: 'Size validation', description: 'Validate width/height' },
+        { name: 'Tag person', description: 'Tag people in photos' },
+        { name: 'Media ownership check', description: 'Only tag own media' },
+      ],
+      failing: [
+        { name: 'Set default dimensions', description: 'Default tag width/height to 10', issue: 'Mock data structure issue - dimensions undefined' },
+        { name: 'Preserve tag positions', description: 'Keep x/y coordinates', issue: 'Mock not returning position data' },
+        { name: 'Handle admin impersonation', description: 'Allow admins to tag any media', issue: 'Admin mock not working' },
+        { name: 'Verify media exists', description: 'Check media before tagging', issue: 'Mock bypassing existence check' },
+        { name: 'Delete only own tags', description: 'Users can only delete their tags', issue: 'Mock not filtering by user' },
+      ]
+    },
+  }
+
+  // Helper to render expandable test row
+  const renderExpandableTestRow = (
+    suiteKey: string,
+    label: string,
+    total: number,
+    passing: number,
+    failing: number,
+    percentage: number,
+    colorClass: 'red' | 'amber'
+  ) => {
+    const isExpanded = expandedTestSuite === suiteKey
+    const details = testDetails[suiteKey]
+    
+    // Fetch details when clicking to expand
+    const handleToggle = () => {
+      const newExpanded = isExpanded ? null : suiteKey;
+      setExpandedTestSuite(newExpanded);
+      if (newExpanded) {
+        fetchTestDetails(suiteKey);
+      }
+    }
+
+    const bgColor = colorClass === 'red' ? 'bg-red-50 hover:bg-red-100' : 'bg-amber-50 hover:bg-amber-100'
+    const textColor = colorClass === 'red' ? 'text-red-800' : 'text-amber-800'
+    const valueColor = colorClass === 'red' ? 'text-red-600' : 'text-amber-600'
+    const barColor = colorClass === 'red' ? 'bg-red-500' : 'bg-amber-500'
+    const badge = colorClass === 'red' ? '❌ FAILING' : '⚠️ ALMOST'
+    const badgeBg = colorClass === 'red' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+    const borderColor = colorClass === 'red' ? 'border-red-200' : 'bg-amber-200'
+
+    return (
+      <>
+        <tr 
+          className={`${bgColor} transition-colors cursor-pointer`}
+          onClick={handleToggle}
+        >
+          <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${textColor}`}>Phase 2</td>
+          <td className="px-6 py-4 text-sm text-slate-700 flex items-center gap-2">
+            {label}
+            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </td>
+          <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">{total}</td>
+          <td className={`px-6 py-4 text-center text-sm font-semibold ${valueColor}`}>{passing} ({failing} FAIL)</td>
+          <td className="px-6 py-4 text-center">
+            <span className={`px-3 py-1 ${badgeBg} rounded-full text-xs font-bold`}>{badge}</span>
+          </td>
+          <td className="px-6 py-4">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                <div className={`${barColor} h-2 rounded-full`} style={{width: `${percentage}%`}}></div>
+              </div>
+              <span className={`text-xs font-bold ${valueColor}`}>{percentage}%</span>
+            </div>
+          </td>
+        </tr>
+        {isExpanded && (
+          <tr className={bgColor.replace('hover:', '')}>
+            <td colSpan={6} className="px-6 py-6">
+              <div className={`bg-white rounded-lg p-6 border-2 ${borderColor}`}>
+                <h4 className="font-bold text-lg text-slate-900 mb-4">{label} Test Breakdown</h4>
+                
+                {!details ? (
+                  <div className="text-center py-8 text-slate-500">
+                    Loading test details...
+                  </div>
+                ) : (
+                  <>
+                    {/* Passing Tests */}
+                    <div className="mb-6">
+                      <h5 className="font-semibold text-green-700 mb-3 flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5" />
+                        ✅ Passing Tests ({details.passing.length})
+                      </h5>
+                      <div className="grid gap-2">
+                        {details.passing.map((test, idx) => (
+                      <div key={idx} className="flex items-start gap-3 p-3 bg-green-50 rounded border border-green-200">
+                        <span className="text-green-600 text-sm">✓</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm text-slate-900">{test.name}</div>
+                          <div className="text-xs text-slate-600 mt-1">{test.description}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                    {/* Failing Tests */}
+                    <div>
+                      <h5 className={`font-semibold ${colorClass === 'red' ? 'text-red-700' : 'text-amber-700'} mb-3 flex items-center gap-2`}>
+                        <XCircle className="w-5 h-5" />
+                        {colorClass === 'red' ? '❌' : '⚠️'} Failing Tests ({details.failing.length})
+                      </h5>
+                      <div className="grid gap-2">
+                        {details.failing.map((test, idx) => (
+                      <div key={idx} className={`flex items-start gap-3 p-3 ${colorClass === 'red' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'} rounded border`}>
+                        <span className={`${colorClass === 'red' ? 'text-red-600' : 'text-amber-600'} text-sm`}>✗</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm text-slate-900">{test.name}</div>
+                          <div className="text-xs text-slate-600 mt-1">{test.description}</div>
+                          <div className={`text-xs ${colorClass === 'red' ? 'text-red-600' : 'text-amber-600'} mt-2 font-medium`}>🔧 Issue: {test.issue}</div>
+                        </div>
+                      </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </td>
+          </tr>
+        )}
+      </>
+    )
   }
 
   const scoreCard: ScoreCardItem[] = [
@@ -476,7 +816,7 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
             </div>
           </div>
         </div>
-
+        
         {/* Score Cards Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           {scoreCard.map((item) => {
@@ -594,111 +934,27 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                           </div>
                         </td>
                       </tr>
-                      <tr 
-                        className="bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
-                        onClick={() => setExpandedTestSuite(expandedTestSuite === 'auth' ? null : 'auth')}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700 flex items-center gap-2">
-                          API Integration - Auth
-                          {expandedTestSuite === 'auth' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">16</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">12 (4 FAIL)</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-red-500 h-2 rounded-full" style={{width: '75%'}}></div>
-                            </div>
-                            <span className="text-xs font-bold text-red-600">75%</span>
-                          </div>
-                        </td>
-                      </tr>
-                      {expandedTestSuite === 'auth' && (
-                        <tr className="bg-red-25">
-                          <td colSpan={6} className="px-6 py-6">
-                            <div className="bg-white rounded-lg p-6 border-2 border-red-200">
-                              <h4 className="font-bold text-lg text-slate-900 mb-4">Auth API Test Breakdown</h4>
-                              
-                              {/* Passing Tests */}
-                              <div className="mb-6">
-                                <h5 className="font-semibold text-green-700 mb-3 flex items-center gap-2">
-                                  <CheckCircle className="w-5 h-5" />
-                                  ✅ Passing Tests (12)
-                                </h5>
-                                <div className="grid gap-2">
-                                  {testSuiteDetails.auth.passing.map((test, idx) => (
-                                    <div key={idx} className="flex items-start gap-3 p-3 bg-green-50 rounded border border-green-200">
-                                      <span className="text-green-600 text-sm">✓</span>
-                                      <div className="flex-1">
-                                        <div className="font-semibold text-sm text-slate-900">{test.name}</div>
-                                        <div className="text-xs text-slate-600 mt-1">{test.description}</div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Failing Tests */}
-                              <div>
-                                <h5 className="font-semibold text-red-700 mb-3 flex items-center gap-2">
-                                  <XCircle className="w-5 h-5" />
-                                  ❌ Failing Tests (4)
-                                </h5>
-                                <div className="grid gap-2">
-                                  {testSuiteDetails.auth.failing.map((test, idx) => (
-                                    <div key={idx} className="flex items-start gap-3 p-3 bg-red-50 rounded border border-red-200">
-                                      <span className="text-red-600 text-sm">✗</span>
-                                      <div className="flex-1">
-                                        <div className="font-semibold text-sm text-slate-900">{test.name}</div>
-                                        <div className="text-xs text-slate-600 mt-1">{test.description}</div>
-                                        <div className="text-xs text-red-600 mt-2 font-medium">🔧 Issue: {test.issue}</div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
+                      {loadingTestSuites ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                            Loading test suites...
                           </td>
                         </tr>
+                      ) : (
+                        testSuites.filter(s => ['auth', 'memories', 'user'].includes(s.suite_key)).map(suite => (
+                          <React.Fragment key={suite.suite_key}>
+                            {renderExpandableTestRow(
+                              suite.suite_key,
+                              suite.label,
+                              suite.total_tests,
+                              suite.passing_tests,
+                              suite.failing_tests,
+                              suite.percentage,
+                              suite.status === 'almost' ? 'amber' : 'red'
+                            )}
+                          </React.Fragment>
+                        ))
                       )}
-                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - Memories</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">14</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">10 (4 FAIL)</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-red-500 h-2 rounded-full" style={{width: '71%'}}></div>
-                            </div>
-                            <span className="text-xs font-bold text-red-600">71%</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - User</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">15</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">9 (6 FAIL)</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-red-500 h-2 rounded-full" style={{width: '60%'}}></div>
-                            </div>
-                            <span className="text-xs font-bold text-red-600">60%</span>
-                          </div>
-                        </td>
-                      </tr>
                       <tr className="bg-green-50 hover:bg-green-100 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - Chapters</td>
@@ -750,125 +1006,19 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - Uploads</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">12</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">7 (5 FAIL)</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-red-500 h-2 rounded-full" style={{width: '58%'}}></div>
-                            </div>
-                            <span className="text-xs font-bold text-red-600">58%</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - Waitlist</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">14</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">5 (9 FAIL) ⚠️</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-red-500 h-2 rounded-full" style={{width: '36%'}}></div>
-                            </div>
-                            <span className="text-xs font-bold text-red-600">36%</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="bg-amber-50 hover:bg-amber-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - Timezones</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">15</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-amber-600">14 (1 FAIL)</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">⚠️ ALMOST</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-amber-500 h-2 rounded-full" style={{width: '93%'}}></div>
-                            </div>
-                            <span className="text-xs font-bold text-amber-600">93%</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - Support Tickets</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">19</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">10 (9 FAIL)</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-red-500 h-2 rounded-full" style={{width: '53%'}}></div>
-                            </div>
-                            <span className="text-xs font-bold text-red-600">53%</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - Admin</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">15</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">7 (8 FAIL)</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-red-500 h-2 rounded-full" style={{width: '47%'}}></div>
-                            </div>
-                            <span className="text-xs font-bold text-red-600">47%</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - GitHub OAuth</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">17</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">9 (8 FAIL)</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-red-500 h-2 rounded-full" style={{width: '53%'}}></div>
-                            </div>
-                            <span className="text-xs font-bold text-red-600">53%</span>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="bg-amber-50 hover:bg-amber-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - Photo Tags</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">14</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-amber-600">9 (5 FAIL)</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">⚠️ ALMOST</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-amber-500 h-2 rounded-full" style={{width: '64%'}}></div>
-                            </div>
-                            <span className="text-xs font-bold text-amber-600">64%</span>
-                          </div>
-                        </td>
-                      </tr>
+                      {!loadingTestSuites && testSuites.filter(s => ['uploads', 'waitlist', 'timezones', 'support', 'admin', 'github', 'phototags'].includes(s.suite_key)).map(suite => (
+                        <React.Fragment key={suite.suite_key}>
+                          {renderExpandableTestRow(
+                            suite.suite_key,
+                            suite.label,
+                            suite.total_tests,
+                            suite.passing_tests,
+                            suite.failing_tests,
+                            suite.percentage,
+                            suite.status === 'almost' ? 'amber' : 'red'
+                          )}
+                        </React.Fragment>
+                      ))}
                       <tr className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-800">Phase 3</td>
                         <td className="px-6 py-4 text-sm text-slate-700">Component Tests (planned)</td>
@@ -1240,12 +1390,12 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                     className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getPriorityColor(issue.priority)}`}>
-                        {issue.priority.toUpperCase()}
-                      </span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getPriorityColor(issue.priority)}`}>
+                            {issue.priority.toUpperCase()}
+                          </span>
                       <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">{issue.category}</span>
                       <h3 className="text-base font-bold text-slate-900 text-left">{issue.title}</h3>
-                    </div>
+                        </div>
                     <div className="flex items-center gap-2">
                       {issue.title.includes('✅') ? (
                         <CheckCircle className="text-green-500 w-5 h-5 flex-shrink-0" />
@@ -1257,7 +1407,7 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                       ) : (
                         <ChevronDown className="w-5 h-5 text-slate-400" />
                       )}
-                    </div>
+                      </div>
                   </button>
 
                   {/* Expandable Details */}
@@ -1694,9 +1844,9 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
               <Sparkles className="w-10 h-10 text-yellow-300 animate-pulse" />
               🎉 MISSION ACCOMPLISHED! 🎉
               <Sparkles className="w-10 h-10 text-yellow-300 animate-pulse" />
-            </h3>
+          </h3>
             <p className="text-green-100 text-lg font-semibold">All Critical Issues Resolved!</p>
-          </div>
+            </div>
           
           <div className="bg-white/10 backdrop-blur rounded-lg p-6 mb-4">
             <div className="grid md:grid-cols-4 gap-4 mb-6">
@@ -1704,12 +1854,12 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                 <div className="text-5xl font-bold text-yellow-300 mb-2">✅</div>
                 <div className="text-sm font-semibold">Rate Limiting</div>
                 <div className="text-xs text-green-100">LIVE</div>
-              </div>
+            </div>
               <div className="text-center">
                 <div className="text-5xl font-bold text-yellow-300 mb-2">✅</div>
                 <div className="text-sm font-semibold">Input Validation</div>
                 <div className="text-xs text-green-100">ACTIVE</div>
-              </div>
+            </div>
               <div className="text-center">
                 <div className="text-5xl font-bold text-yellow-300 mb-2">✅</div>
                 <div className="text-sm font-semibold">Error Monitoring</div>
