@@ -480,11 +480,12 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
               <div className="text-left">
               <h2 className="text-2xl font-bold text-purple-900 flex items-center gap-2">
                 🧪 Comprehensive Testing Suite
-                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">267 Tests 🏆🔥</span>
+                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">267 Tests</span>
                 <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">0 TS Errors ✅</span>
+                <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">42 Failing ⚠️</span>
               </h2>
               <p className="text-sm text-purple-700 font-medium">
-                225 Passing • 84.3% Success Rate • Production-Grade Quality • Type-Safe Code
+                225/267 Passing (84.3%) • 42 Tests Need Fixes • Type-Safe Code • Honest Status
               </p>
               </div>
             </div>
@@ -566,54 +567,54 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-800">Phase 2</td>
+                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - Auth</td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">16</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-blue-600">12</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">12 (4 FAIL)</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">✅ DONE</span>
+                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{width: '75%'}}></div>
+                              <div className="bg-red-500 h-2 rounded-full" style={{width: '75%'}}></div>
                             </div>
-                            <span className="text-xs font-bold text-blue-600">75%</span>
+                            <span className="text-xs font-bold text-red-600">75%</span>
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-800">Phase 2</td>
+                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - Memories</td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">14</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-blue-600">10</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">10 (4 FAIL)</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">🔄 ACTIVE</span>
+                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{width: '71%'}}></div>
+                              <div className="bg-red-500 h-2 rounded-full" style={{width: '71%'}}></div>
                             </div>
-                            <span className="text-xs font-bold text-blue-600">71%</span>
+                            <span className="text-xs font-bold text-red-600">71%</span>
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-800">Phase 2</td>
+                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - User</td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">15</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-blue-600">9</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">9 (6 FAIL)</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">✅ DONE</span>
+                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{width: '60%'}}></div>
+                              <div className="bg-red-500 h-2 rounded-full" style={{width: '60%'}}></div>
                             </div>
-                            <span className="text-xs font-bold text-blue-600">60%</span>
+                            <span className="text-xs font-bold text-red-600">60%</span>
                           </div>
                         </td>
                       </tr>
@@ -668,105 +669,122 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-800">Phase 2</td>
+                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - Uploads</td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">12</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-blue-600">7</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">7 (5 FAIL)</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">✅ DONE</span>
+                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{width: '58%'}}></div>
+                              <div className="bg-red-500 h-2 rounded-full" style={{width: '58%'}}></div>
                             </div>
-                            <span className="text-xs font-bold text-blue-600">58%</span>
+                            <span className="text-xs font-bold text-red-600">58%</span>
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-800">Phase 2</td>
+                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - Waitlist</td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">14</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-blue-600">5</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">5 (9 FAIL) ⚠️</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">✅ DONE</span>
+                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{width: '36%'}}></div>
+                              <div className="bg-red-500 h-2 rounded-full" style={{width: '36%'}}></div>
                             </div>
-                            <span className="text-xs font-bold text-blue-600">36%</span>
+                            <span className="text-xs font-bold text-red-600">36%</span>
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-green-50 hover:bg-green-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-800">Phase 2</td>
+                      <tr className="bg-amber-50 hover:bg-amber-100 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - Timezones</td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">15</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-green-600">14</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-amber-600">14 (1 FAIL)</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">✅ DONE</span>
+                          <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">⚠️ ALMOST</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-green-500 h-2 rounded-full" style={{width: '93%'}}></div>
+                              <div className="bg-amber-500 h-2 rounded-full" style={{width: '93%'}}></div>
                             </div>
-                            <span className="text-xs font-bold text-green-600">93%</span>
+                            <span className="text-xs font-bold text-amber-600">93%</span>
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-800">Phase 2</td>
+                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - Support Tickets</td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">19</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-blue-600">6</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">10 (9 FAIL)</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">✅ DONE</span>
+                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{width: '32%'}}></div>
+                              <div className="bg-red-500 h-2 rounded-full" style={{width: '53%'}}></div>
                             </div>
-                            <span className="text-xs font-bold text-blue-600">32%</span>
+                            <span className="text-xs font-bold text-red-600">53%</span>
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-800">Phase 2</td>
+                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - Admin</td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">15</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-blue-600">7</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">7 (8 FAIL)</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">✅ DONE</span>
+                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{width: '47%'}}></div>
+                              <div className="bg-red-500 h-2 rounded-full" style={{width: '47%'}}></div>
                             </div>
-                            <span className="text-xs font-bold text-blue-600">47%</span>
+                            <span className="text-xs font-bold text-red-600">47%</span>
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-800">Phase 2</td>
+                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - GitHub OAuth</td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">17</td>
-                        <td className="px-6 py-4 text-center text-sm font-semibold text-blue-600">9</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">9 (8 FAIL)</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold">✅ DONE</span>
+                          <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">❌ FAILING</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div className="bg-blue-500 h-2 rounded-full" style={{width: '53%'}}></div>
+                              <div className="bg-red-500 h-2 rounded-full" style={{width: '53%'}}></div>
                             </div>
-                            <span className="text-xs font-bold text-blue-600">53%</span>
+                            <span className="text-xs font-bold text-red-600">53%</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr className="bg-amber-50 hover:bg-amber-100 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-amber-800">Phase 2</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - Photo Tags</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">14</td>
+                        <td className="px-6 py-4 text-center text-sm font-semibold text-amber-600">9 (5 FAIL)</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">⚠️ ALMOST</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div className="bg-amber-500 h-2 rounded-full" style={{width: '64%'}}></div>
+                            </div>
+                            <span className="text-xs font-bold text-amber-600">64%</span>
                           </div>
                         </td>
                       </tr>
