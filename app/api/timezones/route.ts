@@ -175,25 +175,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Validation
-    if (!title?.trim()) {
-      return NextResponse.json(
-        { success: false, error: 'Title is required' },
-        { status: 400 }
-      )
-    }
-
-    if (!Object.values(TIMEZONE_TYPES).includes(type as any)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid time zone type' },
-        { status: 400 }
-      )
-    }
-
-    // Note: Header image is already uploaded via /api/upload before this request
-    // The headerImageUrl comes from the JSON request body
-
-    // Check environment variables
+    // Check environment variables first
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       console.error('❌ CHAPTER CREATION: Missing Supabase environment variables')
       return NextResponse.json(
@@ -234,7 +216,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ CHAPTER CREATION: User verified, creating timezone')
+    console.log('✅ CHAPTER CREATION: User verified, now validating input')
+
+    // Validation (after user existence check)
+    if (!title?.trim()) {
+      return NextResponse.json(
+        { success: false, error: 'Title is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!Object.values(TIMEZONE_TYPES).includes(type as any)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid time zone type' },
+        { status: 400 }
+      )
+    }
+
+    console.log('✅ CHAPTER CREATION: Validation passed, creating timezone')
 
     // Create timezone in Supabase
     const insertData = {
