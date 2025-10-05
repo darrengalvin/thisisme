@@ -157,13 +157,17 @@ describe('Memory API Integration Tests', () => {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           media: [],
+          user: { id: 'user-123', email: 'test@example.com' },
+          chapter: null,
         },
       ];
 
       vi.mocked(createClient).mockReturnValue({
         from: vi.fn(() => ({
           select: vi.fn(() => ({
-            eq: vi.fn(() => Promise.resolve({ data: mockMemories, error: null })),
+            eq: vi.fn(() => ({
+              order: vi.fn(() => Promise.resolve({ data: mockMemories, error: null })),
+            })),
           })),
         })),
       } as any);
@@ -215,7 +219,9 @@ describe('Memory API Integration Tests', () => {
       vi.mocked(createClient).mockReturnValue({
         from: vi.fn(() => ({
           select: vi.fn(() => ({
-            eq: vi.fn(() => Promise.resolve({ data: null, error: { message: 'Database error' } })),
+            eq: vi.fn(() => ({
+              order: vi.fn(() => Promise.resolve({ data: null, error: { message: 'Database connection failed' } })),
+            })),
           })),
         })),
       } as any);
@@ -346,26 +352,65 @@ describe('Memory API Integration Tests', () => {
   describe('GET /api/memories/[id]', () => {
     it('should allow public access to shared memories', async () => {
       const memoryId = 'memory-123';
+      const mockUser = {
+        userId: 'user-123',
+        email: 'test@example.com',
+      };
 
-      // Mock memory not found for owned
-      vi.mocked(supabaseAdmin.from).mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn((field, value) => {
-            if (field === 'user_id') {
-              // User doesn't own this memory
-              return {
+      vi.mocked(auth.verifyToken).mockResolvedValue(mockUser);
+
+      const mockPublicMemory = {
+        id: memoryId,
+        title: 'Public Memory',
+        text_content: 'Test content',
+        user_id: 'other-user-456',
+        created_at: new Date().toISOString(),
+        media: [],
+      };
+
+      let callCount = 0;
+      vi.mocked(supabaseAdmin.from).mockImplementation((table: string) => {
+        callCount++;
+        if (callCount === 1) {
+          // First call: check owned memory (not found)
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
                 eq: vi.fn(() => ({
                   single: vi.fn(() => Promise.resolve({ data: null, error: { code: 'PGRST116' } })),
                 })),
-                single: vi.fn(() => Promise.resolve({ data: null, error: { code: 'PGRST116' } })),
-              };
-            }
-            return {
-              single: vi.fn(() => Promise.resolve({ data: null, error: null })),
-            };
-          }),
-        })),
-      } as any);
+              })),
+            })),
+          } as any;
+        } else if (callCount === 2) {
+          // Second call: check collaboration (not found)
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  single: vi.fn(() => Promise.resolve({ data: null, error: { code: 'PGRST116' } })),
+                })),
+              })),
+            })),
+          } as any;
+        } else if (callCount === 3) {
+          // Third call: check public memory (found)
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn(() => Promise.resolve({ data: mockPublicMemory, error: null })),
+              })),
+            })),
+          } as any;
+        } else {
+          // Fourth call: get memory tags
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+            })),
+          } as any;
+        }
+      });
 
       const request = createMockRequest({
         method: 'GET',
@@ -375,17 +420,10 @@ describe('Memory API Integration Tests', () => {
         },
       });
 
-      const mockUser = {
-        userId: 'user-123',
-        email: 'test@example.com',
-      };
-
-      vi.mocked(auth.verifyToken).mockResolvedValue(mockUser);
-
       const response = await memoryGET(request, { params: { id: memoryId } });
 
-      // Should attempt to check for collaborative access
-      expect(response.status).toBeLessThan(500); // Should not crash
+      // Should return 200 for public access
+      expect(response.status).toBe(200);
     });
 
     it('should require authentication for private memories', async () => {
@@ -421,16 +459,29 @@ describe('Memory API Integration Tests', () => {
         media: [],
       };
 
-      vi.mocked(supabaseAdmin.from).mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn(() => Promise.resolve({ data: mockMemory, error: null })),
+      let callCount = 0;
+      vi.mocked(supabaseAdmin.from).mockImplementation((table: string) => {
+        callCount++;
+        if (callCount === 1) {
+          // First call: check owned memory (found)
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  single: vi.fn(() => Promise.resolve({ data: mockMemory, error: null })),
+                })),
+              })),
             })),
-            single: vi.fn(() => Promise.resolve({ data: mockMemory, error: null })),
-          })),
-        })),
-      } as any);
+          } as any;
+        } else {
+          // Second call: get memory tags
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({ data: [], error: null })),
+            })),
+          } as any;
+        }
+      });
 
       const request = createMockRequest({
         method: 'GET',
@@ -444,7 +495,9 @@ describe('Memory API Integration Tests', () => {
       const data = await extractJSON(response);
 
       expect(response.status).toBe(200);
-      expect(data.id).toBe(memoryId);
+      expect(data.memory).toBeDefined();
+      expect(data.memory.id).toBe(memoryId);
+      expect(data.isOwner).toBe(true);
     });
   });
 
