@@ -139,7 +139,7 @@ describe('Support Tickets API Integration Tests', () => {
       ];
 
       const orderMock = vi.fn(() => Promise.resolve({ data: mockTickets, error: null }));
-      const orMock = vi.fn(() => ({ order: orderMock }));
+      const orMock = vi.fn(() => orderMock);
 
       vi.mocked(createClient).mockReturnValue({
         from: vi.fn((table) => {
@@ -225,11 +225,7 @@ describe('Support Tickets API Integration Tests', () => {
 
       const mockUser = { id: 'user-123', is_admin: false };
 
-      const eqMock = vi.fn(() => ({
-        or: vi.fn(() => ({
-          order: vi.fn(() => Promise.resolve({ data: [], error: null })),
-        })),
-      }));
+      const eqMock = vi.fn(() => Promise.resolve({ data: [], error: null }));
 
       vi.mocked(createClient).mockReturnValue({
         from: vi.fn((table) => {
@@ -359,11 +355,15 @@ describe('Support Tickets API Integration Tests', () => {
         email: 'test@example.com' 
       });
 
-      const insertMock = vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn(() => Promise.resolve({ data: { id: 'ticket-1' }, error: null })),
-        })),
-      }));
+      let capturedInsertData: any = null;
+      const insertMock = vi.fn((data) => {
+        capturedInsertData = data;
+        return {
+          select: vi.fn(() => ({
+            single: vi.fn(() => Promise.resolve({ data: { id: 'ticket-1', ...data }, error: null })),
+          })),
+        };
+      });
 
       vi.mocked(createClient).mockReturnValue({
         from: vi.fn(() => ({
@@ -384,11 +384,10 @@ describe('Support Tickets API Integration Tests', () => {
       await ticketsPOST(request);
 
       // Should have been called with default values
-      const insertedData = (insertMock.mock.calls as any)[0]?.[0];
-      expect(insertedData?.priority).toBe('medium');
-      expect(insertedData?.category).toBe('question');
-      expect(insertedData?.status).toBe('open');
-      expect(insertedData?.stage).toBe('backlog');
+      expect(capturedInsertData?.priority).toBe('medium');
+      expect(capturedInsertData?.category).toBe('question');
+      expect(capturedInsertData?.status).toBe('open');
+      expect(capturedInsertData?.stage).toBe('backlog');
     });
   });
 
@@ -422,7 +421,7 @@ describe('Support Tickets API Integration Tests', () => {
             eq: vi.fn(() => ({
               single: vi.fn(() => Promise.resolve({ 
                 data: null, 
-                error: { code: 'PGRST116' } 
+                error: { code: 'PGRST116', message: 'Not found' } 
               })),
             })),
           })),
@@ -475,9 +474,12 @@ describe('Support Tickets API Integration Tests', () => {
         assignee_id: 'another-user',
       };
 
+      let callCount = 0;
       vi.mocked(createClient).mockReturnValue({
         from: vi.fn((table) => {
-          if (table === 'users') {
+          callCount++;
+          // First call is for users, second call is for tickets
+          if (callCount === 1) {
             return {
               select: vi.fn(() => ({
                 eq: vi.fn(() => ({
@@ -524,9 +526,12 @@ describe('Support Tickets API Integration Tests', () => {
         assignee_id: null,
       };
 
+      let callCount = 0;
       vi.mocked(createClient).mockReturnValue({
         from: vi.fn((table) => {
-          if (table === 'users') {
+          callCount++;
+          // First call: user fetch, second call: ticket fetch, third call: update
+          if (callCount === 1) {
             return {
               select: vi.fn(() => ({
                 eq: vi.fn(() => ({
@@ -534,21 +539,25 @@ describe('Support Tickets API Integration Tests', () => {
                 })),
               })),
             };
-          }
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn(() => Promise.resolve({ data: mockTicket, error: null })),
-              })),
-            })),
-            update: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                select: vi.fn(() => ({
-                  single: vi.fn(() => Promise.resolve({ data: { id: 'ticket-1' }, error: null })),
+          } else if (callCount === 2) {
+            return {
+              select: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  single: vi.fn(() => Promise.resolve({ data: mockTicket, error: null })),
                 })),
               })),
-            })),
-          };
+            };
+          } else {
+            return {
+              update: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  select: vi.fn(() => ({
+                    single: vi.fn(() => Promise.resolve({ data: { id: 'ticket-1', status: 'resolved' }, error: null })),
+                  })),
+                })),
+              })),
+            };
+          }
         }),
       } as any);
 
@@ -658,9 +667,7 @@ describe('Support Tickets API Integration Tests', () => {
 
       const mockUser = { id: userId, is_admin: false };
 
-      const orMock = vi.fn(() => ({
-        order: vi.fn(() => Promise.resolve({ data: [], error: null })),
-      }));
+      const orMock = vi.fn(() => Promise.resolve({ data: [], error: null }));
 
       vi.mocked(createClient).mockReturnValue({
         from: vi.fn((table) => {
@@ -704,7 +711,10 @@ describe('Support Tickets API Integration Tests', () => {
         from: vi.fn(() => ({
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+              single: vi.fn(() => Promise.resolve({ 
+                data: null, 
+                error: { code: 'PGRST116', message: 'Not found' } 
+              })),
             })),
           })),
         })),
@@ -719,7 +729,7 @@ describe('Support Tickets API Integration Tests', () => {
 
       const response = await ticketGET(request, { params: { id: maliciousId } });
 
-      // Should handle gracefully
+      // Should handle gracefully - return 404 for invalid/malicious IDs
       expect(response.status).toBeLessThan(500);
     });
   });
