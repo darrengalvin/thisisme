@@ -75,10 +75,10 @@ export default function ProjectHealthPage() {
   const [expandedTestSuite, setExpandedTestSuite] = useState<string | null>(null)
   const [loadingTickets, setLoadingTickets] = useState(false)
   const [recentTickets, setRecentTickets] = useState<any[]>([])
-  const [ticketStats, setTicketStats] = useState({
-    resolvedThisWeek: 0,
+  const [ticketStats, setTicketStats] = useState({ 
+    resolvedThisWeek: 0, 
     resolvedThisMonth: 0,
-    criticalResolved: 0
+    criticalResolved: 0 
   })
   const [testSuites, setTestSuites] = useState<any[]>([])
   const [testDetails, setTestDetails] = useState<Record<string, { passing: any[], failing: any[] }>>({})
@@ -343,7 +343,7 @@ export default function ProjectHealthPage() {
     passing: number,
     failing: number,
     percentage: number,
-    colorClass: 'red' | 'amber'
+    colorClass: 'green' | 'amber' | 'red'
   ) => {
     const isExpanded = expandedTestSuite === suiteKey
     const details = testDetails[suiteKey]
@@ -357,13 +357,47 @@ export default function ProjectHealthPage() {
       }
     }
 
-    const bgColor = colorClass === 'red' ? 'bg-red-50 hover:bg-red-100' : 'bg-amber-50 hover:bg-amber-100'
-    const textColor = colorClass === 'red' ? 'text-red-800' : 'text-amber-800'
-    const valueColor = colorClass === 'red' ? 'text-red-600' : 'text-amber-600'
-    const barColor = colorClass === 'red' ? 'bg-red-500' : 'bg-amber-500'
-    const badge = colorClass === 'red' ? '❌ FAILING' : '⚠️ ALMOST'
-    const badgeBg = colorClass === 'red' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
-    const borderColor = colorClass === 'red' ? 'border-red-200' : 'bg-amber-200'
+    const bgColor = colorClass === 'green' 
+      ? 'bg-green-50 hover:bg-green-100' 
+      : colorClass === 'amber' 
+      ? 'bg-amber-50 hover:bg-amber-100' 
+      : 'bg-red-50 hover:bg-red-100'
+    
+    const textColor = colorClass === 'green' 
+      ? 'text-green-800' 
+      : colorClass === 'amber' 
+      ? 'text-amber-800' 
+      : 'text-red-800'
+    
+    const valueColor = colorClass === 'green' 
+      ? 'text-green-600' 
+      : colorClass === 'amber' 
+      ? 'text-amber-600' 
+      : 'text-red-600'
+    
+    const barColor = colorClass === 'green' 
+      ? 'bg-green-500' 
+      : colorClass === 'amber' 
+      ? 'bg-amber-500' 
+      : 'bg-red-500'
+    
+    const badge = colorClass === 'green' 
+      ? '✅ DONE' 
+      : colorClass === 'amber' 
+      ? '⚠️ ALMOST' 
+      : '❌ FAILING'
+    
+    const badgeBg = colorClass === 'green' 
+      ? 'bg-green-100 text-green-800' 
+      : colorClass === 'amber' 
+      ? 'bg-amber-100 text-amber-800' 
+      : 'bg-red-100 text-red-800'
+    
+    const borderColor = colorClass === 'green' 
+      ? 'border-green-200' 
+      : colorClass === 'amber' 
+      ? 'bg-amber-200' 
+      : 'border-red-200'
 
     return (
       <>
@@ -950,7 +984,7 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                               suite.passing_tests,
                               suite.failing_tests,
                               suite.percentage,
-                              suite.status === 'almost' ? 'amber' : 'red'
+                              suite.status === 'done' ? 'green' : suite.status === 'almost' ? 'amber' : 'red'
                             )}
                           </React.Fragment>
                         ))
@@ -1015,7 +1049,7 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                             suite.passing_tests,
                             suite.failing_tests,
                             suite.percentage,
-                            suite.status === 'almost' ? 'amber' : 'red'
+                            suite.status === 'done' ? 'green' : suite.status === 'almost' ? 'amber' : 'red'
                           )}
                         </React.Fragment>
                       ))}
