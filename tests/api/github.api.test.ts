@@ -300,6 +300,30 @@ describe('GitHub OAuth API Integration Tests', () => {
         email: 'test@example.com' 
       });
 
+      // Mock cookies for both request.cookies AND next/headers cookies
+      vi.mocked(cookies).mockReturnValue({
+        get: vi.fn((name) => {
+          if (name === 'auth-token') {
+            return { value: 'valid-token' };
+          }
+          if (name === 'github_oauth_state') {
+            return { value: 'valid-state-123' }; // Must match the state in URL
+          }
+          return null;
+        }),
+      } as any);
+
+      // Mock Supabase client for upsert and delete operations
+      vi.mocked(createClient).mockReturnValue({
+        from: vi.fn(() => ({
+          upsert: vi.fn(() => Promise.resolve({ error: null })),
+          delete: vi.fn(() => ({
+            eq: vi.fn(() => Promise.resolve({ error: null })),
+          })),
+          insert: vi.fn(() => Promise.resolve({ error: null })),
+        })),
+      } as any);
+
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -327,9 +351,24 @@ describe('GitHub OAuth API Integration Tests', () => {
         json: async () => [], // No repos
       });
 
+      // Create request with cookies directly on the request object
       const request = createMockRequest({
         method: 'GET',
         url: 'http://localhost:3000/api/github/callback?code=test-code&state=valid-state-123',
+      });
+      
+      // Add cookies to the request object using Object.defineProperty
+      Object.defineProperty(request, 'cookies', {
+        value: {
+          get: (name: string) => {
+            if (name === 'github_oauth_state') {
+              return { value: 'valid-state-123' };
+            }
+            return null;
+          },
+        },
+        writable: false,
+        configurable: true,
       });
 
       const response = await githubCallbackGET(request);
@@ -349,6 +388,20 @@ describe('GitHub OAuth API Integration Tests', () => {
       const request = createMockRequest({
         method: 'GET',
         url: 'http://localhost:3000/api/github/callback?code=test-code&state=valid-state-123',
+      });
+
+      // Add cookies to the request object using Object.defineProperty
+      Object.defineProperty(request, 'cookies', {
+        value: {
+          get: (name: string) => {
+            if (name === 'github_oauth_state') {
+              return { value: 'valid-state-123' };
+            }
+            return null;
+          },
+        },
+        writable: false,
+        configurable: true,
       });
 
       const response = await githubCallbackGET(request);
@@ -441,6 +494,9 @@ describe('GitHub OAuth API Integration Tests', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
+                eq: vi.fn(() => ({ // Support chained .eq() calls
+                  order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+                })),
                 order: vi.fn(() => Promise.resolve({ data: [], error: null })),
               })),
             })),
@@ -483,7 +539,8 @@ describe('GitHub OAuth API Integration Tests', () => {
       const response = await githubAuthGET(request);
       const location = response.headers.get('location');
 
-      expect(location).toContain('redirect_uri=https://');
+      // Check for URL-encoded HTTPS (redirect_uri=https%3A%2F%2F)
+      expect(location).toContain('redirect_uri=https%3A%2F%2F');
     });
 
     it('should not leak GitHub client secret in errors', async () => {
@@ -515,6 +572,16 @@ describe('GitHub OAuth API Integration Tests', () => {
         email: 'test@example.com' 
       });
 
+      // Mock cookies for next/headers calls
+      vi.mocked(cookies).mockReturnValue({
+        get: vi.fn((name) => {
+          if (name === 'auth-token') {
+            return { value: 'valid-token' };
+          }
+          return null;
+        }),
+      } as any);
+
       // First call: token exchange success
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -541,6 +608,20 @@ describe('GitHub OAuth API Integration Tests', () => {
       const request = createMockRequest({
         method: 'GET',
         url: 'http://localhost:3000/api/github/callback?code=test-code&state=valid-state-123',
+      });
+
+      // Add cookies to the request object using Object.defineProperty
+      Object.defineProperty(request, 'cookies', {
+        value: {
+          get: (name: string) => {
+            if (name === 'github_oauth_state') {
+              return { value: 'valid-state-123' };
+            }
+            return null;
+          },
+        },
+        writable: false,
+        configurable: true,
       });
 
       const response = await githubCallbackGET(request);

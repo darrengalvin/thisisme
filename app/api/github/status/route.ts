@@ -3,17 +3,17 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { GitHubClient } from '@/lib/github/client'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const refresh = searchParams.get('refresh') === 'true'
   const analyzeRepo = searchParams.get('analyze')
   
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
     const cookieStore = cookies()
     const token = cookieStore.get('auth-token')?.value
 

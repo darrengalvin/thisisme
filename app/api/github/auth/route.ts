@@ -31,10 +31,8 @@ export async function GET(request: NextRequest) {
         debug: {
           clientId: clientId ? 'Set' : 'Missing',
           baseUrl,
-          missingVars: [
-            !clientId && 'GITHUB_CLIENT_ID',
-            !process.env.GITHUB_CLIENT_SECRET && 'GITHUB_CLIENT_SECRET'
-          ].filter(Boolean)
+          // Don't expose env var names in production
+          hasRequiredVars: false
         }
       }, { status: 500 })
     }
