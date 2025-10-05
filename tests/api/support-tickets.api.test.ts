@@ -138,8 +138,7 @@ describe('Support Tickets API Integration Tests', () => {
         },
       ];
 
-      const orderMock = vi.fn(() => Promise.resolve({ data: mockTickets, error: null }));
-      const orMock = vi.fn(() => orderMock);
+      const orMock = vi.fn(() => Promise.resolve({ data: mockTickets, error: null }));
 
       vi.mocked(createClient).mockReturnValue({
         from: vi.fn((table) => {
