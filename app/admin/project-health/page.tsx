@@ -72,6 +72,7 @@ interface Improvement {
 export default function ProjectHealthPage() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
   const [expandedIssue, setExpandedIssue] = useState<number | null>(null)
+  const [expandedTestSuite, setExpandedTestSuite] = useState<string | null>(null)
   const [loadingTickets, setLoadingTickets] = useState(false)
   const [recentTickets, setRecentTickets] = useState<any[]>([])
   const [ticketStats, setTicketStats] = useState({
@@ -82,6 +83,32 @@ export default function ProjectHealthPage() {
 
   const overallScore = 8.7
   const overallGrade = '🟢 A-'
+
+  // Test Suite Details
+  const testSuiteDetails: Record<string, { passing: Array<{name: string, description: string}>, failing: Array<{name: string, description: string, issue: string}> }> = {
+    'auth': {
+      passing: [
+        { name: 'Registration validation', description: 'Validates email format, password strength, required fields' },
+        { name: 'Duplicate email prevention', description: 'Returns 409 for already registered emails' },
+        { name: 'Login invalid credentials', description: 'Returns 401 for wrong password' },
+        { name: 'Login missing credentials', description: 'Returns 400 when email/password missing' },
+        { name: 'Password hashing', description: 'Securely hashes passwords with bcrypt' },
+        { name: 'JWT token generation', description: 'Creates valid JWT tokens on successful login' },
+        { name: 'Email normalization', description: 'Converts emails to lowercase' },
+        { name: 'Session management', description: 'Creates user sessions properly' },
+        { name: 'Error handling', description: 'Returns proper error messages' },
+        { name: 'Input sanitization', description: 'Sanitizes user inputs' },
+        { name: 'Rate limiting', description: 'Enforces rate limits on auth endpoints' },
+        { name: 'Token expiration', description: 'JWT tokens expire correctly' },
+      ],
+      failing: [
+        { name: 'User creation with valid data', description: 'Create new user account', issue: 'Mock returns undefined for new user ID' },
+        { name: 'Login with correct credentials', description: 'Authenticate existing user', issue: 'Returns 401 instead of 200 - auth mock issue' },
+        { name: 'Login email normalization', description: 'Accept uppercase emails', issue: 'Returns 401 - email case handling in mock' },
+        { name: 'Timing attack prevention', description: 'Consistent response times', issue: 'Test assertion too strict for simulated delay' },
+      ]
+    },
+  }
 
   const scoreCard: ScoreCardItem[] = [
     { category: 'Performance', score: 8, grade: 'B', icon: Zap, color: 'text-green-600' },
@@ -567,9 +594,15 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                           </div>
                         </td>
                       </tr>
-                      <tr className="bg-red-50 hover:bg-red-100 transition-colors">
+                      <tr 
+                        className="bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
+                        onClick={() => setExpandedTestSuite(expandedTestSuite === 'auth' ? null : 'auth')}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
-                        <td className="px-6 py-4 text-sm text-slate-700">API Integration - Auth</td>
+                        <td className="px-6 py-4 text-sm text-slate-700 flex items-center gap-2">
+                          API Integration - Auth
+                          {expandedTestSuite === 'auth' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-slate-900">16</td>
                         <td className="px-6 py-4 text-center text-sm font-semibold text-red-600">12 (4 FAIL)</td>
                         <td className="px-6 py-4 text-center">
@@ -584,6 +617,54 @@ toast.error(ERROR_MESSAGES.NETWORK_ERROR)`
                           </div>
                         </td>
                       </tr>
+                      {expandedTestSuite === 'auth' && (
+                        <tr className="bg-red-25">
+                          <td colSpan={6} className="px-6 py-6">
+                            <div className="bg-white rounded-lg p-6 border-2 border-red-200">
+                              <h4 className="font-bold text-lg text-slate-900 mb-4">Auth API Test Breakdown</h4>
+                              
+                              {/* Passing Tests */}
+                              <div className="mb-6">
+                                <h5 className="font-semibold text-green-700 mb-3 flex items-center gap-2">
+                                  <CheckCircle className="w-5 h-5" />
+                                  ✅ Passing Tests (12)
+                                </h5>
+                                <div className="grid gap-2">
+                                  {testSuiteDetails.auth.passing.map((test, idx) => (
+                                    <div key={idx} className="flex items-start gap-3 p-3 bg-green-50 rounded border border-green-200">
+                                      <span className="text-green-600 text-sm">✓</span>
+                                      <div className="flex-1">
+                                        <div className="font-semibold text-sm text-slate-900">{test.name}</div>
+                                        <div className="text-xs text-slate-600 mt-1">{test.description}</div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Failing Tests */}
+                              <div>
+                                <h5 className="font-semibold text-red-700 mb-3 flex items-center gap-2">
+                                  <XCircle className="w-5 h-5" />
+                                  ❌ Failing Tests (4)
+                                </h5>
+                                <div className="grid gap-2">
+                                  {testSuiteDetails.auth.failing.map((test, idx) => (
+                                    <div key={idx} className="flex items-start gap-3 p-3 bg-red-50 rounded border border-red-200">
+                                      <span className="text-red-600 text-sm">✗</span>
+                                      <div className="flex-1">
+                                        <div className="font-semibold text-sm text-slate-900">{test.name}</div>
+                                        <div className="text-xs text-slate-600 mt-1">{test.description}</div>
+                                        <div className="text-xs text-red-600 mt-2 font-medium">🔧 Issue: {test.issue}</div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                       <tr className="bg-red-50 hover:bg-red-100 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-800">Phase 2</td>
                         <td className="px-6 py-4 text-sm text-slate-700">API Integration - Memories</td>
