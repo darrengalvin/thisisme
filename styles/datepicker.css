@@ -184,6 +184,52 @@
   font-weight: 600;
 }
 
+/* Month-Year Picker Grid Layout */
+.react-datepicker__monthPicker {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+  padding: 16px !important;
+}
+
+.react-datepicker__month-text {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 12px 8px !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  color: #0f172a !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  margin: 0 !important;
+}
+
+.react-datepicker__month-text:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.react-datepicker__month-text--selected {
+  background-color: #0f172a !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__month-text--keyboard-selected {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.react-datepicker__month-text--today {
+  font-weight: 600 !important;
+  color: #3b82f6 !important;
+}
+
+.react-datepicker__month-wrapper {
+  display: contents !important;
+}
+
 /* Year and Month Dropdown Styles */
 .react-datepicker__year-dropdown,
 .react-datepicker__month-dropdown {

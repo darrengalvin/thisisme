@@ -23,11 +23,12 @@ interface AddMemoryWizardProps {
 interface MemoryData {
   title: string
   description: string
-  dateType: 'exact' | 'rough' | 'approximate' | 'estimated' | 'within-chapter'
+  dateType: 'exact' | 'rough' | 'approximate' | 'estimated' | 'within-chapter' | 'age-based'
   exactDate?: Date | null
   roughDate?: Date | null
   approximateDate?: string
   estimatedDate?: Date | null
+  ageBasedYear?: string
   files: File[]
 }
 
@@ -37,7 +38,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [memoryData, setMemoryData] = useState<MemoryData>({
     title: '',
     description: '',
-    dateType: 'within-chapter',
+    dateType: chapterId ? 'within-chapter' : 'rough',
     files: []
   })
   const [taggedPeople, setTaggedPeople] = useState<string[]>([])
@@ -55,6 +56,9 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     url: string
     fileIndex: number
   } | null>(null)
+  const [showAiImageGenerator, setShowAiImageGenerator] = useState(false)
+  const [aiImagePrompt, setAiImagePrompt] = useState('')
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -163,6 +167,68 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     }
   }
 
+  const handleGenerateAiImage = async () => {
+    if (!aiImagePrompt.trim()) {
+      toast.error('Please describe what you want to see')
+      return
+    }
+
+    if (!isPremiumUser) {
+      setShowUpgradeModal(true)
+      return
+    }
+
+    setIsGeneratingImage(true)
+    try {
+      const response = await fetch('/api/ai/generate-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({
+          prompt: aiImagePrompt,
+          memoryTitle: memoryData.title,
+          memoryDescription: memoryData.description
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate image')
+      }
+
+      const data = await response.json()
+      
+      // Convert base64 to blob
+      const base64Response = await fetch(data.imageUrl)
+      const blob = await base64Response.blob()
+      
+      // Create file from blob
+      const file = new File([blob], `ai-generated-${Date.now()}.png`, { type: 'image/png' })
+      
+      // Add to files
+      setMemoryData(prev => ({
+        ...prev,
+        files: [...prev.files, file]
+      }))
+      
+      setShowAiImageGenerator(false)
+      setAiImagePrompt('')
+      toast.success('AI image generated successfully! 🎨')
+    } catch (error) {
+      console.error('Error generating AI image:', error)
+      toast.error('Failed to generate image. Please try again.')
+    } finally {
+      setIsGeneratingImage(false)
+    }
+  }
+
+  const getAuthToken = () => {
+    const cookies = document.cookie.split(';')
+    const authCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='))
+    return authCookie ? authCookie.split('=')[1] : ''
+  }
+
   const removeFile = (index: number) => {
     setMemoryData(prev => ({
       ...prev,
@@ -196,6 +262,9 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       } else if (memoryData.dateType === 'within-chapter') {
         formData.append('approximateDate', memoryData.approximateDate || 'within-chapter')
         formData.append('datePrecision', 'era')
+      } else if (memoryData.dateType === 'age-based' && memoryData.ageBasedYear) {
+        formData.append('approximateDate', `Around age ${memoryData.ageBasedYear}`)
+        formData.append('datePrecision', 'approximate')
       }
 
       // Add files
@@ -282,7 +351,8 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
           (memoryData.dateType === 'rough' && memoryData.roughDate) ||
           (memoryData.dateType === 'approximate' && memoryData.approximateDate) ||
           (memoryData.dateType === 'estimated' && memoryData.estimatedDate) ||
-          (memoryData.dateType === 'within-chapter')
+          (memoryData.dateType === 'within-chapter') ||
+          (memoryData.dateType === 'age-based' && memoryData.ageBasedYear)
         )
       case 3:
         return true // Files are optional
@@ -578,59 +648,208 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                   )}
                 </label>
 
-                {/* Approximate */}
+                {/* Age-based (Premium Only) */}
                 <label className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                  memoryData.dateType === 'within-chapter' 
-                    ? 'border-slate-800 bg-slate-50 shadow-sm' 
+                  memoryData.dateType === 'age-based' 
+                    ? 'border-purple-500 bg-purple-50 shadow-sm' 
                     : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
-                }`}>
+                } ${!isPremiumUser && 'opacity-75'}`}
+                onClick={(e) => {
+                  if (!isPremiumUser) {
+                    e.preventDefault()
+                    setShowUpgradeModal(true)
+                  }
+                }}>
                   <div className="flex items-center space-x-4">
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                      memoryData.dateType === 'within-chapter'
-                        ? 'border-slate-800 bg-slate-800'
+                      memoryData.dateType === 'age-based'
+                        ? 'border-purple-600 bg-purple-600'
                         : 'border-slate-300 hover:border-slate-400'
                     }`}>
-                      {memoryData.dateType === 'within-chapter' && (
+                      {memoryData.dateType === 'age-based' && (
                         <div className="w-2 h-2 bg-white rounded-full"></div>
                       )}
                     </div>
                     <input
                       type="radio"
                       name="dateType"
-                      value="within-chapter"
-                      checked={memoryData.dateType === 'within-chapter'}
-                      onChange={(e) => setMemoryData(prev => ({ ...prev, dateType: 'within-chapter' as const }))}
+                      value="age-based"
+                      checked={memoryData.dateType === 'age-based'}
+                      onChange={(e) => setMemoryData(prev => ({ ...prev, dateType: 'age-based' as const }))}
                       className="sr-only"
+                      disabled={!isPremiumUser}
                     />
                     <div className="flex-1">
-                      <div className="font-semibold text-slate-900">Somewhere within this chapter</div>
-                      <div className="text-sm text-slate-600">Not exactly sure when, but it happened during this period</div>
+                      <div className="font-semibold text-slate-900 flex items-center gap-2">
+                        I was about X years old
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold rounded-full">
+                          <Sparkles size={10} />
+                          AI Pro
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-600">AI helps place it on your timeline using your birth year</div>
                     </div>
                   </div>
-                  {memoryData.dateType === 'within-chapter' && (
+                  {memoryData.dateType === 'age-based' && isPremiumUser && (
                     <div className="mt-4 pl-7">
                       <div className="bg-white border border-slate-300 rounded-lg shadow-sm">
                         <input
-                          type="text"
-                          placeholder={chapterTitle ? `e.g., Early in ${chapterTitle}, Near the end of this period, Midway through` : "e.g., Early in this chapter, Near the end, Midway through"}
-                          value={memoryData.approximateDate || ''}
-                          onChange={(e) => setMemoryData(prev => ({ ...prev, approximateDate: e.target.value }))}
-                          className="w-full px-4 py-3 text-slate-900 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 placeholder:text-slate-400"
+                          type="number"
+                          min="0"
+                          max="150"
+                          placeholder="e.g., 25"
+                          value={memoryData.ageBasedYear || ''}
+                          onChange={(e) => setMemoryData(prev => ({ ...prev, ageBasedYear: e.target.value }))}
+                          className="w-full px-4 py-3 text-slate-900 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder:text-slate-400"
                         />
                       </div>
                       <div className="mt-2 text-xs text-slate-500">
-                        💡 Tip: Be as specific as you can remember - "Early 2023", "Summer months", "Around Christmas"
+                        💡 AI will calculate the approximate year based on your birth year
                       </div>
                     </div>
                   )}
                 </label>
+
+                {/* Approximate - Only show when in a chapter */}
+                {chapterId && (
+                  <label className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                    memoryData.dateType === 'within-chapter' 
+                      ? 'border-slate-800 bg-slate-50 shadow-sm' 
+                      : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                  }`}>
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        memoryData.dateType === 'within-chapter'
+                          ? 'border-slate-800 bg-slate-800'
+                          : 'border-slate-300 hover:border-slate-400'
+                      }`}>
+                        {memoryData.dateType === 'within-chapter' && (
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        )}
+                      </div>
+                      <input
+                        type="radio"
+                        name="dateType"
+                        value="within-chapter"
+                        checked={memoryData.dateType === 'within-chapter'}
+                        onChange={(e) => setMemoryData(prev => ({ ...prev, dateType: 'within-chapter' as const }))}
+                        className="sr-only"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-slate-900">Somewhere within {chapterTitle || 'this chapter'}</div>
+                        <div className="text-sm text-slate-600">Not exactly sure when, but it happened during this period</div>
+                      </div>
+                    </div>
+                    {memoryData.dateType === 'within-chapter' && (
+                      <div className="mt-4 pl-7">
+                        <div className="bg-white border border-slate-300 rounded-lg shadow-sm">
+                          <input
+                            type="text"
+                            placeholder={chapterTitle ? `e.g., Early in ${chapterTitle}, Near the end, Midway through` : "e.g., Early in this chapter, Near the end, Midway through"}
+                            value={memoryData.approximateDate || ''}
+                            onChange={(e) => setMemoryData(prev => ({ ...prev, approximateDate: e.target.value }))}
+                            className="w-full px-4 py-3 text-slate-900 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 placeholder:text-slate-400"
+                          />
+                        </div>
+                        <div className="mt-2 text-xs text-slate-500">
+                          💡 Tip: Be as specific as you can remember - "Early 2023", "Summer months", "Around Christmas"
+                        </div>
+                      </div>
+                    )}
+                  </label>
+                )}
               </div>
             </div>
           )}
 
           {/* Step 3: Photos and Videos */}
           {currentStep === 3 && (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* AI Image Generator Option */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+                      <Sparkles size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                        Generate AI Image
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold rounded-full">
+                          <Sparkles size={10} />
+                          AI Pro
+                        </span>
+                      </h4>
+                      <p className="text-sm text-slate-600 mt-0.5">
+                        Describe your memory and AI will create an image for it
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {showAiImageGenerator ? (
+                  <div className="space-y-3">
+                    <div>
+                      <textarea
+                        value={aiImagePrompt}
+                        onChange={(e) => setAiImagePrompt(e.target.value)}
+                        placeholder="Describe the scene... e.g., 'A sunny day at the beach with children building sandcastles' or 'A cozy family dinner around a wooden table with candles'"
+                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                        rows={3}
+                        disabled={isGeneratingImage}
+                      />
+                      <p className="text-xs text-slate-500 mt-1">
+                        💡 Tip: Be descriptive - mention setting, lighting, mood, and any specific details
+                      </p>
+                    </div>
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={handleGenerateAiImage}
+                        disabled={isGeneratingImage || !aiImagePrompt.trim()}
+                        className="flex-1 flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all"
+                      >
+                        <Sparkles size={16} />
+                        <span>{isGeneratingImage ? 'Generating...' : 'Generate Image'}</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAiImageGenerator(false)
+                          setAiImagePrompt('')
+                        }}
+                        disabled={isGeneratingImage}
+                        className="px-6 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 disabled:opacity-50 font-medium transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (!isPremiumUser) {
+                        setShowUpgradeModal(true)
+                      } else {
+                        setShowAiImageGenerator(true)
+                      }
+                    }}
+                    className="w-full px-4 py-3 bg-white border-2 border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 font-medium transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <Sparkles size={18} />
+                    <span>Describe memory to generate image</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white text-slate-500 font-medium">or upload your own</span>
+                </div>
+              </div>
+
               {/* Upload Area */}
               <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-slate-400 transition-colors">
                 <Upload size={32} className="text-slate-400 mx-auto mb-3" />
