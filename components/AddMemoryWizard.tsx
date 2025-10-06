@@ -64,6 +64,9 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   const [showMayaEnrichment, setShowMayaEnrichment] = useState(false)
   const [mayaEnrichmentData, setMayaEnrichmentData] = useState<any>(null)
+  const [liveEnrichment, setLiveEnrichment] = useState<any>(null)
+  const [isLiveEnriching, setIsLiveEnriching] = useState(false)
+  const [enrichmentDebounceTimer, setEnrichmentDebounceTimer] = useState<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -151,13 +154,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   ]
 
   const handleNext = () => {
-    // Show Maya enrichment after step 1 (basic info entered)
-    if (currentStep === 1 && memoryData.title && memoryData.description) {
-      console.log('🎯 ADD MEMORY: Opening Maya modal. isPremiumUser:', isPremiumUser, 'premiumLoading:', premiumLoading)
-      setShowMayaEnrichment(true)
-      return
-    }
-    
+    // Live enrichment happens automatically as user types, no modal needed
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1)
     }
@@ -172,6 +169,54 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const handleContinueWithoutMaya = () => {
     setShowMayaEnrichment(false)
     setCurrentStep(currentStep + 1)
+  }
+
+  // Real-time enrichment as user types
+  const fetchLiveEnrichment = async (title: string, description: string) => {
+    if (!isPremiumUser || !user) return
+    if (!title.trim() || description.length < 50) return // Only trigger if substantial content
+    
+    setIsLiveEnriching(true)
+    try {
+      const response = await fetch('/api/maya/suggest-memory-enrichment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          memory_title: title,
+          memory_description: description
+        })
+      })
+      
+      const data = await response.json()
+      console.log('🎯 LIVE ENRICHMENT:', data)
+      
+      if (data.success && data.data?.enrichment) {
+        setLiveEnrichment(data.data.enrichment)
+      }
+    } catch (error) {
+      console.error('Live enrichment error:', error)
+    } finally {
+      setIsLiveEnriching(false)
+    }
+  }
+
+  // Debounced enrichment trigger
+  const handleDescriptionChange = (value: string) => {
+    setMemoryData(prev => ({ ...prev, description: value }))
+    
+    // Clear existing timer
+    if (enrichmentDebounceTimer) {
+      clearTimeout(enrichmentDebounceTimer)
+    }
+    
+    // Set new timer for 2 seconds after user stops typing
+    if (isPremiumUser && memoryData.title) {
+      const timer = setTimeout(() => {
+        fetchLiveEnrichment(memoryData.title, value)
+      }, 2000)
+      setEnrichmentDebounceTimer(timer)
+    }
   }
 
   const handleBack = () => {
@@ -463,11 +508,17 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                 <div className="relative">
                   <TaggingInput
                     value={memoryData.description}
-                    onChange={(value) => setMemoryData(prev => ({ ...prev, description: value }))}
+                    onChange={(value) => handleDescriptionChange(value)}
                     onTaggedPeopleChange={setTaggedPeople}
                     placeholder="Tell the story of this memory... What happened? How did you feel? Who was there? Use @ to tag people!"
                     className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent resize-none transition-all border-slate-300 focus:ring-slate-800 ${isPremiumUser ? 'pr-16' : ''}`}
                   />
+                  {isLiveEnriching && (
+                    <div className="absolute top-2 right-2 flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                      <div className="w-2 h-2 bg-purple-600 rounded-full animate-pulse" />
+                      Maya is thinking...
+                    </div>
+                  )}
                   
                   {/* Tagged People Display */}
                   {taggedPeople.length > 0 && (
@@ -519,10 +570,54 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                   )}
                 </div>
                 
-                {isPremiumUser && (
+                {/* Live Enrichment Suggestions */}
+                {liveEnrichment && !isLiveEnriching && isPremiumUser && (
+                  <div className="mt-4 p-4 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-purple-900 mb-1">Maya's Suggestions</h4>
+                        <p className="text-sm text-purple-700">Consider adding these details to enrich your memory:</p>
+                      </div>
+                    </div>
+                    
+                    {liveEnrichment.questions && liveEnrichment.questions.length > 0 && (
+                      <div className="space-y-2">
+                        {liveEnrichment.questions.slice(0, 3).map((question: string, index: number) => (
+                          <div key={index} className="flex items-start gap-2 p-3 bg-white rounded-lg border border-purple-200 hover:border-purple-300 transition-colors">
+                            <span className="text-purple-600 font-bold text-lg leading-none">•</span>
+                            <p className="text-sm text-slate-700 flex-1">{question}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {liveEnrichment.chapter_recommendation && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-800">
+                          <strong>💡 Chapter Suggestion:</strong> {typeof liveEnrichment.chapter_recommendation === 'string' 
+                            ? liveEnrichment.chapter_recommendation 
+                            : liveEnrichment.chapter_recommendation.title}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {liveEnrichment.additional_context && (
+                      <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                        <p className="text-sm text-green-800">
+                          <strong>ℹ️ Context:</strong> {liveEnrichment.additional_context}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {isPremiumUser && !liveEnrichment && !isLiveEnriching && (
                   <div className="mt-2 text-xs text-slate-500 flex items-center space-x-1">
-                    <Sparkles size={12} className="text-slate-600" />
-                    <span>Click the microphone in the text box to use AI voice transcription</span>
+                    <Sparkles size={12} className="text-purple-600" />
+                    <span>Maya will suggest enrichment questions as you type (2s after you stop)</span>
                   </div>
                 )}
               </div>
