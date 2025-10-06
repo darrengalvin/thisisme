@@ -67,6 +67,12 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [liveEnrichment, setLiveEnrichment] = useState<any>(null)
   const [isLiveEnriching, setIsLiveEnriching] = useState(false)
   const [enrichmentDebounceTimer, setEnrichmentDebounceTimer] = useState<NodeJS.Timeout | null>(null)
+  const [contextCheckTimer, setContextCheckTimer] = useState<NodeJS.Timeout | null>(null)
+  const [enrichmentProgress, setEnrichmentProgress] = useState<{
+    percent: number
+    feedback: string
+    hasEnough: boolean
+  }>({ percent: 0, feedback: '', hasEnough: false })
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -209,21 +215,57 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     }
   }
 
+  // Smart context checking as user types
+  const checkContext = async (title: string, description: string) => {
+    if (!isPremiumUser) return
+    
+    try {
+      const response = await fetch('/api/maya/check-context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memory_title: title,
+          memory_description: description
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setEnrichmentProgress({
+          percent: data.completionPercent || 0,
+          feedback: data.feedback || '',
+          hasEnough: data.hasEnoughInfo || false
+        })
+        
+        // If enough info, trigger full enrichment
+        if (data.hasEnoughInfo && !liveEnrichment) {
+          fetchLiveEnrichment(title, description)
+        }
+      }
+    } catch (error) {
+      console.error('Context check error:', error)
+    }
+  }
+
   // Debounced enrichment trigger
   const handleDescriptionChange = (value: string) => {
     setMemoryData(prev => ({ ...prev, description: value }))
     
-    // Clear existing timer
+    // Clear existing timers
     if (enrichmentDebounceTimer) {
       clearTimeout(enrichmentDebounceTimer)
     }
+    if (contextCheckTimer) {
+      clearTimeout(contextCheckTimer)
+    }
     
-    // Set new timer for 2 seconds after user stops typing
-    if (isPremiumUser && memoryData.title) {
-      const timer = setTimeout(() => {
-        fetchLiveEnrichment(memoryData.title, value)
-      }, 2000)
-      setEnrichmentDebounceTimer(timer)
+    // Check context every 500ms (lightweight check)
+    if (isPremiumUser && (memoryData.title || value.length > 10)) {
+      const contextTimer = setTimeout(() => {
+        checkContext(memoryData.title, value)
+      }, 500)
+      setContextCheckTimer(contextTimer)
     }
   }
 
@@ -623,9 +665,39 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                 )}
                 
                 {isPremiumUser && !liveEnrichment && !isLiveEnriching && (
-                  <div className="mt-2 text-xs text-slate-500 flex items-center space-x-1">
-                    <Sparkles size={12} className="text-purple-600" />
-                    <span>Maya will suggest enrichment questions as you type (2s after you stop)</span>
+                  <div className="mt-3 space-y-2">
+                    {/* Progress Bar */}
+                    {enrichmentProgress.percent > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-purple-700 font-medium flex items-center gap-1">
+                            <Sparkles size={12} className={enrichmentProgress.hasEnough ? 'animate-pulse' : ''} />
+                            {enrichmentProgress.feedback}
+                          </span>
+                          <span className="text-purple-600 font-bold">{enrichmentProgress.percent}%</span>
+                        </div>
+                        <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-500 ${
+                              enrichmentProgress.percent >= 80 
+                                ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
+                                : enrichmentProgress.percent >= 50 
+                                ? 'bg-gradient-to-r from-blue-400 to-purple-400' 
+                                : 'bg-gradient-to-r from-slate-400 to-blue-400'
+                            }`}
+                            style={{ width: `${enrichmentProgress.percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Hint text */}
+                    {enrichmentProgress.percent === 0 && (
+                      <div className="text-xs text-slate-500 flex items-center space-x-1">
+                        <Sparkles size={12} className="text-purple-600" />
+                        <span>Maya will analyze your memory as you type and suggest enrichment questions</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
