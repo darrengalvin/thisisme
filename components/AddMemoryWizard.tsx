@@ -682,7 +682,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                           AI Pro
                         </span>
                       </div>
-                      <div className="text-sm text-slate-600">AI helps place it on your timeline using your birth year</div>
+                      <div className="text-sm text-slate-600">AI will work to slot this into your timeline based on your age and birth year</div>
                     </div>
                   </div>
                   {memoryData.dateType === 'age-based' && isPremiumUser && (
