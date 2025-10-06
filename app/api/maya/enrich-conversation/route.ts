@@ -6,9 +6,10 @@ const openai = new OpenAI({
 })
 
 export async function POST(request: NextRequest) {
+  const body = await request.json()
+  const { memory_title, current_memory, user_message, conversation_history } = body
+  
   try {
-    const body = await request.json()
-    const { memory_title, current_memory, user_message, conversation_history } = body
 
     // Step 1: Weave user's answer into the memory
     const weaveCompletion = await openai.chat.completions.create({
