@@ -32,7 +32,7 @@ export default function MayaEnrichmentChat({
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [enrichmentProgress, setEnrichmentProgress] = useState(0)
-  const [currentMemory, setCurrentMemory] = useState(memoryDescription)
+  const [currentMemory, setCurrentMemory] = useState(memoryDescription || '')
   const [isRecording, setIsRecording] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
   const [vapi, setVapi] = useState<any>(null)
@@ -41,6 +41,12 @@ export default function MayaEnrichmentChat({
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 MAYA CHAT PROPS:', { memoryTitle, memoryDescription, memoryDescriptionLength: memoryDescription?.length })
+    console.log('🔍 MAYA CHAT STATE:', { currentMemory, currentMemoryLength: currentMemory?.length })
+  }, [memoryTitle, memoryDescription, currentMemory])
 
   // Initialize Web Speech API
   useEffect(() => {
@@ -165,8 +171,8 @@ export default function MayaEnrichmentChat({
   }
 
   const startVapiCall = async () => {
-    if (!vapi) {
-      toast.error('Voice system not ready yet')
+    if (!vapi || !vapiLoaded) {
+      toast('Voice system is still loading... Please wait a moment', { icon: '⏳' })
       return
     }
 
@@ -244,6 +250,13 @@ export default function MayaEnrichmentChat({
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsTyping(true)
+
+    console.log('🔍 SENDING TO API:', {
+      memory_title: memoryTitle,
+      current_memory_length: currentMemory?.length || 0,
+      current_memory_preview: currentMemory?.substring(0, 50),
+      user_message: input
+    })
 
     try {
       const response = await fetch('/api/maya/enrich-conversation', {
@@ -364,12 +377,11 @@ export default function MayaEnrichmentChat({
             {chatMode === 'text' && !isVapiCallActive && (
               <button
                 onClick={startVapiCall}
-                disabled={!vapiLoaded}
-                className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm transition-all"
-                title="Switch to voice call with Maya"
+                className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 text-xs sm:text-sm transition-all"
+                title={vapiLoaded ? "Switch to voice call with Maya" : "Loading voice system..."}
               >
                 <Phone size={16} />
-                <span className="hidden sm:inline">Voice Call</span>
+                <span className="hidden sm:inline">{vapiLoaded ? 'Voice Call' : 'Loading...'}</span>
               </button>
             )}
             {chatMode === 'voice' && isVapiCallActive && (
