@@ -178,24 +178,32 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     
     setIsLiveEnriching(true)
     try {
+      const token = getAuthToken()
+      console.log('🎯 MAYA: Fetching enrichment with token:', !!token)
+      
       const response = await fetch('/api/maya/suggest-memory-enrichment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
-          userId: user.id,
           memory_title: title,
           memory_description: description
         })
       })
       
       const data = await response.json()
-      console.log('🎯 LIVE ENRICHMENT:', data)
+      console.log('🎯 LIVE ENRICHMENT RESPONSE:', data)
       
       if (data.success && data.data?.enrichment) {
         setLiveEnrichment(data.data.enrichment)
+        toast.success('Maya has some suggestions for you! ✨', { duration: 2000 })
+      } else {
+        console.error('🎯 MAYA ERROR:', data.error)
       }
     } catch (error) {
-      console.error('Live enrichment error:', error)
+      console.error('❌ Live enrichment error:', error)
     } finally {
       setIsLiveEnriching(false)
     }
@@ -993,20 +1001,34 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
 
               {/* File List */}
               {memoryData.files.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="text-sm font-medium text-slate-900">
                     {memoryData.files.length} file{memoryData.files.length !== 1 ? 's' : ''} selected
                   </div>
                   {memoryData.files.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-slate-200 rounded-lg flex items-center justify-center">
-                          {file.type.startsWith('image/') ? '🖼️' : 
-                           file.type.startsWith('video/') ? '🎥' : '🎵'}
-                        </div>
-                        <div>
+                    <div key={index} className="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
+                      <div className="flex items-start space-x-3 flex-1">
+                        {file.type.startsWith('image/') ? (
+                          <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 border-slate-200">
+                            <img 
+                              src={URL.createObjectURL(file)} 
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                            {file.type.startsWith('video/') ? '🎥' : '🎵'}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-slate-900 truncate">
                             {file.name}
+                            {file.name.includes('ai-generated') && (
+                              <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                <Sparkles size={10} /> AI
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-slate-500">
                             {(file.size / 1024 / 1024).toFixed(1)} MB
