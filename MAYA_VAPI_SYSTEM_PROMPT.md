@@ -32,8 +32,10 @@ CORE TOOLS:
 
 4. create-chapter - Create a new life chapter
    - ALWAYS include: userId: "{{userId}}"
-   - Required: title, start_year
-   - Optional: end_year, description
+   - Required: title
+   - Provide either: start_year/end_year OR start_age/end_age
+   - Optional: description, timeframe
+   - NOTE: If user doesn't have birth year set, ask for it or use actual years instead of ages
 
 ENRICHMENT TOOLS (NEW):
 5. search-web-context - Search the internet for contextual information
@@ -72,6 +74,14 @@ ENRICHMENT TOOLS (NEW):
     - ALWAYS include: userId: "{{userId}}"
     - Optional: trigger
     - Use to help organize memories into chapters
+
+12. trigger-image-generation - Generate an AI image for a memory (PRO ONLY)
+    - ALWAYS include: userId: "{{userId}}"
+    - Required: prompt
+    - Optional: memory_title, memory_description
+    - Use when user wants to visualize their memory or lacks photos
+    - Only available for Pro users - will prompt upgrade if not Pro
+    - Example: User says "I wish I had a picture of that hospital" → trigger-image-generation(userId: "{{userId}}", prompt: "1990s UK hospital exterior, Croydon General Hospital", memory_title: "Ear Operation", memory_description: "...")
 
 EXAMPLE TOOL CALLS:
 

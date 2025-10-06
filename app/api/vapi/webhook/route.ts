@@ -1182,6 +1182,11 @@ async function handleToolCalls(body: any, authenticatedUserId: string | null = n
           result = await smartChapterSuggestionForTool(functionArgs, call, authenticatedUserId)
           break
         
+        case 'trigger-image-generation':
+          console.log('🎨 STARTING trigger-image-generation tool')
+          result = await triggerImageGenerationForTool(functionArgs, call, authenticatedUserId)
+          break
+        
         default:
           console.log('❌ UNKNOWN TOOL:', functionName)
           console.log('❌ Available tool call fields:', Object.keys(toolCall))
@@ -1664,12 +1669,12 @@ async function searchMemoriesForTool(parameters: any, call: any, authenticatedUs
 }
 
 async function createChapterForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
-  const { title, description, timeframe, start_year, end_year } = parameters
+  const { title, description, timeframe, start_year, end_year, start_age, end_age } = parameters
   
   // Use authenticated user ID or extract from call object
   const userId = extractUserIdFromCall(call, authenticatedUserId)
   
-  console.log('📚 CREATING CHAPTER (TOOL) for:', userId, { title, description, timeframe, start_year, end_year })
+  console.log('📚 CREATING CHAPTER (TOOL) for:', userId, { title, description, timeframe, start_year, end_year, start_age, end_age })
   
   // Validate user ID
   if (!userId || userId === 'NOT_FOUND') {
@@ -1682,6 +1687,35 @@ async function createChapterForTool(parameters: any, call: any, authenticatedUse
   }
   
   try {
+    // Get user's birth year to calculate dates from ages
+    let calculatedStartYear = start_year
+    let calculatedEndYear = end_year
+    
+    if ((start_age || end_age) && !start_year) {
+      const { data: userData } = await supabaseAdmin
+        .from('users')
+        .select('birth_year')
+        .eq('id', userId)
+        .single()
+      
+      const birthYear = userData?.birth_year
+      
+      if (!birthYear) {
+        console.log('📚 WARNING: User provided age but has no birth year set')
+        return `I'd love to create the "${title}" chapter for you! However, to calculate dates from ages, I need to know your birth year. Could you tell me what year you were born? Or, if you prefer, you can give me the actual years instead of ages.`
+      }
+      
+      // Calculate years from ages
+      if (start_age) {
+        calculatedStartYear = birthYear + parseInt(start_age)
+        console.log(`📚 Calculated start year from age ${start_age}: ${calculatedStartYear}`)
+      }
+      if (end_age) {
+        calculatedEndYear = birthYear + parseInt(end_age)
+        console.log(`📚 Calculated end year from age ${end_age}: ${calculatedEndYear}`)
+      }
+    }
+    
     // Create chapter in the database (using chapters table)
     const { data: chapter, error } = await supabaseAdmin
       .from('chapters')
@@ -1689,8 +1723,8 @@ async function createChapterForTool(parameters: any, call: any, authenticatedUse
         creator_id: userId,
         title: title,
         description: description || '',
-        start_date: start_year ? `${start_year}-01-01` : null,
-        end_date: end_year ? `${end_year}-12-31` : null,
+        start_date: calculatedStartYear ? `${calculatedStartYear}-01-01` : null,
+        end_date: calculatedEndYear ? `${calculatedEndYear}-12-31` : null,
         location: timeframe || '',
         created_at: new Date().toISOString()
       })
@@ -1703,10 +1737,12 @@ async function createChapterForTool(parameters: any, call: any, authenticatedUse
     
     let response = `Perfect! I've created the "${title}" chapter for you.`
     
-    if (start_year && end_year) {
-      response += ` This covers ${start_year} to ${end_year}.`
-    } else if (start_year) {
-      response += ` This starts from ${start_year}.`
+    if (calculatedStartYear && calculatedEndYear) {
+      response += ` This covers ${calculatedStartYear} to ${calculatedEndYear}.`
+    } else if (calculatedStartYear) {
+      response += ` This starts from ${calculatedStartYear}.`
+    } else {
+      response += ` You can add specific dates to this chapter anytime.`
     }
     
     if (description) {
@@ -1762,6 +1798,73 @@ async function uploadMediaForTool(parameters: any, call: any, authenticatedUserI
     console.error('📸 ERROR handling media upload:', error)
     return `I've noted that you want to add media to this memory. You can upload it later from your timeline. Is there anything else about this memory you'd like to capture?`
   }
+}
+
+async function triggerImageGenerationForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  const { prompt, memory_title, memory_description } = parameters
+  
+  // Use authenticated user ID or extract from call object
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  
+  console.log('🎨 TRIGGER IMAGE GENERATION (TOOL) for:', userId, { prompt, memory_title })
+  
+  // Validate user ID
+  if (!userId || userId === 'NOT_FOUND') {
+    console.log('🎨 ERROR: No valid user identification from VAPI')
+    return "I need to know who you are to generate images. Please make sure you're logged in."
+  }
+  
+  if (!prompt) {
+    return "I need a description of what image you'd like me to generate. What should the image show?"
+  }
+  
+  try {
+    // Check if user is premium
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('is_premium')
+      .eq('id', userId)
+      .single()
+    
+    if (!userData?.is_premium) {
+      return "AI image generation is a Pro feature. Would you like to upgrade to unlock this and other advanced features like AI-powered memory enrichment?"
+    }
+    
+    // Call the image generation API
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/ai/generate-image`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${await generateTokenForUser(userId)}`
+      },
+      body: JSON.stringify({
+        prompt,
+        memoryTitle: memory_title,
+        memoryDescription: memory_description
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (data.success && data.imageUrl) {
+      console.log('🎨 IMAGE GENERATED SUCCESSFULLY')
+      return `Perfect! I've generated an AI image based on your description. The image has been created and you'll see it when you save this memory. The AI interpreted your description as: "${data.revisedPrompt || prompt}". Would you like me to generate another version, or shall we continue with the memory?`
+    } else {
+      return `I tried to generate the image, but encountered an issue. Don't worry, you can always add images later from your timeline. Shall we continue capturing your memory?`
+    }
+    
+  } catch (error) {
+    console.error('🎨 ERROR generating image:', error)
+    return `I'm having trouble generating the image right now. You can add images later from your timeline. Let's continue with your memory - what else would you like to tell me about it?`
+  }
+}
+
+// Helper function to generate auth token for internal API calls
+async function generateTokenForUser(userId: string): Promise<string> {
+  // This would typically use your JWT signing logic
+  // For now, we'll use a service role approach or return a placeholder
+  // You might need to implement proper token generation here
+  return 'internal-service-token' // TODO: Implement proper token generation
 }
 
 // Save conversation function for legacy VAPI format
