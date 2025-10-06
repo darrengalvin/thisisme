@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 interface Message {
   role: 'maya' | 'user'
   content: string
-  type?: 'text' | 'location' | 'image' | 'weaving'
+  type?: 'text' | 'location' | 'image' | 'weaving' | 'chapter' | 'tool_info'
   metadata?: any
 }
 
@@ -113,6 +113,54 @@ export default function MayaEnrichmentChat({
       const data = await response.json()
 
       if (data.success) {
+        // Update memory if enriched
+        if (data.enriched_memory) {
+          setCurrentMemory(data.enriched_memory)
+          onMemoryUpdate(data.enriched_memory)
+        }
+
+        // Update progress
+        if (data.progress) {
+          setEnrichmentProgress(data.progress)
+        }
+
+        // Show tool information first
+        const toolMessages: Message[] = []
+        
+        // Location info
+        if (data.location_info) {
+          toolMessages.push({
+            role: 'maya',
+            content: data.location_info.description || `Found info about ${data.location_info.name}`,
+            type: 'location',
+            metadata: data.location_info
+          })
+        }
+
+        // Web context
+        if (data.web_context) {
+          toolMessages.push({
+            role: 'maya',
+            content: `🌐 Historical Context: ${data.web_context.substring(0, 150)}...`,
+            type: 'tool_info'
+          })
+        }
+
+        // Chapter suggestion
+        if (data.chapter_suggestion) {
+          toolMessages.push({
+            role: 'maya',
+            content: `📖 This memory might belong in a chapter called "${data.chapter_suggestion.title}" - would you like me to add it there?`,
+            type: 'chapter',
+            metadata: data.chapter_suggestion
+          })
+        }
+
+        // Add tool messages first
+        if (toolMessages.length > 0) {
+          setMessages(prev => [...prev, ...toolMessages])
+        }
+
         // Add Maya's response
         const mayaMessage: Message = {
           role: 'maya',
@@ -121,31 +169,12 @@ export default function MayaEnrichmentChat({
         }
         setMessages(prev => [...prev, mayaMessage])
 
-        // Update memory if enriched
+        // Show weaving indicator
         if (data.enriched_memory) {
-          setCurrentMemory(data.enriched_memory)
-          onMemoryUpdate(data.enriched_memory)
-          
-          // Show weaving indicator
           setMessages(prev => [...prev, {
             role: 'maya',
             content: '✨ I\'ve woven your answer into the memory!',
             type: 'weaving'
-          }])
-        }
-
-        // Update progress
-        if (data.progress) {
-          setEnrichmentProgress(data.progress)
-        }
-
-        // Show location info if found
-        if (data.location_info) {
-          setMessages(prev => [...prev, {
-            role: 'maya',
-            content: data.location_info.description,
-            type: 'location',
-            metadata: data.location_info
           }])
         }
       }
@@ -207,6 +236,12 @@ export default function MayaEnrichmentChat({
                         ? 'bg-slate-800 text-white'
                         : msg.type === 'weaving'
                         ? 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 text-sm italic'
+                        : msg.type === 'location'
+                        ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 text-blue-900'
+                        : msg.type === 'chapter'
+                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 text-green-900'
+                        : msg.type === 'tool_info'
+                        ? 'bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-200 text-amber-900'
                         : 'bg-slate-100 text-slate-800'
                     }`}
                   >
@@ -216,6 +251,14 @@ export default function MayaEnrichmentChat({
                       </div>
                     )}
                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    {msg.type === 'chapter' && msg.metadata && (
+                      <button 
+                        className="mt-2 px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 transition-colors"
+                        onClick={() => toast.success('Chapter creation feature coming soon!')}
+                      >
+                        Create Chapter
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
