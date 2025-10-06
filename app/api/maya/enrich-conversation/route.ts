@@ -9,6 +9,10 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { memory_title, current_memory, user_message, conversation_history } = body
   
+  // CRITICAL: Log what we're receiving to debug
+  console.log('🔍 MAYA WEAVE: Received current_memory:', current_memory?.substring(0, 100))
+  console.log('🔍 MAYA WEAVE: Memory length:', current_memory?.length || 0)
+  
   try {
 
     // Step 1: Weave user's answer into the memory

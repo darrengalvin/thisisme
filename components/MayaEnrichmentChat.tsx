@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Send, Sparkles, Loader2, MessageCircle, Image as ImageIcon } from 'lucide-react'
+import { X, Send, Sparkles, Loader2, MessageCircle, Image as ImageIcon, Mic, MicOff } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import toast from 'react-hot-toast'
 
@@ -33,8 +33,39 @@ export default function MayaEnrichmentChat({
   const [isTyping, setIsTyping] = useState(false)
   const [enrichmentProgress, setEnrichmentProgress] = useState(0)
   const [currentMemory, setCurrentMemory] = useState(memoryDescription)
+  const [isRecording, setIsRecording] = useState(false)
+  const [recognition, setRecognition] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Initialize Web Speech API
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition
+      const recognitionInstance = new SpeechRecognition()
+      recognitionInstance.continuous = false
+      recognitionInstance.interimResults = false
+      recognitionInstance.lang = 'en-US'
+
+      recognitionInstance.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript
+        setInput(prev => prev + ' ' + transcript)
+        setIsRecording(false)
+      }
+
+      recognitionInstance.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error)
+        toast.error('Voice input error: ' + event.error)
+        setIsRecording(false)
+      }
+
+      recognitionInstance.onend = () => {
+        setIsRecording(false)
+      }
+
+      setRecognition(recognitionInstance)
+    }
+  }, [])
 
   // Initialize conversation
   useEffect(() => {
@@ -81,6 +112,22 @@ export default function MayaEnrichmentChat({
       }])
     } finally {
       setIsTyping(false)
+    }
+  }
+
+  const toggleVoiceInput = () => {
+    if (!recognition) {
+      toast.error('Voice input not supported in this browser')
+      return
+    }
+
+    if (isRecording) {
+      recognition.stop()
+      setIsRecording(false)
+    } else {
+      recognition.start()
+      setIsRecording(true)
+      toast.success('Listening... speak now')
     }
   }
 
@@ -196,31 +243,31 @@ export default function MayaEnrichmentChat({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[95vh] sm:h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-purple-50 to-pink-50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-gradient-to-r from-purple-50 to-pink-50">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Enriching with Maya</h2>
-              <p className="text-xs text-slate-600">AI Memory Assistant</p>
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900">Enriching with Maya</h2>
+              <p className="text-xs text-slate-600 hidden sm:block">AI Memory Assistant</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/50 rounded-lg transition-colors"
           >
-            <X size={20} />
+            <X size={18} className="sm:w-5 sm:h-5" />
           </button>
         </div>
 
-        {/* Split View */}
-        <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Split View - Vertical on mobile, horizontal on desktop */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
           {/* Chat Panel */}
-          <div className="w-1/2 border-r border-slate-200 flex flex-col">
+          <div className="flex-1 lg:w-1/2 border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col">
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((msg, idx) => (
@@ -281,7 +328,7 @@ export default function MayaEnrichmentChat({
             </div>
 
             {/* Input */}
-            <div className="p-4 border-t border-slate-200 flex-shrink-0">
+            <div className="p-3 sm:p-4 border-t border-slate-200 flex-shrink-0">
               <div className="flex gap-2">
                 <textarea
                   ref={chatInputRef}
@@ -289,24 +336,31 @@ export default function MayaEnrichmentChat({
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Type your answer or details..."
-                  className="flex-1 p-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                  className="flex-1 p-2 sm:p-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm sm:text-base"
                   rows={2}
                 />
                 <button
+                  onClick={toggleVoiceInput}
+                  className={`px-3 sm:px-4 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-600'} text-white rounded-xl hover:opacity-90 transition-all flex items-center justify-center`}
+                  title={isRecording ? 'Stop recording' : 'Voice input'}
+                >
+                  {isRecording ? <MicOff size={18} className="sm:w-5 sm:h-5" /> : <Mic size={18} className="sm:w-5 sm:h-5" />}
+                </button>
+                <button
                   onClick={sendMessage}
                   disabled={!input.trim() || isTyping}
-                  className="px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="px-3 sm:px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center"
                 >
-                  <Send size={20} />
+                  <Send size={18} className="sm:w-5 sm:h-5" />
                 </button>
               </div>
             </div>
           </div>
 
           {/* Memory Preview Panel */}
-          <div className="w-1/2 flex flex-col bg-slate-50">
-            <div className="p-4 border-b border-slate-200 flex-shrink-0">
-              <h3 className="font-semibold text-slate-900 mb-2">Your Memory (Live)</h3>
+          <div className="flex-1 lg:w-1/2 flex flex-col bg-slate-50">
+            <div className="p-3 sm:p-4 border-b border-slate-200 flex-shrink-0">
+              <h3 className="text-sm sm:text-base font-semibold text-slate-900 mb-2">Your Memory (Live)</h3>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div
@@ -314,25 +368,25 @@ export default function MayaEnrichmentChat({
                     style={{ width: `${enrichmentProgress}%` }}
                   />
                 </div>
-                <span className="text-sm font-medium text-purple-600">{enrichmentProgress}%</span>
+                <span className="text-xs sm:text-sm font-medium text-purple-600">{enrichmentProgress}%</span>
               </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <div className="prose prose-sm max-w-none">
-                <h4 className="text-lg font-semibold text-slate-900 mb-3">{memoryTitle}</h4>
-                <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">{currentMemory}</p>
+                <h4 className="text-base sm:text-lg font-semibold text-slate-900 mb-2 sm:mb-3">{memoryTitle}</h4>
+                <p className="text-sm sm:text-base text-slate-700 whitespace-pre-wrap leading-relaxed">{currentMemory}</p>
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-200 flex-shrink-0">
+            <div className="p-3 sm:p-4 border-t border-slate-200 flex-shrink-0">
               <button
                 onClick={() => {
                   onMemoryUpdate(currentMemory)
                   toast.success('Memory enriched! ✨')
                   onClose()
                 }}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2 sm:py-3 rounded-xl text-sm sm:text-base font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
               >
                 Done Enriching
               </button>
