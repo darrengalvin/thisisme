@@ -124,7 +124,7 @@ Acknowledge their answer and ask ONE thoughtful follow-up question to enrich the
       { 
         success: false,
         maya_response: "I love hearing more about this! What else do you remember?",
-        enriched_memory: body.current_memory,
+        enriched_memory: current_memory,
         progress: 50
       },
       { status: 200 }
