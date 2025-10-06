@@ -289,11 +289,16 @@ export default function TimelineView({
             </p>
           </div>
           <button
-            onClick={() => onStartCreating?.()}
-            className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 min-w-[140px]"
+            onClick={() => onStartCreating?.(selectedChapterId || undefined, selectedChapter?.title)}
+            className={`${
+              selectedChapterId 
+                ? 'bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600' 
+                : 'bg-sky-600 hover:bg-sky-700'
+            } text-white px-4 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 min-w-[140px] shadow-sm hover:shadow-md`}
+            title={selectedChapter ? `Add Memory to ${selectedChapter.title}` : "Add Memory"}
           >
             <Plus size={16} />
-            <span>Add Memory</span>
+            <span>{selectedChapter ? `Add to ${selectedChapter.title.length > 12 ? selectedChapter.title.substring(0, 12) + '...' : selectedChapter.title}` : 'Add Memory'}</span>
           </button>
         </div>
 
@@ -546,17 +551,25 @@ export default function TimelineView({
           <div className="lg:col-span-3">
             {/* Active Filter Indicator */}
             {selectedChapterId && selectedChapter && (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-200 rounded-xl shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-blue-900">
-                      Filtering by: <span className="font-bold">{selectedChapter.title}</span>
+                      Viewing: <span className="font-bold">{selectedChapter.title}</span>
                     </p>
                     <p className="text-xs text-blue-700 mt-1">
                       Showing {filteredMemories.length} of {memories.length} memories
                     </p>
                   </div>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => onStartCreating?.(selectedChapterId, selectedChapter.title)}
+                      className="flex items-center space-x-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md text-sm"
+                      title={`Add Memory to ${selectedChapter.title}`}
+                    >
+                      <Plus size={16} />
+                      <span className="hidden sm:inline">Add Memory</span>
+                    </button>
                     <button
                       onClick={() => setSelectedChapterId(null)}
                       className="text-sky-600 hover:text-sky-800 text-sm font-medium"
