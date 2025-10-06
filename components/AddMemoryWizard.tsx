@@ -9,6 +9,7 @@ import UpgradeModal from './UpgradeModal'
 import SystemMessageModal from './SystemMessageModal'
 import TaggingInput from './TaggingInput'
 import MayaEnrichmentModal from './MayaEnrichmentModal'
+import MayaEnrichmentChat from './MayaEnrichmentChat'
 import toast from 'react-hot-toast'
 import PhotoTagger from './PhotoTagger'
 import DatePicker from 'react-datepicker'
@@ -75,6 +76,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   }>({ percent: 0, feedback: '', hasEnough: false })
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null)
   const [questionAnswer, setQuestionAnswer] = useState('')
+  const [showMayaChat, setShowMayaChat] = useState(false)
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -673,98 +675,34 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                   )}
                 </div>
                 
-                {/* Live Enrichment Suggestions */}
-                {liveEnrichment && !isLiveEnriching && isPremiumUser && (
+                {/* Talk to Maya Button */}
+                {enrichmentProgress.percent >= 60 && !isLiveEnriching && isPremiumUser && (
                   <div className="mt-4 p-4 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0">
                         <Sparkles className="w-4 h-4 text-white" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-purple-900 mb-1">Maya's Suggestions</h4>
-                        <p className="text-sm text-purple-700">Consider adding these details to enrich your memory:</p>
+                        <h4 className="font-semibold text-purple-900 mb-1">Ready for Maya!</h4>
+                        <p className="text-sm text-purple-700">I can help you add rich details through conversation - emotions, sensory details, context, and more!</p>
                       </div>
                     </div>
                     
-                    {liveEnrichment.questions && liveEnrichment.questions.length > 0 && (
-                      <div className="space-y-2">
-                        {liveEnrichment.questions.slice(0, 3).map((question: string, index: number) => (
-                          <div key={index} className="space-y-2">
-                            <button
-                              onClick={() => setActiveQuestion(activeQuestion === question ? null : question)}
-                              className={`w-full flex items-start gap-2 p-3 rounded-lg border-2 transition-all cursor-pointer group ${
-                                activeQuestion === question
-                                  ? 'border-purple-500 bg-purple-50'
-                                  : 'border-purple-200 bg-white hover:border-purple-400 hover:bg-purple-50'
-                              }`}
-                            >
-                              <span className="text-purple-600 font-bold text-lg leading-none group-hover:scale-125 transition-transform">
-                                {activeQuestion === question ? '💬' : '✨'}
-                              </span>
-                              <p className="text-sm text-slate-700 flex-1 text-left group-hover:text-purple-800 transition-colors">{question}</p>
-                              <span className="text-xs text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {activeQuestion === question ? 'Close' : 'Answer'}
-                              </span>
-                            </button>
-                            
-                            {/* Answer Input */}
-                            {activeQuestion === question && (
-                              <div className="ml-8 p-3 bg-white border-2 border-purple-300 rounded-lg space-y-2 animate-in slide-in-from-top-2 duration-300">
-                                <label className="text-xs font-medium text-purple-700">Your answer:</label>
-                                <textarea
-                                  value={questionAnswer}
-                                  onChange={(e) => setQuestionAnswer(e.target.value)}
-                                  placeholder="Type your answer here..."
-                                  className="w-full p-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm resize-none"
-                                  rows={3}
-                                  autoFocus
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={handleWeaveSuggestion}
-                                    disabled={isLiveEnriching || !questionAnswer.trim()}
-                                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-3 py-2 rounded-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                  >
-                                    {isLiveEnriching ? 'Weaving...' : 'Weave into Memory ✨'}
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setActiveQuestion(null)
-                                      setQuestionAnswer('')
-                                    }}
-                                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <button
+                      onClick={() => setShowMayaChat(true)}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                    >
+                      <Sparkles size={20} />
+                      <span>Talk to Maya About This Memory</span>
+                    </button>
                     
-                    {liveEnrichment.chapter_recommendation && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <p className="text-sm text-blue-800">
-                          <strong>💡 Chapter Suggestion:</strong> {typeof liveEnrichment.chapter_recommendation === 'string' 
-                            ? liveEnrichment.chapter_recommendation 
-                            : liveEnrichment.chapter_recommendation.title}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {liveEnrichment.additional_context && (
-                      <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                        <p className="text-sm text-green-800">
-                          <strong>ℹ️ Context:</strong> {liveEnrichment.additional_context}
-                        </p>
-                      </div>
-                    )}
+                    <p className="text-xs text-center text-purple-600 mt-2">
+                      Maya will ask questions, search locations, and help you remember more details
+                    </p>
                   </div>
                 )}
                 
-                {isPremiumUser && !liveEnrichment && !isLiveEnriching && (
+                {isPremiumUser && !liveEnrichment && !isLiveEnriching && enrichmentProgress.percent < 60 && (
                   <div className="mt-3 space-y-2">
                     {/* Progress Bar */}
                     {enrichmentProgress.percent > 0 && (
@@ -1357,6 +1295,17 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
         memoryDescription={memoryData.description}
         isPremiumUser={isPremiumUser}
         onEnrichmentComplete={handleMayaEnrichmentComplete}
+      />
+
+      {/* Maya Enrichment Chat */}
+      <MayaEnrichmentChat
+        isOpen={showMayaChat}
+        onClose={() => setShowMayaChat(false)}
+        memoryTitle={memoryData.title}
+        memoryDescription={memoryData.description}
+        onMemoryUpdate={(newDescription) => {
+          setMemoryData(prev => ({ ...prev, description: newDescription }))
+        }}
       />
 
       {/* Photo Tagger Modal */}
