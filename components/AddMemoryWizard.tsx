@@ -73,7 +73,8 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     percent: number
     feedback: string
     hasEnough: boolean
-  }>({ percent: 0, feedback: '', hasEnough: false })
+    readyForMaya: boolean
+  }>({ percent: 0, feedback: '', hasEnough: false, readyForMaya: false })
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null)
   const [questionAnswer, setQuestionAnswer] = useState('')
   const [showMayaChat, setShowMayaChat] = useState(false)
@@ -287,11 +288,12 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       const data = await response.json()
       
       if (data.success) {
-        setEnrichmentProgress({
+        setEnrichmentProgress(prev => ({
           percent: data.completionPercent || 0,
           feedback: data.feedback || '',
-          hasEnough: data.hasEnoughInfo || false
-        })
+          hasEnough: data.hasEnoughInfo || false,
+          readyForMaya: prev.readyForMaya || (data.completionPercent || 0) >= 60 // Once true, stays true
+        }))
         
         // If enough info, trigger full enrichment
         if (data.hasEnoughInfo && !liveEnrichment) {
@@ -676,31 +678,31 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                 </div>
                 
                 {/* Talk to Maya Button */}
-                {enrichmentProgress.percent >= 60 && !isLiveEnriching && isPremiumUser && (
-                  <div className="mt-4 p-4 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0">
-                        <Sparkles className="w-4 h-4 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-purple-900 mb-1">Ready for Maya!</h4>
-                        <p className="text-sm text-purple-700">I can help you add rich details through conversation - emotions, sensory details, context, and more!</p>
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={() => setShowMayaChat(true)}
-                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-                    >
-                      <Sparkles size={20} />
-                      <span>Talk to Maya About This Memory</span>
-                    </button>
-                    
-                    <p className="text-xs text-center text-purple-600 mt-2">
-                      Maya will ask questions, search locations, and help you remember more details
-                    </p>
-                  </div>
-                )}
+        {enrichmentProgress.readyForMaya && isPremiumUser && (
+          <div className="mt-4 p-4 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-purple-900 mb-1">Ready for Maya!</h4>
+                <p className="text-sm text-purple-700">I can help you add rich details through conversation - emotions, sensory details, context, and more!</p>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setShowMayaChat(true)}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+            >
+              <Sparkles size={20} />
+              <span>Talk to Maya About This Memory</span>
+            </button>
+            
+            <p className="text-xs text-center text-purple-600 mt-2">
+              Maya will ask questions, search locations, and help you remember more details
+            </p>
+          </div>
+        )}
                 
                 {isPremiumUser && !liveEnrichment && !isLiveEnriching && enrichmentProgress.percent < 60 && (
                   <div className="mt-3 space-y-2">

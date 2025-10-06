@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Send, Sparkles, Loader2, MessageCircle, Image as ImageIcon, Mic, MicOff } from 'lucide-react'
+import { X, Send, Sparkles, Loader2, MessageCircle, Image as ImageIcon, Mic, Phone, PhoneOff } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import toast from 'react-hot-toast'
 
@@ -35,6 +35,10 @@ export default function MayaEnrichmentChat({
   const [currentMemory, setCurrentMemory] = useState(memoryDescription)
   const [isRecording, setIsRecording] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
+  const [vapi, setVapi] = useState<any>(null)
+  const [vapiLoaded, setVapiLoaded] = useState(false)
+  const [isVapiCallActive, setIsVapiCallActive] = useState(false)
+  const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -67,12 +71,41 @@ export default function MayaEnrichmentChat({
     }
   }, [])
 
+  // Load VAPI SDK
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !vapiLoaded) {
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js'
+      script.async = true
+      script.onload = () => {
+        const VapiSDK = (window as any).vapiSDK
+        if (VapiSDK) {
+          const vapiInstance = new VapiSDK(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY!)
+          setVapi(vapiInstance)
+          setVapiLoaded(true)
+          
+          // Set up event listeners
+          vapiInstance.on('call-start', () => {
+            setIsVapiCallActive(true)
+            toast.success('Connected to Maya!')
+          })
+          
+          vapiInstance.on('call-end', () => {
+            setIsVapiCallActive(false)
+            toast('Call ended')
+          })
+        }
+      }
+      document.body.appendChild(script)
+    }
+  }, [vapiLoaded])
+
   // Initialize conversation
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
+    if (isOpen && messages.length === 0 && chatMode === 'text') {
       startConversation()
     }
-  }, [isOpen])
+  }, [isOpen, chatMode])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -128,6 +161,74 @@ export default function MayaEnrichmentChat({
       recognition.start()
       setIsRecording(true)
       toast.success('Listening... speak now')
+    }
+  }
+
+  const startVapiCall = async () => {
+    if (!vapi) {
+      toast.error('Voice system not ready yet')
+      return
+    }
+
+    try {
+      const authToken = localStorage.getItem('auth-token')
+      if (!authToken) {
+        toast.error('Not authenticated')
+        return
+      }
+
+      const response = await fetch('/api/vapi/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          memoryContext: {
+            title: memoryTitle,
+            description: currentMemory,
+            enrichmentMode: true
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get VAPI configuration')
+      }
+
+      const data = await response.json()
+      
+      // Start VAPI call with memory context
+      const callOptions = {
+        transcriber: {
+          provider: data.vapiConfig.transcriber?.provider || 'deepgram',
+          model: data.vapiConfig.transcriber?.model || 'nova-2',
+          language: data.vapiConfig.transcriber?.language || 'en'
+        },
+        metadata: {
+          userId: data.vapiConfig.metadata.userId,
+          birthYear: data.vapiConfig.metadata.birthYear,
+          currentAge: data.vapiConfig.metadata.currentAge,
+          memoryTitle: memoryTitle,
+          memoryDescription: currentMemory,
+          enrichmentMode: true
+        }
+      }
+      
+      await vapi.start(data.vapiConfig.assistantId, callOptions)
+      setChatMode('voice')
+      toast.success('Voice call started! Talk to Maya about your memory')
+      
+    } catch (error) {
+      console.error('Failed to start VAPI call:', error)
+      toast.error('Failed to start voice call')
+    }
+  }
+
+  const endVapiCall = () => {
+    if (vapi && isVapiCallActive) {
+      vapi.stop()
+      setChatMode('text')
     }
   }
 
@@ -253,21 +354,66 @@ export default function MayaEnrichmentChat({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-semibold text-slate-900">Enriching with Maya</h2>
-              <p className="text-xs text-slate-600 hidden sm:block">AI Memory Assistant</p>
+              <p className="text-xs text-slate-600 hidden sm:block">
+                {chatMode === 'voice' ? (isVapiCallActive ? '🎙️ Voice call active' : 'Voice mode') : 'Text chat'}
+              </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-          >
-            <X size={18} className="sm:w-5 sm:h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Mode Toggle */}
+            {chatMode === 'text' && !isVapiCallActive && (
+              <button
+                onClick={startVapiCall}
+                disabled={!vapiLoaded}
+                className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm transition-all"
+                title="Switch to voice call with Maya"
+              >
+                <Phone size={16} />
+                <span className="hidden sm:inline">Voice Call</span>
+              </button>
+            )}
+            {chatMode === 'voice' && isVapiCallActive && (
+              <button
+                onClick={endVapiCall}
+                className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs sm:text-sm transition-all animate-pulse"
+              >
+                <PhoneOff size={16} />
+                <span className="hidden sm:inline">End Call</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+            >
+              <X size={18} className="sm:w-5 sm:h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Split View - Vertical on mobile, horizontal on desktop */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
           {/* Chat Panel */}
           <div className="flex-1 lg:w-1/2 border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col">
+            {/* Voice Mode Indicator */}
+            {chatMode === 'voice' && isVapiCallActive && (
+              <div className="p-4 bg-gradient-to-r from-purple-100 to-pink-100 border-b border-purple-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                  <div>
+                    <p className="font-semibold text-purple-900">🎙️ Voice Call Active</p>
+                    <p className="text-xs text-purple-700">Talk to Maya about your memory - she's listening!</p>
+                  </div>
+                </div>
+                <div className="mt-3 p-3 bg-white/50 rounded-lg">
+                  <p className="text-xs text-purple-800 italic">
+                    💬 Try saying:<br />
+                    "I was at Croydon Hospital for an ear operation"<br />
+                    "It was in the 1990s"<br />
+                    "Can you find information about that hospital?"
+                  </p>
+                </div>
+              </div>
+            )}
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((msg, idx) => (
@@ -327,34 +473,36 @@ export default function MayaEnrichmentChat({
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="p-3 sm:p-4 border-t border-slate-200 flex-shrink-0">
-              <div className="flex gap-2">
-                <textarea
-                  ref={chatInputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Type your answer or details..."
-                  className="flex-1 p-2 sm:p-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm sm:text-base"
-                  rows={2}
-                />
-                <button
-                  onClick={toggleVoiceInput}
-                  className={`px-3 sm:px-4 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-600'} text-white rounded-xl hover:opacity-90 transition-all flex items-center justify-center`}
-                  title={isRecording ? 'Stop recording' : 'Voice input'}
-                >
-                  {isRecording ? <MicOff size={18} className="sm:w-5 sm:h-5" /> : <Mic size={18} className="sm:w-5 sm:h-5" />}
-                </button>
-                <button
-                  onClick={sendMessage}
-                  disabled={!input.trim() || isTyping}
-                  className="px-3 sm:px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center"
-                >
-                  <Send size={18} className="sm:w-5 sm:h-5" />
-                </button>
+            {/* Input - Only show in text mode */}
+            {chatMode === 'text' && (
+              <div className="p-3 sm:p-4 border-t border-slate-200 flex-shrink-0">
+                <div className="flex gap-2">
+                  <textarea
+                    ref={chatInputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Type your answer or details..."
+                    className="flex-1 p-2 sm:p-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm sm:text-base"
+                    rows={2}
+                  />
+                  <button
+                    onClick={toggleVoiceInput}
+                    className={`px-3 sm:px-4 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-600'} text-white rounded-xl hover:opacity-90 transition-all flex items-center justify-center`}
+                    title={isRecording ? 'Stop recording' : 'Voice input'}
+                  >
+                    {isRecording ? <MicOff size={18} className="sm:w-5 sm:h-5" /> : <Mic size={18} className="sm:w-5 sm:h-5" />}
+                  </button>
+                  <button
+                    onClick={sendMessage}
+                    disabled={!input.trim() || isTyping}
+                    className="px-3 sm:px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center"
+                  >
+                    <Send size={18} className="sm:w-5 sm:h-5" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Memory Preview Panel */}
