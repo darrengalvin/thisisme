@@ -223,12 +223,6 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     }
   }
 
-  const getAuthToken = () => {
-    const cookies = document.cookie.split(';')
-    const authCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='))
-    return authCookie ? authCookie.split('=')[1] : ''
-  }
-
   const removeFile = (index: number) => {
     setMemoryData(prev => ({
       ...prev,
