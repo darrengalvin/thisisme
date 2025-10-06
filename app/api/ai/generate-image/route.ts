@@ -85,6 +85,10 @@ export async function POST(request: NextRequest) {
       response_format: 'url'
     })
 
+    if (!response.data || response.data.length === 0) {
+      throw new Error('No image data returned from OpenAI')
+    }
+
     const imageUrl = response.data[0]?.url
 
     if (!imageUrl) {
