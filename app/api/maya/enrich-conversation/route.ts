@@ -140,8 +140,8 @@ Add the new detail WITHOUT removing or changing ANY existing text.`
       .map((msg: any) => msg.content.toLowerCase())
     
     const hasTopicRepetition = recentQuestions.length >= 2 && 
-      recentQuestions.some((q1, i) => 
-        recentQuestions.slice(i + 1).some(q2 => {
+      recentQuestions.some((q1: string, i: number) => 
+        recentQuestions.slice(i + 1).some((q2: string) => {
           const words1 = q1.split(/\s+/).filter((w: string) => w.length > 4)
           const words2 = q2.split(/\s+/).filter((w: string) => w.length > 4)
           const overlap = words1.filter((w: string) => words2.includes(w))
