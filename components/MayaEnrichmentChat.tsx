@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Send, Sparkles, Loader2, MessageCircle, Image as ImageIcon, Mic, Phone, PhoneOff } from 'lucide-react'
+import { X, Send, Sparkles, Loader2, MessageCircle, Image as ImageIcon, Mic, MicOff, Phone, PhoneOff } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import toast from 'react-hot-toast'
 
