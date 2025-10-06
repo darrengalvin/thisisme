@@ -153,6 +153,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const handleNext = () => {
     // Show Maya enrichment after step 1 (basic info entered)
     if (currentStep === 1 && memoryData.title && memoryData.description) {
+      console.log('🎯 ADD MEMORY: Opening Maya modal. isPremiumUser:', isPremiumUser, 'premiumLoading:', premiumLoading)
       setShowMayaEnrichment(true)
       return
     }

@@ -32,8 +32,16 @@ export default function MayaEnrichmentModal({
   const [enrichmentData, setEnrichmentData] = useState<any>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(!isPremiumUser)
 
+  // Update upgrade prompt when premium status changes
   useEffect(() => {
+    console.log('🎯 MAYA MODAL: isPremiumUser changed:', isPremiumUser)
+    setShowUpgradePrompt(!isPremiumUser)
+  }, [isPremiumUser])
+
+  useEffect(() => {
+    console.log('🎯 MAYA MODAL: isOpen:', isOpen, 'isPremiumUser:', isPremiumUser, 'hasEnrichmentData:', !!enrichmentData)
     if (isOpen && isPremiumUser && !enrichmentData) {
+      console.log('🎯 MAYA MODAL: Starting enrichment for premium user')
       startEnrichment()
     }
   }, [isOpen, isPremiumUser])
