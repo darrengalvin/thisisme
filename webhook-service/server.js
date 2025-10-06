@@ -711,6 +711,181 @@ async function saveConversationMessage(callId, role, content, toolCalls = null) 
   }
 }
 
+// ========== NEW MAYA ENRICHMENT TOOLS ==========
+
+async function searchWebContextForTool(parameters, call, urlUserId = null) {
+  const { query, date_context, userId: paramUserId } = parameters
+  const userId = paramUserId || await extractUserIdFromCall(call, null, urlUserId)
+  
+  console.log('🌐 Web search for:', query)
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/search-web-context`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, query, date_context })
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      const results = data.data.results.slice(0, 3)
+      return `Found ${results.length} results: ${results.map(r => `${r.title}: ${r.content.substring(0, 100)}`).join(' | ')}`
+    }
+    return '❌ Could not search the web right now'
+  } catch (error) {
+    console.error('🌐 Error:', error)
+    return '❌ Web search failed'
+  }
+}
+
+async function suggestMemoryEnrichmentForTool(parameters, call, urlUserId = null) {
+  const { memory_title, memory_description, userId: paramUserId } = parameters
+  const userId = paramUserId || await extractUserIdFromCall(call, null, urlUserId)
+  
+  console.log('✨ Enriching memory:', memory_title)
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/suggest-memory-enrichment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, memory_title, memory_description })
+    })
+    const data = await response.json()
+    
+    if (data.success && data.data.enrichment) {
+      const questions = data.data.enrichment.questions?.slice(0, 2).join(' ') || ''
+      return `Great memory! ${questions || 'Tell me more about this.'}`
+    }
+    return 'That sounds like an interesting memory!'
+  } catch (error) {
+    console.error('✨ Error:', error)
+    return 'Tell me more about that memory!'
+  }
+}
+
+async function findLocationDetailsForTool(parameters, call, urlUserId = null) {
+  const { location_name, userId: paramUserId } = parameters
+  const userId = paramUserId || await extractUserIdFromCall(call, null, urlUserId)
+  
+  console.log('📍 Finding location:', location_name)
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/find-location-details`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, location_name })
+    })
+    const data = await response.json()
+    
+    if (data.success && data.data.location) {
+      const loc = data.data.location
+      return `Found ${loc.display_name}. ${loc.description || ''}`
+    }
+    return `I found information about ${location_name}`
+  } catch (error) {
+    console.error('📍 Error:', error)
+    return `Tell me more about ${location_name}`
+  }
+}
+
+async function searchSimilarMemoriesForTool(parameters, call, urlUserId = null) {
+  const { memory_text, userId: paramUserId } = parameters
+  const userId = paramUserId || await extractUserIdFromCall(call, null, urlUserId)
+  
+  console.log('🔄 Searching similar memories')
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/search-similar-memories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, memory_text })
+    })
+    const data = await response.json()
+    
+    if (data.success && data.data.similar_memories?.length > 0) {
+      return `I found ${data.data.similar_memories.length} similar memories. You might have already recorded something like this.`
+    }
+    return 'This seems like a new unique memory!'
+  } catch (error) {
+    console.error('🔄 Error:', error)
+    return 'This looks like a new memory to me!'
+  }
+}
+
+async function managePersonForTool(parameters, call, urlUserId = null) {
+  const { action, person_name, relationship, person_email, userId: paramUserId } = parameters
+  const userId = paramUserId || await extractUserIdFromCall(call, null, urlUserId)
+  
+  console.log('👥 Managing person:', person_name, action)
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/manage-person`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, action, person_name, relationship, person_email })
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      if (action === 'add') return `✅ Added ${person_name} to your network!`
+      if (action === 'search') return data.data.people?.length > 0 ? `Found ${data.data.people.length} people matching "${person_name}"` : `No matches for "${person_name}"`
+    }
+    return '✅ Updated your people network'
+  } catch (error) {
+    console.error('👥 Error:', error)
+    return `I'll remember ${person_name} for next time`
+  }
+}
+
+async function suggestMemoryPromptsForTool(parameters, call, urlUserId = null) {
+  const { focus_area, userId: paramUserId } = parameters
+  const userId = paramUserId || await extractUserIdFromCall(call, null, urlUserId)
+  
+  console.log('💡 Suggesting prompts for:', focus_area)
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/suggest-memory-prompts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, focus_area })
+    })
+    const data = await response.json()
+    
+    if (data.success && data.data.prompts?.length > 0) {
+      return `Here are some prompts: ${data.data.prompts.slice(0, 2).join(' ')}`
+    }
+    return 'What memories would you like to explore?'
+  } catch (error) {
+    console.error('💡 Error:', error)
+    return 'Tell me about your favorite memories!'
+  }
+}
+
+async function smartChapterSuggestionForTool(parameters, call, urlUserId = null) {
+  const { userId: paramUserId } = parameters
+  const userId = paramUserId || await extractUserIdFromCall(call, null, urlUserId)
+  
+  console.log('🧠 Analyzing timeline for chapter suggestions')
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/smart-chapter-suggestion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    })
+    const data = await response.json()
+    
+    if (data.success && data.data.suggestions?.length > 0) {
+      const suggestion = data.data.suggestions[0]
+      return `I suggest creating a chapter: "${suggestion.title}" ${suggestion.reason}`
+    }
+    return 'Your timeline looks good! Keep adding memories.'
+  } catch (error) {
+    console.error('🧠 Error:', error)
+    return 'Your timeline is looking great!'
+  }
+}
+
 // VAPI Webhook Handler
 app.post('/vapi/webhook', async (req, res) => {
   const timestamp = new Date().toISOString()
@@ -781,9 +956,44 @@ app.post('/vapi/webhook', async (req, res) => {
             result = await saveConversationForTool(functionArgs, call, urlUserId)
             break
           
+          case 'search-web-context':
+            console.log('🔧 🌐 WEB SEARCH REQUESTED!')
+            result = await searchWebContextForTool(functionArgs, call, urlUserId)
+            break
+          
+          case 'suggest-memory-enrichment':
+            console.log('🔧 ✨ MEMORY ENRICHMENT REQUESTED!')
+            result = await suggestMemoryEnrichmentForTool(functionArgs, call, urlUserId)
+            break
+          
+          case 'find-location-details':
+            console.log('🔧 📍 LOCATION SEARCH REQUESTED!')
+            result = await findLocationDetailsForTool(functionArgs, call, urlUserId)
+            break
+          
+          case 'search-similar-memories':
+            console.log('🔧 🔄 SIMILAR MEMORIES SEARCH REQUESTED!')
+            result = await searchSimilarMemoriesForTool(functionArgs, call, urlUserId)
+            break
+          
+          case 'manage-person':
+            console.log('🔧 👥 PERSON MANAGEMENT REQUESTED!')
+            result = await managePersonForTool(functionArgs, call, urlUserId)
+            break
+          
+          case 'suggest-memory-prompts':
+            console.log('🔧 💡 MEMORY PROMPTS REQUESTED!')
+            result = await suggestMemoryPromptsForTool(functionArgs, call, urlUserId)
+            break
+          
+          case 'smart-chapter-suggestion':
+            console.log('🔧 🧠 CHAPTER SUGGESTION REQUESTED!')
+            result = await smartChapterSuggestionForTool(functionArgs, call, urlUserId)
+            break
+          
           default:
             console.log(`🔧 ❌ UNKNOWN TOOL: ${functionName}`)
-            result = `❌ Tool "${functionName}" not yet implemented. Available tools: get-user-context, create-chapter, save-memory, search-memories, save-conversation`
+            result = `❌ Tool "${functionName}" not yet implemented. Available tools: get-user-context, create-chapter, save-memory, search-memories, save-conversation, search-web-context, suggest-memory-enrichment, find-location-details, search-similar-memories, manage-person, suggest-memory-prompts, smart-chapter-suggestion`
         }
 
         results.push({
