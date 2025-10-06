@@ -73,6 +73,8 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     feedback: string
     hasEnough: boolean
   }>({ percent: 0, feedback: '', hasEnough: false })
+  const [activeQuestion, setActiveQuestion] = useState<string | null>(null)
+  const [questionAnswer, setQuestionAnswer] = useState('')
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -210,6 +212,57 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       }
     } catch (error) {
       console.error('❌ Live enrichment error:', error)
+    } finally {
+      setIsLiveEnriching(false)
+    }
+  }
+
+  // Weave question + answer into description
+  const handleWeaveSuggestion = async () => {
+    if (!questionAnswer.trim()) {
+      toast.error('Please provide an answer first!')
+      return
+    }
+    
+    const currentDesc = memoryData.description
+    
+    // Show loading state
+    setIsLiveEnriching(true)
+    
+    try {
+      const response = await fetch('/api/maya/weave-suggestion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_description: currentDesc,
+          suggestion_question: activeQuestion,
+          user_answer: questionAnswer
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success && data.weaved_description) {
+        // Update description with weaved text
+        setMemoryData(prev => ({ ...prev, description: data.weaved_description }))
+        toast.success('✨ Maya weaved your answer into the memory!', { duration: 2000 })
+        
+        // Remove the used question from suggestions
+        if (liveEnrichment?.questions) {
+          const updatedQuestions = liveEnrichment.questions.filter((q: string) => q !== activeQuestion)
+          setLiveEnrichment({
+            ...liveEnrichment,
+            questions: updatedQuestions
+          })
+        }
+        
+        // Reset
+        setActiveQuestion(null)
+        setQuestionAnswer('')
+      }
+    } catch (error) {
+      console.error('Weave suggestion error:', error)
+      toast.error('Failed to weave suggestion. Try again!')
     } finally {
       setIsLiveEnriching(false)
     }
@@ -636,9 +689,56 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                     {liveEnrichment.questions && liveEnrichment.questions.length > 0 && (
                       <div className="space-y-2">
                         {liveEnrichment.questions.slice(0, 3).map((question: string, index: number) => (
-                          <div key={index} className="flex items-start gap-2 p-3 bg-white rounded-lg border border-purple-200 hover:border-purple-300 transition-colors">
-                            <span className="text-purple-600 font-bold text-lg leading-none">•</span>
-                            <p className="text-sm text-slate-700 flex-1">{question}</p>
+                          <div key={index} className="space-y-2">
+                            <button
+                              onClick={() => setActiveQuestion(activeQuestion === question ? null : question)}
+                              className={`w-full flex items-start gap-2 p-3 rounded-lg border-2 transition-all cursor-pointer group ${
+                                activeQuestion === question
+                                  ? 'border-purple-500 bg-purple-50'
+                                  : 'border-purple-200 bg-white hover:border-purple-400 hover:bg-purple-50'
+                              }`}
+                            >
+                              <span className="text-purple-600 font-bold text-lg leading-none group-hover:scale-125 transition-transform">
+                                {activeQuestion === question ? '💬' : '✨'}
+                              </span>
+                              <p className="text-sm text-slate-700 flex-1 text-left group-hover:text-purple-800 transition-colors">{question}</p>
+                              <span className="text-xs text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {activeQuestion === question ? 'Close' : 'Answer'}
+                              </span>
+                            </button>
+                            
+                            {/* Answer Input */}
+                            {activeQuestion === question && (
+                              <div className="ml-8 p-3 bg-white border-2 border-purple-300 rounded-lg space-y-2 animate-in slide-in-from-top-2 duration-300">
+                                <label className="text-xs font-medium text-purple-700">Your answer:</label>
+                                <textarea
+                                  value={questionAnswer}
+                                  onChange={(e) => setQuestionAnswer(e.target.value)}
+                                  placeholder="Type your answer here..."
+                                  className="w-full p-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm resize-none"
+                                  rows={3}
+                                  autoFocus
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={handleWeaveSuggestion}
+                                    disabled={isLiveEnriching || !questionAnswer.trim()}
+                                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-3 py-2 rounded-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                  >
+                                    {isLiveEnriching ? 'Weaving...' : 'Weave into Memory ✨'}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setActiveQuestion(null)
+                                      setQuestionAnswer('')
+                                    }}
+                                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -907,51 +1007,51 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
 
                 {/* Approximate - Only show when in a chapter */}
                 {chapterId && (
-                  <label className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                    memoryData.dateType === 'within-chapter' 
-                      ? 'border-slate-800 bg-slate-50 shadow-sm' 
-                      : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
-                  }`}>
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                        memoryData.dateType === 'within-chapter'
-                          ? 'border-slate-800 bg-slate-800'
-                          : 'border-slate-300 hover:border-slate-400'
-                      }`}>
-                        {memoryData.dateType === 'within-chapter' && (
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        )}
-                      </div>
-                      <input
-                        type="radio"
-                        name="dateType"
-                        value="within-chapter"
-                        checked={memoryData.dateType === 'within-chapter'}
-                        onChange={(e) => setMemoryData(prev => ({ ...prev, dateType: 'within-chapter' as const }))}
-                        className="sr-only"
-                      />
-                      <div className="flex-1">
+                <label className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                  memoryData.dateType === 'within-chapter' 
+                    ? 'border-slate-800 bg-slate-50 shadow-sm' 
+                    : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                }`}>
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      memoryData.dateType === 'within-chapter'
+                        ? 'border-slate-800 bg-slate-800'
+                        : 'border-slate-300 hover:border-slate-400'
+                    }`}>
+                      {memoryData.dateType === 'within-chapter' && (
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      )}
+                    </div>
+                    <input
+                      type="radio"
+                      name="dateType"
+                      value="within-chapter"
+                      checked={memoryData.dateType === 'within-chapter'}
+                      onChange={(e) => setMemoryData(prev => ({ ...prev, dateType: 'within-chapter' as const }))}
+                      className="sr-only"
+                    />
+                    <div className="flex-1">
                         <div className="font-semibold text-slate-900">Somewhere within {chapterTitle || 'this chapter'}</div>
-                        <div className="text-sm text-slate-600">Not exactly sure when, but it happened during this period</div>
+                      <div className="text-sm text-slate-600">Not exactly sure when, but it happened during this period</div>
+                    </div>
+                  </div>
+                  {memoryData.dateType === 'within-chapter' && (
+                    <div className="mt-4 pl-7">
+                      <div className="bg-white border border-slate-300 rounded-lg shadow-sm">
+                        <input
+                          type="text"
+                            placeholder={chapterTitle ? `e.g., Early in ${chapterTitle}, Near the end, Midway through` : "e.g., Early in this chapter, Near the end, Midway through"}
+                          value={memoryData.approximateDate || ''}
+                          onChange={(e) => setMemoryData(prev => ({ ...prev, approximateDate: e.target.value }))}
+                          className="w-full px-4 py-3 text-slate-900 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 placeholder:text-slate-400"
+                        />
+                      </div>
+                      <div className="mt-2 text-xs text-slate-500">
+                        💡 Tip: Be as specific as you can remember - "Early 2023", "Summer months", "Around Christmas"
                       </div>
                     </div>
-                    {memoryData.dateType === 'within-chapter' && (
-                      <div className="mt-4 pl-7">
-                        <div className="bg-white border border-slate-300 rounded-lg shadow-sm">
-                          <input
-                            type="text"
-                            placeholder={chapterTitle ? `e.g., Early in ${chapterTitle}, Near the end, Midway through` : "e.g., Early in this chapter, Near the end, Midway through"}
-                            value={memoryData.approximateDate || ''}
-                            onChange={(e) => setMemoryData(prev => ({ ...prev, approximateDate: e.target.value }))}
-                            className="w-full px-4 py-3 text-slate-900 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 placeholder:text-slate-400"
-                          />
-                        </div>
-                        <div className="mt-2 text-xs text-slate-500">
-                          💡 Tip: Be as specific as you can remember - "Early 2023", "Summer months", "Around Christmas"
-                        </div>
-                      </div>
-                    )}
-                  </label>
+                  )}
+                </label>
                 )}
               </div>
             </div>
@@ -1087,7 +1187,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                               alt={file.name}
                               className="w-full h-full object-cover"
                             />
-                          </div>
+                        </div>
                         ) : (
                           <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center flex-shrink-0">
                             {file.type.startsWith('video/') ? '🎥' : '🎵'}
