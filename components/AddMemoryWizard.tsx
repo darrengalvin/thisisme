@@ -293,9 +293,9 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200">
+        <div className="px-6 py-4 border-b border-slate-200 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <button
               onClick={onCancel}
@@ -340,7 +340,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
         </div>
 
         {/* Content */}
-        <div className="px-6 py-6 overflow-y-auto">
+        <div className="px-6 py-6 overflow-y-auto flex-1 min-h-0">
           {/* Step 1: What do you remember? */}
           {currentStep === 1 && (
             <div className="space-y-4">
@@ -730,7 +730,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between flex-shrink-0">
           <button
             onClick={handleBack}
             disabled={currentStep === 1}

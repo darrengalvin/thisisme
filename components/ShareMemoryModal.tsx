@@ -83,11 +83,11 @@ export default function ShareMemoryModal({ memory, isOpen, onClose }: ShareMemor
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
       <div 
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 text-white">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 text-white flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-xl font-bold">Share Memory</h3>
@@ -102,7 +102,7 @@ export default function ShareMemoryModal({ memory, isOpen, onClose }: ShareMemor
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-12rem)]">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
           {/* Social Media Preview */}
           <div className="mb-8">
             <h4 className="font-semibold text-slate-900 mb-3 flex items-center">
@@ -412,7 +412,7 @@ export default function ShareMemoryModal({ memory, isOpen, onClose }: ShareMemor
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-between items-center">
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-between items-center flex-shrink-0">
           <div className="flex items-center space-x-2 text-slate-500">
             <BarChart3 className="w-4 h-4" />
             <span className="text-sm">View analytics will be available after sharing</span>

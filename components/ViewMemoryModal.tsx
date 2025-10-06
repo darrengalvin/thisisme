@@ -63,7 +63,7 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with image */}
@@ -143,7 +143,7 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-16rem)]">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
           {/* Memory content */}
           {memory.textContent && (
             <div className="mb-6">
@@ -220,7 +220,7 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
         </div>
 
         {/* Footer actions */}
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end items-center">
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end items-center flex-shrink-0">
           <div className="flex space-x-3">
             <button
               onClick={onClose}

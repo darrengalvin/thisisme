@@ -482,9 +482,9 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         }
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 flex-shrink-0">
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-slate-900">Edit Chapter</h2>
             {/* Auto-save status indicator */}
@@ -523,7 +523,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         </div>
 
         {/* Modal Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
           {/* Header Image Section */}
           <div>
             <label className="block text-sm font-semibold text-slate-900 mb-2">Header Image</label>
@@ -806,7 +806,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-slate-200">
+        <div className="flex items-center justify-between p-6 border-t border-slate-200 flex-shrink-0">
           <div className="text-sm text-slate-500">
             {isAutoSaving ? (
               <span className="text-blue-600">Auto-saving your changes...</span>

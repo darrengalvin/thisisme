@@ -2172,9 +2172,9 @@ With love and remembrance,
           {/* Memory Viewing Modal */}
           {showMemoryModal && selectedMemory && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
                 {/* Header */}
-                <div className="p-6 border-b border-gray-200">
+                <div className="p-6 border-b border-gray-200 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-3">
@@ -2198,7 +2198,7 @@ With love and remembrance,
                 </div>
 
                 {/* Content */}
-                <div className="p-6">
+                <div className="p-6 overflow-y-auto flex-1 min-h-0">
                   {/* Featured Person */}
                   {selectedMemory.person_context && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -2280,7 +2280,7 @@ With love and remembrance,
                 </div>
 
                 {/* Footer Actions */}
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-2xl">
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-2xl flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-500">
                       Memory ID: {selectedMemory.id}
