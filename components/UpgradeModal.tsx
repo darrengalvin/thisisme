@@ -8,9 +8,10 @@ interface UpgradeModalProps {
   isOpen: boolean
   onClose: () => void
   onUpgradeSuccess?: () => void
+  feature?: 'voice-transcription' | 'ai-image-generation' | 'age-dating' | 'general'
 }
 
-export default function UpgradeModal({ isOpen, onClose, onUpgradeSuccess }: UpgradeModalProps) {
+export default function UpgradeModal({ isOpen, onClose, onUpgradeSuccess, feature = 'general' }: UpgradeModalProps) {
   const { user } = useAuth()
   const [showCodeEntry, setShowCodeEntry] = useState(false)
   const [showEmailEntry, setShowEmailEntry] = useState(false)
@@ -191,7 +192,18 @@ export default function UpgradeModal({ isOpen, onClose, onUpgradeSuccess }: Upgr
             {/* Message */}
             <div>
               <p className="text-slate-900 leading-relaxed">
-                🎤 Voice-to-Text Transcription is a premium feature! This converts your speech directly into text in the memory form.
+                {feature === 'voice-transcription' && (
+                  <>🎤 Voice-to-Text Transcription is a premium feature! This converts your speech directly into text in the memory form.</>
+                )}
+                {feature === 'ai-image-generation' && (
+                  <>✨ AI Image Generation is a premium feature! Create unique images for your memories. As you upload photos of people in your network, the AI gets better at matching generated images to them, almost recreating your memories.</>
+                )}
+                {feature === 'age-dating' && (
+                  <>🎂 Age-Based Memory Dating is a premium feature! Tell Maya how old you were, and AI will intelligently place the memory on your timeline using your birth year.</>
+                )}
+                {feature === 'general' && (
+                  <>✨ This is a premium feature! Upgrade to AI Pro to unlock all advanced features.</>
+                )}
               </p>
               <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <p className="text-sm text-amber-800">

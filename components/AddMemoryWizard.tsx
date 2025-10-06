@@ -50,6 +50,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [showImageCropper, setShowImageCropper] = useState(false)
   const [tempImageForCrop, setTempImageForCrop] = useState<{ file: File, index: number } | null>(null)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [upgradeFeature, setUpgradeFeature] = useState<'voice-transcription' | 'ai-image-generation' | 'age-dating' | 'general'>('general')
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [showPhotoTagger, setShowPhotoTagger] = useState(false)
@@ -175,6 +176,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     }
 
     if (!isPremiumUser) {
+      setUpgradeFeature('ai-image-generation')
       setShowUpgradeModal(true)
       return
     }
@@ -321,6 +323,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
 
   const handleVoiceRecord = () => {
     if (!isPremiumUser) {
+      setUpgradeFeature('voice-transcription')
       setShowUpgradeModal(true)
       return
     }
@@ -652,6 +655,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                 onClick={(e) => {
                   if (!isPremiumUser) {
                     e.preventDefault()
+                    setUpgradeFeature('age-dating')
                     setShowUpgradeModal(true)
                   }
                 }}>
@@ -776,7 +780,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                         </span>
                       </h4>
                       <p className="text-sm text-slate-600 mt-0.5">
-                        Describe your memory and AI will create an image for it
+                        Create unique images for your memories. As you upload photos of people in your network, the AI gets better at matching generated images to them, almost recreating your memories.
                       </p>
                     </div>
                   </div>
@@ -788,7 +792,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                       <textarea
                         value={aiImagePrompt}
                         onChange={(e) => setAiImagePrompt(e.target.value)}
-                        placeholder="Describe the scene... e.g., 'A sunny day at the beach with children building sandcastles' or 'A cozy family dinner around a wooden table with candles'"
+                        placeholder={`Describe the scene for AI to generate...\n\n(The memory title and description will be automatically included: "${memoryData.title || 'Your memory title'}" - "${memoryData.description || 'Your memory description'}")`}
                         className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                         rows={3}
                         disabled={isGeneratingImage}
@@ -820,8 +824,9 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                   </div>
                 ) : (
                   <button
-                    onClick={() => {
+                      onClick={() => {
                       if (!isPremiumUser) {
+                        setUpgradeFeature('ai-image-generation')
                         setShowUpgradeModal(true)
                       } else {
                         setShowAiImageGenerator(true)
@@ -1021,6 +1026,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       <UpgradeModal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
+        feature={upgradeFeature}
       />
 
       {/* Error Modal */}
