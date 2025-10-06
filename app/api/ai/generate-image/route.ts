@@ -27,8 +27,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user is premium
-    if (!user.isPremium) {
+    // Check if user is premium by checking Supabase database
+    const { createClient } = await import('@supabase/supabase-js')
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    
+    const { data: userData } = await supabase
+      .from('users')
+      .select('is_premium')
+      .eq('id', user.userId)
+      .single()
+
+    if (!userData?.is_premium) {
       return NextResponse.json(
         { success: false, error: 'This feature requires AI Pro subscription' },
         { status: 403 }
