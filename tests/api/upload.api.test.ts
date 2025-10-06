@@ -6,6 +6,24 @@ import {
   mockEnvVars,
 } from './helpers';
 
+// Helper to create a mock file with arrayBuffer method
+function createMockFile(content: string | Uint8Array, filename: string, type: string): File {
+  const file = new File([content], filename, { type });
+  // Add arrayBuffer method for Node.js environment
+  if (typeof (file as any).arrayBuffer !== 'function') {
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: async function() {
+        if (content instanceof Uint8Array) {
+          return content.buffer;
+        }
+        const encoder = new TextEncoder();
+        return encoder.encode(content).buffer;
+      }
+    });
+  }
+  return file;
+}
+
 // Mock dependencies
 vi.mock('@/lib/auth', () => ({
   verifyToken: vi.fn(),
@@ -88,7 +106,7 @@ describe('Upload API Integration Tests', () => {
       } as any);
 
       // Create a mock file
-      const mockFile = new File(['test content'], 'test.jpg', { type: 'image/jpeg' });
+      const mockFile = createMockFile('test content', 'test.jpg', 'image/jpeg');
       const formData = new FormData();
       formData.append('file', mockFile);
 
@@ -117,7 +135,7 @@ describe('Upload API Integration Tests', () => {
 
       vi.mocked(auth.verifyToken).mockResolvedValue(null);
 
-      const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+      const mockFile = createMockFile('test', 'test.jpg', 'image/jpeg');
       const formData = new FormData();
       formData.append('file', mockFile);
 
@@ -146,7 +164,7 @@ describe('Upload API Integration Tests', () => {
 
       // Create a mock file > 10MB
       const largeContent = new Uint8Array(11 * 1024 * 1024); // 11MB
-      const mockFile = new File([largeContent], 'large.jpg', { type: 'image/jpeg' });
+      const mockFile = createMockFile(largeContent, 'large.jpg', 'image/jpeg');
       const formData = new FormData();
       formData.append('file', mockFile);
 
@@ -173,7 +191,7 @@ describe('Upload API Integration Tests', () => {
         email: 'test@example.com' 
       });
 
-      const mockFile = new File(['test'], 'test.pdf', { type: 'application/pdf' });
+      const mockFile = createMockFile('test', 'test.pdf', 'application/pdf');
       const formData = new FormData();
       formData.append('file', mockFile);
 
@@ -201,7 +219,7 @@ describe('Upload API Integration Tests', () => {
         email: 'test@example.com' 
       });
 
-      const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+      const mockFile = createMockFile('test', 'test.jpg', 'image/jpeg');
       const formData = new FormData();
       formData.append('file', mockFile);
 
@@ -228,7 +246,7 @@ describe('Upload API Integration Tests', () => {
         email: 'test@example.com' 
       });
 
-      const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+      const mockFile = createMockFile('test', 'test.png', 'image/png');
       const formData = new FormData();
       formData.append('file', mockFile);
 
@@ -255,7 +273,7 @@ describe('Upload API Integration Tests', () => {
         email: 'test@example.com' 
       });
 
-      const mockFile = new File(['test'], 'test.webp', { type: 'image/webp' });
+      const mockFile = createMockFile('test', 'test.webp', 'image/webp');
       const formData = new FormData();
       formData.append('file', mockFile);
 
@@ -297,7 +315,7 @@ describe('Upload API Integration Tests', () => {
         },
       } as any);
 
-      const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+      const mockFile = createMockFile('test', 'test.jpg', 'image/jpeg');
       const formData = new FormData();
       formData.append('file', mockFile);
 
@@ -336,7 +354,7 @@ describe('Upload API Integration Tests', () => {
         },
       } as any);
 
-      const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+      const mockFile = createMockFile('test', 'test.jpg', 'image/jpeg');
       const formData = new FormData();
       formData.append('file', mockFile);
 
@@ -406,7 +424,7 @@ describe('Upload API Integration Tests', () => {
       } as any);
 
       // Attempt path traversal in filename
-      const mockFile = new File(['test'], '../../../etc/passwd', { type: 'image/jpeg' });
+      const mockFile = createMockFile('test', '../../../etc/passwd', 'image/jpeg');
       const formData = new FormData();
       formData.append('file', mockFile);
 
@@ -438,7 +456,7 @@ describe('Upload API Integration Tests', () => {
         email: 'test@example.com' 
       });
 
-      const mockFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+      const mockFile = createMockFile('test', 'test.jpg', 'image/jpeg');
       const formData = new FormData();
       formData.append('file', mockFile);
 

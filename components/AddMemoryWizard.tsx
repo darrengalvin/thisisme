@@ -8,6 +8,7 @@ import ImageCropper from '@/components/ImageCropper'
 import UpgradeModal from './UpgradeModal'
 import SystemMessageModal from './SystemMessageModal'
 import TaggingInput from './TaggingInput'
+import MayaEnrichmentModal from './MayaEnrichmentModal'
 import toast from 'react-hot-toast'
 import PhotoTagger from './PhotoTagger'
 import DatePicker from 'react-datepicker'
@@ -61,6 +62,8 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [showAiImageGenerator, setShowAiImageGenerator] = useState(false)
   const [aiImagePrompt, setAiImagePrompt] = useState('')
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+  const [showMayaEnrichment, setShowMayaEnrichment] = useState(false)
+  const [mayaEnrichmentData, setMayaEnrichmentData] = useState<any>(null)
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -148,9 +151,26 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   ]
 
   const handleNext = () => {
+    // Show Maya enrichment after step 1 (basic info entered)
+    if (currentStep === 1 && memoryData.title && memoryData.description) {
+      setShowMayaEnrichment(true)
+      return
+    }
+    
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1)
     }
+  }
+
+  const handleMayaEnrichmentComplete = (enrichedData: any) => {
+    setMayaEnrichmentData(enrichedData)
+    setShowMayaEnrichment(false)
+    setCurrentStep(currentStep + 1)
+  }
+
+  const handleContinueWithoutMaya = () => {
+    setShowMayaEnrichment(false)
+    setCurrentStep(currentStep + 1)
   }
 
   const handleBack = () => {
@@ -1036,6 +1056,17 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
         title="Error Creating Memory"
         message={errorMessage}
         onClose={() => setShowErrorModal(false)}
+      />
+
+      {/* Maya Enrichment Modal */}
+      <MayaEnrichmentModal
+        isOpen={showMayaEnrichment}
+        onClose={() => setShowMayaEnrichment(false)}
+        onContinueWithoutMaya={handleContinueWithoutMaya}
+        memoryTitle={memoryData.title}
+        memoryDescription={memoryData.description}
+        isPremiumUser={isPremiumUser}
+        onEnrichmentComplete={handleMayaEnrichmentComplete}
       />
 
       {/* Photo Tagger Modal */}

@@ -95,9 +95,22 @@ export async function POST(request: NextRequest) {
       throw new Error('No image URL returned from OpenAI')
     }
 
+    // Download the image from OpenAI to avoid CORS issues
+    console.log('Downloading image from OpenAI...')
+    const imageResponse = await fetch(imageUrl)
+    if (!imageResponse.ok) {
+      throw new Error('Failed to download image from OpenAI')
+    }
+    
+    const imageBlob = await imageResponse.blob()
+    const arrayBuffer = await imageBlob.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const base64Image = buffer.toString('base64')
+    const dataUrl = `data:image/png;base64,${base64Image}`
+
     return NextResponse.json({
       success: true,
-      imageUrl,
+      imageUrl: dataUrl, // Return base64 data URL instead of remote URL
       revisedPrompt: response.data[0]?.revised_prompt
     })
 
