@@ -1446,13 +1446,6 @@ export default function Dashboard() {
                       </div>
                     </button>
                   )}
-                  <a
-                    href="/test-services"
-                    className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors text-blue-600 flex items-center space-x-2"
-                  >
-                    <span>🧪</span>
-                    <span>Test Services</span>
-                  </a>
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 hover:bg-red-50 transition-colors text-red-600"
