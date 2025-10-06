@@ -283,6 +283,41 @@ async function handleFunctionCall(body: any, authenticatedUserId: string | null 
         result = await saveConversation(parameters, call, authenticatedUserId)
         break
       
+      case 'search-web-context':
+        console.log('🌐 STARTING search-web-context function')
+        result = await searchWebContext(parameters, call, authenticatedUserId)
+        break
+      
+      case 'suggest-memory-enrichment':
+        console.log('✨ STARTING suggest-memory-enrichment function')
+        result = await suggestMemoryEnrichment(parameters, call, authenticatedUserId)
+        break
+      
+      case 'find-location-details':
+        console.log('📍 STARTING find-location-details function')
+        result = await findLocationDetails(parameters, call, authenticatedUserId)
+        break
+      
+      case 'search-similar-memories':
+        console.log('🔄 STARTING search-similar-memories function')
+        result = await searchSimilarMemories(parameters, call, authenticatedUserId)
+        break
+      
+      case 'manage-person':
+        console.log('👥 STARTING manage-person function')
+        result = await managePerson(parameters, call, authenticatedUserId)
+        break
+      
+      case 'suggest-memory-prompts':
+        console.log('💡 STARTING suggest-memory-prompts function')
+        result = await suggestMemoryPrompts(parameters, call, authenticatedUserId)
+        break
+      
+      case 'smart-chapter-suggestion':
+        console.log('🧠 STARTING smart-chapter-suggestion function')
+        result = await smartChapterSuggestion(parameters, call, authenticatedUserId)
+        break
+      
       default:
         console.log('❌ UNKNOWN FUNCTION:', name)
         result = NextResponse.json({
@@ -1112,6 +1147,41 @@ async function handleToolCalls(body: any, authenticatedUserId: string | null = n
           result = await saveConversationForTool(functionArgs, call, authenticatedUserId)
           break
         
+        case 'search-web-context':
+          console.log('🌐 STARTING search-web-context tool')
+          result = await searchWebContextForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        case 'suggest-memory-enrichment':
+          console.log('✨ STARTING suggest-memory-enrichment tool')
+          result = await suggestMemoryEnrichmentForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        case 'find-location-details':
+          console.log('📍 STARTING find-location-details tool')
+          result = await findLocationDetailsForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        case 'search-similar-memories':
+          console.log('🔄 STARTING search-similar-memories tool')
+          result = await searchSimilarMemoriesForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        case 'manage-person':
+          console.log('👥 STARTING manage-person tool')
+          result = await managePersonForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        case 'suggest-memory-prompts':
+          console.log('💡 STARTING suggest-memory-prompts tool')
+          result = await suggestMemoryPromptsForTool(functionArgs, call, authenticatedUserId)
+          break
+        
+        case 'smart-chapter-suggestion':
+          console.log('🧠 STARTING smart-chapter-suggestion tool')
+          result = await smartChapterSuggestionForTool(functionArgs, call, authenticatedUserId)
+          break
+        
         default:
           console.log('❌ UNKNOWN TOOL:', functionName)
           console.log('❌ Available tool call fields:', Object.keys(toolCall))
@@ -1790,6 +1860,568 @@ async function saveConversationForTool(parameters: any, call: any, authenticated
   } catch (error) {
     console.error('❌ CONVERSATION SAVE ERROR:', error)
     return `❌ Sorry, I couldn't save our conversation right now. ${error instanceof Error ? error.message : 'Unknown error'}`
+  }
+}
+
+// ========== NEW MAYA ENRICHMENT TOOLS ==========
+
+// 1. Search Web Context
+async function searchWebContext(parameters: any, call: any, authenticatedUserId: string | null = null) {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  console.log('🌐 SEARCH WEB CONTEXT for:', userId, parameters)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return NextResponse.json({
+      error: "User identification required",
+      success: false
+    }, { status: 400 })
+  }
+  
+  // Call the actual API endpoint we created
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/search-web-context`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        ...parameters
+      })
+    })
+    
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('🌐 ERROR:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to search web context'
+    }, { status: 500 })
+  }
+}
+
+async function searchWebContextForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  const { query, context_type } = parameters
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "I need to know who you are to search for information."
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/search-web-context`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        query,
+        context_type
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (data.success && data.data) {
+      let result = `🌐 Here's what I found about "${query}":\n\n`
+      if (data.data.summary) {
+        result += `${data.data.summary}\n\n`
+      }
+      if (data.data.sources && data.data.sources.length > 0) {
+        result += `Sources:\n`
+        data.data.sources.slice(0, 3).forEach((source: any, i: number) => {
+          result += `${i + 1}. ${source.title}\n`
+        })
+      }
+      return result
+    }
+    
+    return `I searched for "${query}" but couldn't find relevant information right now.`
+  } catch (error) {
+    console.error('🌐 ERROR:', error)
+    return `Sorry, I encountered an error while searching for "${query}".`
+  }
+}
+
+// 2. Suggest Memory Enrichment
+async function suggestMemoryEnrichment(parameters: any, call: any, authenticatedUserId: string | null = null) {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  console.log('✨ SUGGEST MEMORY ENRICHMENT for:', userId, parameters)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return NextResponse.json({
+      error: "User identification required",
+      success: false
+    }, { status: 400 })
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/suggest-memory-enrichment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        ...parameters
+      })
+    })
+    
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('✨ ERROR:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to suggest enrichment'
+    }, { status: 500 })
+  }
+}
+
+async function suggestMemoryEnrichmentForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  const { memory_title, memory_description } = parameters
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "I need to know who you are to provide suggestions."
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/suggest-memory-enrichment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        memory_title,
+        memory_description
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (data.success && data.data) {
+      const enrichment = data.data.enrichment
+      let result = `✨ I have some suggestions to enrich this memory:\n\n`
+      
+      if (enrichment.questions && enrichment.questions.length > 0) {
+        result += `**Questions to explore:**\n`
+        enrichment.questions.forEach((q: string, i: number) => {
+          result += `${i + 1}. ${q}\n`
+        })
+        result += `\n`
+      }
+      
+      if (enrichment.chapter_recommendation) {
+        result += `**Suggested chapter:** ${enrichment.chapter_recommendation.title || enrichment.chapter_recommendation}\n`
+      }
+      
+      return result
+    }
+    
+    return `I'm thinking about how to enrich this memory...`
+  } catch (error) {
+    console.error('✨ ERROR:', error)
+    return `Sorry, I couldn't generate suggestions right now.`
+  }
+}
+
+// 3. Find Location Details
+async function findLocationDetails(parameters: any, call: any, authenticatedUserId: string | null = null) {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  console.log('📍 FIND LOCATION DETAILS for:', userId, parameters)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return NextResponse.json({
+      error: "User identification required",
+      success: false
+    }, { status: 400 })
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/find-location-details`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        ...parameters
+      })
+    })
+    
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('📍 ERROR:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to find location details'
+    }, { status: 500 })
+  }
+}
+
+async function findLocationDetailsForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  const { location_name } = parameters
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "I need to know who you are to look up locations."
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/find-location-details`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        location_name
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (data.success && data.data && data.data.found) {
+      const loc = data.data
+      let result = `📍 I found information about ${location_name}:\n\n`
+      result += `Location: ${loc.formatted_address}\n`
+      if (loc.city) result += `City: ${loc.city}\n`
+      if (loc.country) result += `Country: ${loc.country}\n`
+      if (loc.historical_info) result += `\n${loc.historical_info}\n`
+      return result
+    }
+    
+    return `I couldn't find detailed information about ${location_name}.`
+  } catch (error) {
+    console.error('📍 ERROR:', error)
+    return `Sorry, I couldn't look up ${location_name} right now.`
+  }
+}
+
+// 4. Search Similar Memories
+async function searchSimilarMemories(parameters: any, call: any, authenticatedUserId: string | null = null) {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  console.log('🔄 SEARCH SIMILAR MEMORIES for:', userId, parameters)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return NextResponse.json({
+      error: "User identification required",
+      success: false
+    }, { status: 400 })
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/search-similar-memories`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        ...parameters
+      })
+    })
+    
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('🔄 ERROR:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to search similar memories'
+    }, { status: 500 })
+  }
+}
+
+async function searchSimilarMemoriesForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  const { memory_title, memory_description } = parameters
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "I need to know who you are to search your memories."
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/search-similar-memories`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        memory_title,
+        memory_description
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (data.success && data.data) {
+      const similar = data.data.similar_memories
+      
+      if (similar && similar.length > 0) {
+        let result = `🔄 I found ${similar.length} similar memories:\n\n`
+        similar.forEach((mem: any, i: number) => {
+          result += `${i + 1}. "${mem.title}" (${Math.round(mem.similarity_score * 100)}% similar)\n`
+        })
+        
+        if (data.data.is_potential_duplicate) {
+          result += `\n⚠️ This looks like it might be a duplicate of an existing memory.`
+        }
+        
+        return result
+      }
+      
+      return `This looks like a unique memory! I didn't find any similar ones.`
+    }
+    
+    return `I checked your memories but couldn't compare them right now.`
+  } catch (error) {
+    console.error('🔄 ERROR:', error)
+    return `Sorry, I couldn't check for similar memories.`
+  }
+}
+
+// 5. Manage Person
+async function managePerson(parameters: any, call: any, authenticatedUserId: string | null = null) {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  console.log('👥 MANAGE PERSON for:', userId, parameters)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return NextResponse.json({
+      error: "User identification required",
+      success: false
+    }, { status: 400 })
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/manage-person`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        ...parameters
+      })
+    })
+    
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('👥 ERROR:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to manage person'
+    }, { status: 500 })
+  }
+}
+
+async function managePersonForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  const { action, person_name, relationship } = parameters
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "I need to know who you are to manage your network."
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/manage-person`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        action,
+        person_name,
+        relationship
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (data.success && data.data) {
+      if (action === 'add') {
+        return `✅ I've added ${person_name} to your network${relationship ? ` as your ${relationship}` : ''}.`
+      } else if (action === 'get') {
+        const person = data.data.person
+        return `I found ${person_name}${person.relationship ? ` (your ${person.relationship})` : ''} in your network.`
+      } else if (action === 'search') {
+        const people = data.data.people
+        if (people && people.length > 0) {
+          let result = `I found ${people.length} people:\n`
+          people.forEach((p: any, i: number) => {
+            result += `${i + 1}. ${p.name}${p.relationship ? ` (${p.relationship})` : ''}\n`
+          })
+          return result
+        }
+        return `I couldn't find anyone matching "${person_name}".`
+      }
+    }
+    
+    return `I managed your network for ${person_name}.`
+  } catch (error) {
+    console.error('👥 ERROR:', error)
+    return `Sorry, I couldn't manage ${person_name} right now.`
+  }
+}
+
+// 6. Suggest Memory Prompts
+async function suggestMemoryPrompts(parameters: any, call: any, authenticatedUserId: string | null = null) {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  console.log('💡 SUGGEST MEMORY PROMPTS for:', userId, parameters)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return NextResponse.json({
+      error: "User identification required",
+      success: false
+    }, { status: 400 })
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/suggest-memory-prompts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        ...parameters
+      })
+    })
+    
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('💡 ERROR:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to suggest prompts'
+    }, { status: 500 })
+  }
+}
+
+async function suggestMemoryPromptsForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  const { context, topic, count = 3 } = parameters
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "I need to know who you are to suggest prompts."
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/suggest-memory-prompts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        context: context || 'timeline_gaps',
+        topic,
+        count
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (data.success && data.data && data.data.prompts) {
+      const prompts = data.data.prompts
+      let result = `💡 Here are some memory prompts for you:\n\n`
+      prompts.forEach((p: any, i: number) => {
+        result += `${i + 1}. ${p.question}\n`
+      })
+      return result
+    }
+    
+    return `Let me think of some good questions to help you remember...`
+  } catch (error) {
+    console.error('💡 ERROR:', error)
+    return `Sorry, I couldn't generate prompts right now.`
+  }
+}
+
+// 7. Smart Chapter Suggestion
+async function smartChapterSuggestion(parameters: any, call: any, authenticatedUserId: string | null = null) {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  console.log('🧠 SMART CHAPTER SUGGESTION for:', userId, parameters)
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return NextResponse.json({
+      error: "User identification required",
+      success: false
+    }, { status: 400 })
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/smart-chapter-suggestion`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        ...parameters
+      })
+    })
+    
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('🧠 ERROR:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to suggest chapters'
+    }, { status: 500 })
+  }
+}
+
+async function smartChapterSuggestionForTool(parameters: any, call: any, authenticatedUserId: string | null = null): Promise<string> {
+  const userId = extractUserIdFromCall(call, authenticatedUserId)
+  const { trigger = 'explicit_request' } = parameters
+  
+  if (!userId || userId === 'NOT_FOUND') {
+    return "I need to know who you are to analyze your timeline."
+  }
+  
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://thisisme-three.vercel.app'}/api/maya/smart-chapter-suggestion`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        trigger
+      })
+    })
+    
+    const data = await response.json()
+    
+    if (data.success && data.data) {
+      const suggestions = data.data.suggestions
+      
+      if (suggestions && suggestions.length > 0) {
+        let result = `🧠 I have some suggestions to organize your timeline:\n\n`
+        suggestions.forEach((s: any, i: number) => {
+          result += `${i + 1}. ${s.action.toUpperCase()}: ${s.title || s.reason}\n`
+        })
+        return result
+      }
+      
+      return `Your timeline looks well-organized! ${data.data.summary || ''}`
+    }
+    
+    return `Let me analyze your timeline...`
+  } catch (error) {
+    console.error('🧠 ERROR:', error)
+    return `Sorry, I couldn't analyze your timeline right now.`
   }
 }
 
