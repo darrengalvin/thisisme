@@ -356,6 +356,34 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
 
     setIsGeneratingImage(true)
     try {
+      // Step 1: Enhance the user's simple prompt into a detailed photographic description
+      toast.loading('✨ Crafting detailed prompt...', { duration: 2000 })
+      
+      const enhanceResponse = await fetch('/api/ai/enhance-image-prompt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userPrompt: aiImagePrompt,
+          memoryTitle: memoryData.title,
+          memoryDescription: memoryData.description
+        })
+      })
+
+      if (!enhanceResponse.ok) {
+        console.warn('Prompt enhancement failed, using original prompt')
+      }
+
+      const enhanceData = await enhanceResponse.json()
+      const finalPrompt = enhanceData.enhancedPrompt || aiImagePrompt
+
+      console.log('📝 Original prompt:', aiImagePrompt)
+      console.log('✨ Enhanced prompt:', finalPrompt)
+
+      // Step 2: Generate the image with the enhanced prompt
+      toast.loading('🎨 Generating your image...', { duration: 3000 })
+      
       const response = await fetch('/api/ai/generate-image', {
         method: 'POST',
         headers: {
@@ -363,7 +391,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
           'Authorization': `Bearer ${getAuthToken()}`
         },
         body: JSON.stringify({
-          prompt: aiImagePrompt,
+          prompt: finalPrompt,
           memoryTitle: memoryData.title,
           memoryDescription: memoryData.description
         })
@@ -390,7 +418,11 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       
       setShowAiImageGenerator(false)
       setAiImagePrompt('')
-      toast.success('AI image generated successfully! 🎨')
+      
+      // Show the enhanced prompt to the user
+      toast.success(`🎨 Image created! We enhanced your description to: "${finalPrompt.substring(0, 80)}..."`, { 
+        duration: 5000 
+      })
     } catch (error) {
       console.error('Error generating AI image:', error)
       toast.error('Failed to generate image. Please try again.')

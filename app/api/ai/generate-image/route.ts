@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { verifyToken } from '@/lib/auth'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!
-})
+const STABILITY_API_KEY = process.env.STABILITY_API_KEY
+const STABILITY_API_URL = 'https://api.stability.ai/v2beta/stable-image/generate/sd3'
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,52 +55,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Enhance the prompt with memory context
-    let enhancedPrompt = prompt
+    // Note: Prompt is already enhanced by /api/ai/enhance-image-prompt
+    // This endpoint receives a detailed, vivid prompt ready for Stability AI
+    console.log('Generating image with Stability AI SD 3.5 Large:', prompt.substring(0, 100) + '...')
 
-    // Add context from memory if available
-    if (memoryTitle || memoryDescription) {
-      enhancedPrompt = `Create a realistic, nostalgic photograph of: ${prompt}`
-      
-      if (memoryTitle) {
-        enhancedPrompt += `. This is for a memory titled "${memoryTitle}"`
-      }
-      
-      enhancedPrompt += `. Style: photographic, warm tones, authentic, emotional, candid moment.`
-    } else {
-      enhancedPrompt = `Create a realistic, nostalgic photograph of: ${prompt}. Style: photographic, warm tones, authentic, emotional, candid moment.`
+    if (!STABILITY_API_KEY) {
+      throw new Error('STABILITY_API_KEY is not configured')
     }
 
-    console.log('Generating image with prompt:', enhancedPrompt)
+    // Generate image using Stability AI SD 3.5 Large - Best quality model
+    const formData = new FormData()
+    formData.append('prompt', prompt)
+    formData.append('negative_prompt', 'ugly, blurry, low quality, distorted, deformed, unrealistic, cartoon, anime, illustration, painting, drawing, art, sketch, bad anatomy, bad hands, text, watermark, signature, logo, border, frame')
+    formData.append('model', 'sd3.5-large') // Best quality Stability AI model
+    formData.append('mode', 'text-to-image')
+    formData.append('aspect_ratio', '1:1')
+    formData.append('output_format', 'png')
+    formData.append('seed', '0')
 
-    // Generate image using DALL-E 3
-    const response = await openai.images.generate({
-      model: 'dall-e-3',
-      prompt: enhancedPrompt,
-      n: 1,
-      size: '1024x1024',
-      quality: 'standard',
-      response_format: 'url'
+    const stabilityResponse = await fetch(STABILITY_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${STABILITY_API_KEY}`,
+        'Accept': 'image/*'
+      },
+      body: formData
     })
 
-    if (!response.data || response.data.length === 0) {
-      throw new Error('No image data returned from OpenAI')
+    if (!stabilityResponse.ok) {
+      const errorText = await stabilityResponse.text()
+      console.error('Stability AI error:', errorText)
+      throw new Error(`Stability AI request failed: ${stabilityResponse.status} - ${errorText}`)
     }
 
-    const imageUrl = response.data[0]?.url
-
-    if (!imageUrl) {
-      throw new Error('No image URL returned from OpenAI')
-    }
-
-    // Download the image from OpenAI to avoid CORS issues
-    console.log('Downloading image from OpenAI...')
-    const imageResponse = await fetch(imageUrl)
-    if (!imageResponse.ok) {
-      throw new Error('Failed to download image from OpenAI')
-    }
-    
-    const imageBlob = await imageResponse.blob()
+    // Stability AI returns the image directly as binary
+    console.log('Image generated successfully with Stability AI SD 3.5 Large')
+    const imageBlob = await stabilityResponse.blob()
     const arrayBuffer = await imageBlob.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
     const base64Image = buffer.toString('base64')
@@ -110,14 +98,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      imageUrl: dataUrl, // Return base64 data URL instead of remote URL
-      revisedPrompt: response.data[0]?.revised_prompt
+      imageUrl: dataUrl,
+      revisedPrompt: prompt
     })
 
   } catch (error: any) {
     console.error('Error generating AI image:', error)
     
-    // Handle specific OpenAI errors
+    // Handle specific Stability AI errors
     if (error?.error?.code === 'content_policy_violation') {
       return NextResponse.json(
         { success: false, error: 'Your prompt was flagged by our content policy. Please try a different description.' },

@@ -250,36 +250,36 @@ export default function InviteCollaborators({
         <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 space-y-4">
           {/* Method Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-slate-700 mb-3">
               How would you like to invite people?
             </label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
               <button
                 onClick={() => setInviteMethod('people')}
-                className={`flex items-center space-x-2 px-4 py-3 rounded-lg border transition-all duration-200 ${
+                className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg border-2 transition-all duration-200 ${
                   inviteMethod === 'people'
-                    ? 'bg-blue-50 border-blue-200 text-blue-700'
-                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-100'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                <UserCheck className="w-4 h-4" />
-                <div className="text-left">
-                  <div className="font-medium">Pick from My People</div>
-                  <div className="text-xs text-gray-500">Select existing contacts</div>
+                <UserCheck className={`w-5 h-5 flex-shrink-0 mt-0.5 ${inviteMethod === 'people' ? 'text-blue-600' : 'text-slate-400'}`} />
+                <div className="text-left flex-1">
+                  <div className={`font-medium ${inviteMethod === 'people' ? 'text-blue-900' : 'text-slate-900'}`}>Pick from My People</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Select existing contacts from your network</div>
                 </div>
               </button>
               <button
                 onClick={() => setInviteMethod('add_people')}
-                className={`flex items-center space-x-2 px-4 py-3 rounded-lg border transition-all duration-200 ${
+                className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg border-2 transition-all duration-200 ${
                   inviteMethod === 'add_people'
-                    ? 'bg-green-50 border-green-200 text-green-700'
-                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    ? 'bg-green-50 border-green-500 ring-2 ring-green-100'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                <UserPlus className="w-4 h-4" />
-                <div className="text-left">
-                  <div className="font-medium">Add to My People First</div>
-                  <div className="text-xs text-gray-500">Add new contacts to network</div>
+                <UserPlus className={`w-5 h-5 flex-shrink-0 mt-0.5 ${inviteMethod === 'add_people' ? 'text-green-600' : 'text-slate-400'}`} />
+                <div className="text-left flex-1">
+                  <div className={`font-medium ${inviteMethod === 'add_people' ? 'text-green-900' : 'text-slate-900'}`}>Add to My People First</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Add new contacts to your network first</div>
                 </div>
               </button>
               <button
@@ -289,16 +289,16 @@ export default function InviteCollaborators({
                     generateShareLink()
                   }
                 }}
-                className={`flex items-center space-x-2 px-4 py-3 rounded-lg border transition-all duration-200 ${
+                className={`w-full flex items-start space-x-3 px-4 py-3 rounded-lg border-2 transition-all duration-200 ${
                   inviteMethod === 'link'
-                    ? 'bg-blue-50 border-blue-200 text-blue-700'
-                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    ? 'bg-purple-50 border-purple-500 ring-2 ring-purple-100'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                <Copy className="w-4 h-4" />
-                <div className="text-left">
-                  <div className="font-medium">Share Link</div>
-                  <div className="text-xs text-gray-500">Copy & share manually</div>
+                <Copy className={`w-5 h-5 flex-shrink-0 mt-0.5 ${inviteMethod === 'link' ? 'text-purple-600' : 'text-slate-400'}`} />
+                <div className="text-left flex-1">
+                  <div className={`font-medium ${inviteMethod === 'link' ? 'text-purple-900' : 'text-slate-900'}`}>Share Link</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Copy link and share manually</div>
                 </div>
               </button>
             </div>

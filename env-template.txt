@@ -32,3 +32,6 @@ TWILIO_USER_SID=your-twilio-user-sid-here
 
 # Webhook Configuration
 TWILIO_WEBHOOK_URL=https://your-domain.com/api/webhooks/twilio 
+
+# AI Image Generation (Stability AI - SD 3.5 Large)
+STABILITY_API_KEY=your-stability-api-key-here

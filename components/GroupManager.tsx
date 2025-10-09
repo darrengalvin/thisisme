@@ -84,6 +84,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [autoSaveError, setAutoSaveError] = useState<string | null>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isInitialLoad = useRef(true)
   const [originalChapter, setOriginalChapter] = useState<EditChapterData | null>(null)
 
   useEffect(() => {
@@ -318,7 +319,11 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
 
   // Auto-save function
   const autoSave = useCallback(async () => {
-    if (!editingChapter || !user || !originalChapter) return
+    if (!editingChapter || !user || !originalChapter || isInitialLoad.current) {
+      return
+    }
+
+    console.log('🔄 AUTO-SAVE: Checking for changes...')
 
     // Check if there are actual changes
     const hasChanges = 
@@ -331,9 +336,16 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       selectedHeaderImage !== null
 
     if (!hasChanges) {
+      console.log('🔄 AUTO-SAVE: No changes detected, skipping')
       setHasUnsavedChanges(false)
       return
     }
+
+    console.log('💾 AUTO-SAVE: Saving changes...', {
+      title: editingChapter.title,
+      description: editingChapter.description?.substring(0, 50) + '...',
+      descriptionLength: editingChapter.description?.length || 0
+    })
 
     setIsAutoSaving(true)
     setAutoSaveError(null)
@@ -366,12 +378,20 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       })
 
       if (response.ok) {
-        setLastSaved(new Date())
-        setHasUnsavedChanges(false)
-        setOriginalChapter({ ...editingChapter })
+        const result = await response.json()
+        console.log('✅ AUTO-SAVE: Successful! Server returned:', {
+          description: result.data?.description?.substring(0, 100) || 'none',
+          descriptionLength: result.data?.description?.length || 0,
+          fullDescription: result.data?.description || 'none'
+        })
+        
+        // Update state in the correct order to prevent race conditions
+        const savedChapter = { ...editingChapter }
+        setOriginalChapter(savedChapter)
         setSelectedHeaderImage(null)
         setPreviewImageUrl(null)
-        console.log('✅ Auto-save successful')
+        setHasUnsavedChanges(false)
+        setLastSaved(new Date())
       } else {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Auto-save failed')
@@ -384,9 +404,28 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
     }
   }, [editingChapter, originalChapter, selectedHeaderImage, user, getAuthToken])
 
+  // Reset initial load flag after modal opens
+  useEffect(() => {
+    if (editingChapter && originalChapter) {
+      console.log('🔓 AUTO-SAVE: Resetting initial load flag in 500ms...')
+      isInitialLoad.current = true
+      const timer = setTimeout(() => {
+        isInitialLoad.current = false
+        console.log('✅ AUTO-SAVE: Initial load complete, auto-save now enabled')
+      }, 500) // Give 500ms for initial load to complete
+      
+      return () => clearTimeout(timer)
+    }
+  }, [editingChapter?.id]) // Only reset when a new chapter is being edited
+
   // Debounced auto-save effect
   useEffect(() => {
-    if (!editingChapter || !originalChapter) return
+    if (!editingChapter || !originalChapter || isInitialLoad.current) {
+      console.log('⏸️ AUTO-SAVE: Skipping (initial load or no data)')
+      return
+    }
+
+    console.log('⏰ AUTO-SAVE: Change detected, setting 2-second timer...')
 
     // Clear existing timeout
     if (autoSaveTimeoutRef.current) {
@@ -395,6 +434,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
 
     // Set new timeout for auto-save
     autoSaveTimeoutRef.current = setTimeout(() => {
+      console.log('⏱️ AUTO-SAVE: Timer expired, triggering auto-save...')
       autoSave()
     }, 2000) // Auto-save after 2 seconds of inactivity
 
@@ -422,14 +462,36 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
     setHasUnsavedChanges(hasChanges)
   }, [editingChapter, originalChapter, selectedHeaderImage])
 
-  // Handle close with unsaved changes warning
-  const handleCloseEdit = () => {
-    if (hasUnsavedChanges && !isAutoSaving) {
-      const shouldClose = window.confirm(
-        'You have unsaved changes. Are you sure you want to close? Your changes will be lost.'
-      )
-      if (!shouldClose) return
+  // Handle close with auto-save consideration
+  const handleCloseEdit = async () => {
+    console.log('🚪 CLOSE: Attempting to close, hasUnsavedChanges:', hasUnsavedChanges, 'isAutoSaving:', isAutoSaving)
+    
+    // If auto-save is in progress, wait for it to complete
+    if (isAutoSaving) {
+      console.log('⏳ CLOSE: Waiting for auto-save to complete...')
+      // Wait up to 5 seconds for auto-save to complete
+      const startTime = Date.now()
+      while (isAutoSaving && Date.now() - startTime < 5000) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
     }
+    
+    // If there are still unsaved changes after waiting, trigger a final save
+    if (hasUnsavedChanges && !isAutoSaving) {
+      console.log('💾 CLOSE: Triggering final save before close...')
+      // Clear any pending timeout
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+      // Trigger immediate save
+      await autoSave()
+      // Wait a moment for state to update
+      await new Promise(resolve => setTimeout(resolve, 200))
+    }
+    
+    console.log('✅ CLOSE: All saves complete, closing modal and refreshing data...')
+    
+    // Close the modal
     setEditingChapter(null)
     setOriginalChapter(null)
     setSelectedHeaderImage(null)
@@ -437,6 +499,9 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
     setHasUnsavedChanges(false)
     setLastSaved(null)
     setAutoSaveError(null)
+    
+    // Refresh the chapters list to show updated data
+    await fetchChaptersAndMemories()
   }
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1188,7 +1253,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
             </div>
 
             {/* Collaboration Section */}
-            <div className="border-t border-slate-200 pt-6">
+            <div className="border-t border-slate-200 pt-6 px-6 mt-2">
               <InviteCollaborators 
                 chapterId={editingChapter.id}
                 chapterTitle={editingChapter.title}
@@ -1201,16 +1266,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-between p-6 border-t border-slate-200 flex-shrink-0">
-              <div className="text-sm text-slate-500">
-                {isAutoSaving ? (
-                  <span className="text-blue-600">Auto-saving your changes...</span>
-                ) : lastSaved && !hasUnsavedChanges ? (
-                  <span className="text-green-600">All changes saved automatically</span>
-                ) : hasUnsavedChanges ? (
-                  <span className="text-amber-600">Changes will be saved automatically</span>
-                ) : null}
-              </div>
+            <div className="flex items-center justify-end p-6 border-t border-slate-200 flex-shrink-0 mt-2">
               <div className="flex items-center space-x-4">
                 <button
                   onClick={handleCloseEdit}
@@ -1232,7 +1288,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                   ) : (
                     <>
                       <Save size={16} />
-                      <span>Update Chapter</span>
+                      <span>Save & Close</span>
                     </>
                   )}
                 </button>

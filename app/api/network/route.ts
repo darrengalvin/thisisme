@@ -105,52 +105,64 @@ export async function POST(request: NextRequest) {
     const sanitizedRelationship = relationship ? sanitizeInput(relationship, 50) : null
     const sanitizedNotes = notes ? sanitizeInput(notes, 1000) : null
 
-    // Check if person with this email is already a platform user
-    let person_user_id = null
-    if (person_email) {
-      const { data: existingUser } = await supabaseAdmin
-        .from('users')
-        .select('id')
-        .eq('email', person_email.toLowerCase())
-        .single()
-      
-      if (existingUser) {
-        person_user_id = existingUser.id
-      }
+    const insertData = {
+      owner_id: user.userId,
+      person_name: sanitizedName,
+      person_email: person_email?.toLowerCase() || null,
+      person_phone: person_phone || null,
+      relationship: sanitizedRelationship,
+      notes: sanitizedNotes,
+      photo_url: photo_url || null,
+      pending_chapter_invitations: selectedChapters
     }
+    
+    console.log('📝 ABOUT TO INSERT PERSON:', insertData)
 
     // 🛡️ SECURITY: Use sanitized data for database insert
     const { data: newPerson, error } = await supabaseAdmin
       .from('user_networks')
-      .insert({
-        owner_id: user.userId,
-        person_name: sanitizedName,
-        person_email: person_email?.toLowerCase(),
-        relationship: sanitizedRelationship,
-        photo_url: photo_url,
-        pending_chapter_invitations: selectedChapters,
-        person_user_id
-      })
+      .insert(insertData)
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('❌ DATABASE INSERT ERROR:', {
+        error,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      })
+      throw error
+    }
 
+    console.log('✅ PERSON ADDED SUCCESSFULLY:', newPerson)
     return NextResponse.json({
       success: true,
       person: newPerson
     })
   } catch (error) {
-    console.error('Failed to add person to network:', error)
+    console.error('❌ FAILED TO ADD PERSON TO NETWORK:', {
+      error,
+      errorType: typeof error,
+      errorString: String(error),
+      errorJSON: JSON.stringify(error, null, 2)
+    })
+    
     // 🛡️ SECURITY: Track errors in Sentry
     Sentry.captureException(error, {
       tags: { api: 'network/post' },
-      extra: { message: 'Failed to add person to network' }
+      extra: { 
+        message: 'Failed to add person to network',
+        errorDetails: error
+      }
     })
+    
     return NextResponse.json(
       { 
         error: 'Failed to add person',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : String(error),
+        code: (error as any)?.code || 'UNKNOWN'
       },
       { status: 500 }
     )

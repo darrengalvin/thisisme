@@ -22,7 +22,7 @@ export const urlSchema = z.string().url('Invalid URL').max(2000, 'URL too long')
 export const phoneSchema = z
   .string()
   .regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format')
-  .optional();
+  .nullish(); // Allows null, undefined, or valid phone number
 
 // ============ AUTH SCHEMAS ============
 
@@ -95,9 +95,9 @@ export const addPersonSchema = z.object({
   person_name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
   person_email: emailSchema.optional(),
   person_phone: phoneSchema,
-  relationship: z.string().max(50, 'Relationship too long').optional(),
-  notes: z.string().max(1000, 'Notes too long').optional(),
-  photo_url: urlSchema.optional(),
+  relationship: z.string().max(50, 'Relationship too long').nullish(),
+  notes: z.string().max(1000, 'Notes too long').nullish(),
+  photo_url: z.string().url('Invalid URL').max(2000, 'URL too long').nullish(), // Allow null/undefined
   selectedChapters: z.array(uuidSchema).max(100, 'Too many chapters').optional(),
 });
 
@@ -105,9 +105,9 @@ export const updatePersonSchema = z.object({
   person_name: z.string().min(1, 'Name is required').max(100, 'Name too long').optional(),
   person_email: emailSchema.optional(),
   person_phone: phoneSchema,
-  relationship: z.string().max(50, 'Relationship too long').optional(),
-  notes: z.string().max(1000, 'Notes too long').optional(),
-  photo_url: urlSchema.optional(),
+  relationship: z.string().max(50, 'Relationship too long').nullish(),
+  notes: z.string().max(1000, 'Notes too long').nullish(),
+  photo_url: z.string().url('Invalid URL').max(2000, 'URL too long').nullish(), // Allow null/undefined
 });
 
 // ============ INVITATION SCHEMAS ============

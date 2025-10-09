@@ -110,6 +110,8 @@ export default function MyPeopleEnhanced() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [isInviting, setIsInviting] = useState(false)
   const [inviteMethod, setInviteMethod] = useState<'email' | 'sms' | 'both'>('email')
+  const [addPersonError, setAddPersonError] = useState<string | null>(null)
+  const [addPersonFieldErrors, setAddPersonFieldErrors] = useState<string[]>([])
   const [inviteMessage, setInviteMessage] = useState('')
   const [availableChapters, setAvailableChapters] = useState<any[]>([])
   const [selectedChapters, setSelectedChapters] = useState<string[]>([])
@@ -234,7 +236,10 @@ export default function MyPeopleEnhanced() {
       console.log('🔍 FRONTEND: Network API raw response:', responseText)
       
       const { people: networkPeople } = JSON.parse(responseText)
-      console.log('✅ NETWORK API SUCCESS:', networkPeople)
+      console.log('✅ NETWORK API SUCCESS:', {
+        count: networkPeople?.length || 0,
+        people: networkPeople
+      })
       
       // Transform real data and fetch tagged memories for each person
       const transformedRealPeople = await Promise.all(
@@ -553,6 +558,29 @@ export default function MyPeopleEnhanced() {
   const addPerson = async () => {
     if (!newPerson.name.trim() || !user) return
 
+    // Clear previous errors
+    setAddPersonError(null)
+    setAddPersonFieldErrors([])
+
+    // Client-side validation based on invite method
+    const errors: string[] = []
+    if (newPerson.inviteMethod === 'email' && !newPerson.email.trim()) {
+      errors.push('Email is required when using email invitation')
+    }
+    if (newPerson.inviteMethod === 'sms' && !newPerson.phone.trim()) {
+      errors.push('Phone number is required when using SMS invitation')
+    }
+    if (newPerson.inviteMethod === 'both') {
+      if (!newPerson.email.trim()) errors.push('Email is required for combined invitation')
+      if (!newPerson.phone.trim()) errors.push('Phone is required for combined invitation')
+    }
+
+    if (errors.length > 0) {
+      setAddPersonFieldErrors(errors)
+      toast.error('Please fill in all required fields')
+      return
+    }
+
     setIsAdding(true)
     try {
       console.log('🔄 ADDING PERSON: Starting add person process for:', newPerson.name)
@@ -602,11 +630,22 @@ export default function MyPeopleEnhanced() {
       if (!addResponse.ok) {
         const errorData = await addResponse.json()
         console.error('❌ ADD PERSON ERROR:', errorData)
+        
+        // Extract detailed error messages
+        if (errorData.details && Array.isArray(errorData.details)) {
+          setAddPersonFieldErrors(errorData.details)
+        }
+        setAddPersonError(errorData.error || 'Failed to add person')
+        
         throw new Error(`Failed to add person: ${errorData.error || 'Unknown error'}`)
       }
       
       const result = await addResponse.json()
       console.log('✅ ADD PERSON SUCCESS:', result)
+      
+      // IMPORTANT: Clear errors since add was successful
+      setAddPersonError(null)
+      setAddPersonFieldErrors([])
       
       // Send platform invitation if person has email or phone (based on selected method)
       const hasEmail = newPerson.email && newPerson.email.trim()
@@ -681,7 +720,12 @@ export default function MyPeopleEnhanced() {
       }
       
       // Refresh the people list to show the new person
+      console.log('🔄 REFRESHING PEOPLE LIST: About to fetch updated people...')
       await fetchPeople()
+      console.log('✅ PEOPLE LIST REFRESHED: Should now show the new person')
+      
+      // Show success message
+      toast.success(`${newPerson.name} added to your network!`)
       
       // Reset form
       setNewPerson({
@@ -708,7 +752,15 @@ export default function MyPeopleEnhanced() {
     } catch (error) {
       console.error('❌ Error adding person:', error)
       setIsAdding(false)
-      // You might want to show a toast notification here
+      
+      // Show user-friendly error message
+      if (addPersonError) {
+        toast.error(addPersonError)
+      } else if (error instanceof Error) {
+        toast.error(error.message)
+      } else {
+        toast.error('Failed to add person to your network')
+      }
     }
   }
 
@@ -1269,31 +1321,96 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                         />
                       )}
                     </div>
+
+                    {/* Error Display */}
+                    {(addPersonError || addPersonFieldErrors.length > 0) && (
+                      <div className="col-span-2 bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-sm font-medium text-red-800 mb-1">
+                              {addPersonError || 'Please fix the following errors:'}
+                            </h3>
+                            {addPersonFieldErrors.length > 0 && (
+                              <ul className="text-sm text-red-700 space-y-1">
+                                {addPersonFieldErrors.map((error, index) => (
+                                  <li key={index} className="flex items-start space-x-2">
+                                    <span>•</span>
+                                    <span>{error}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {newPerson.personType === 'living' && (
                       <>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Email (optional)
+                            Email {newPerson.inviteMethod === 'email' || newPerson.inviteMethod === 'both' ? <span className="text-red-600">*</span> : '(optional)'}
                           </label>
                           <input
                             type="email"
                             value={newPerson.email}
-                            onChange={(e) => setNewPerson(prev => ({ ...prev, email: e.target.value }))}
+                            onChange={(e) => {
+                              setNewPerson(prev => ({ ...prev, email: e.target.value }))
+                              // Clear errors when user starts typing
+                              if (addPersonFieldErrors.length > 0) {
+                                setAddPersonFieldErrors([])
+                                setAddPersonError(null)
+                              }
+                            }}
                             placeholder="Enter email address"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                              (addPersonFieldErrors.some(e => e.toLowerCase().includes('email')) || 
+                               (newPerson.inviteMethod === 'email' || newPerson.inviteMethod === 'both') && !newPerson.email.trim())
+                                ? 'border-red-300 bg-red-50'
+                                : 'border-gray-300'
+                            }`}
+                            required={newPerson.inviteMethod === 'email' || newPerson.inviteMethod === 'both'}
                           />
+                          {(newPerson.inviteMethod === 'email' || newPerson.inviteMethod === 'both') && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Required for {newPerson.inviteMethod === 'both' ? 'email' : 'platform'} invitation
+                            </p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Phone Number (optional)
+                            Phone Number {newPerson.inviteMethod === 'sms' || newPerson.inviteMethod === 'both' ? <span className="text-red-600">*</span> : '(optional)'}
                           </label>
                           <input
                             type="tel"
                             value={newPerson.phone}
-                            onChange={(e) => setNewPerson(prev => ({ ...prev, phone: e.target.value }))}
+                            onChange={(e) => {
+                              setNewPerson(prev => ({ ...prev, phone: e.target.value }))
+                              // Clear errors when user starts typing
+                              if (addPersonFieldErrors.length > 0) {
+                                setAddPersonFieldErrors([])
+                                setAddPersonError(null)
+                              }
+                            }}
                             placeholder="Enter phone number"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                              (addPersonFieldErrors.some(e => e.toLowerCase().includes('phone')) || 
+                               (newPerson.inviteMethod === 'sms' || newPerson.inviteMethod === 'both') && !newPerson.phone.trim())
+                                ? 'border-red-300 bg-red-50'
+                                : 'border-gray-300'
+                            }`}
+                            required={newPerson.inviteMethod === 'sms' || newPerson.inviteMethod === 'both'}
                           />
+                          {(newPerson.inviteMethod === 'sms' || newPerson.inviteMethod === 'both') && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Required for SMS invitation
+                            </p>
+                          )}
                         </div>
                       </>
                     )}

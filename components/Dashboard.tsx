@@ -1,28 +1,30 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Plus, User, LogOut, Menu, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, UserCheck, AlertTriangle, Search } from 'lucide-react'
 import MemoryViews from './MemoryViews'
-import GroupManager from './GroupManager'
-import CreateMemory from './CreateMemory'
-import CreateTimeZone from './CreateTimeZone'
-import UserProfile from './UserProfile'
 import ChronologicalTimelineView from './ChronologicalTimelineView'
-import AddMemoryWizard from './AddMemoryWizard'
 import TimelineView from './TimelineView'
-import EditMemoryModal from './EditMemoryModal'
-import DeleteConfirmationModal from './DeleteConfirmationModal'
 import { useAuth } from '@/components/AuthProvider'
 import TicketNotifications from '@/components/TicketNotifications'
 import TabNavigation from './TabNavigation'
-import MyPeopleEnhanced from './MyPeopleEnhanced'
 import NotificationBell from './NotificationBell'
-import AccessManagement from './AccessManagement'
-import CollaborativeMemories from './CollaborativeMemories'
 
-import VoiceChatButton from './VoiceChatButton'
+// Lazy load heavy components that aren't needed on initial page load
+const GroupManager = lazy(() => import('./GroupManager'))
+const CreateMemory = lazy(() => import('./CreateMemory'))
+const CreateTimeZone = lazy(() => import('./CreateTimeZone'))
+const UserProfile = lazy(() => import('./UserProfile'))
+const AddMemoryWizard = lazy(() => import('./AddMemoryWizard'))
+const EditMemoryModal = lazy(() => import('./EditMemoryModal'))
+const DeleteConfirmationModal = lazy(() => import('./DeleteConfirmationModal'))
+const MyPeopleEnhanced = lazy(() => import('./MyPeopleEnhanced'))
+const AccessManagement = lazy(() => import('./AccessManagement'))
+const CollaborativeMemories = lazy(() => import('./CollaborativeMemories'))
+const VoiceChatButton = lazy(() => import('./VoiceChatButton'))
+
 import { MemoryWithRelations } from '@/lib/types'
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates'
 
@@ -96,6 +98,8 @@ export default function Dashboard() {
   const [voiceAddedMemories, setVoiceAddedMemories] = useState<Set<string>>(new Set())
   const [highlightedChapters, setHighlightedChapters] = useState<Set<string>>(new Set())
   
+  // Token cache to avoid duplicate API calls
+  const [cachedToken, setCachedToken] = useState<{ token: string; expiresAt: number } | null>(null)
   
   const router = useRouter()
 
@@ -142,8 +146,57 @@ export default function Dashboard() {
     return () => window.removeEventListener('focus', handleFocus)
   }, [supabaseUser, activeTab, failedDeletes.size, permanentlyDeleted.size])
 
+  // Helper to get or refresh auth token (with caching)
+  const getAuthToken = async () => {
+    // Check if we have a valid cached token (valid for 5 minutes)
+    if (cachedToken && cachedToken.expiresAt > Date.now()) {
+      return cachedToken.token
+    }
+    
+    // Fetch new token
+    if (!supabaseUser) return null
+    
+    const tokenResponse = await fetch('/api/auth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: supabaseUser.id, email: supabaseUser.email }),
+    })
+
+    if (!tokenResponse.ok) return null
+    
+    const { token } = await tokenResponse.json()
+    
+    // Cache token for 5 minutes
+    setCachedToken({
+      token,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    })
+    
+    return token
+  }
+
   const fetchUserAndMemories = async () => {
-    await Promise.all([fetchUser(), fetchMemories()])
+    // Get token once and reuse for both requests
+    const token = await getAuthToken()
+    if (!token) {
+      console.error('❌ Failed to get auth token')
+      setIsLoadingUser(false)
+      return
+    }
+    
+    // Start both requests in parallel with the same token for faster loading
+    const [userResult, memoriesResult] = await Promise.allSettled([
+      fetchUser(token), 
+      fetchMemories(token)
+    ])
+    
+    // Log if any failed
+    if (userResult.status === 'rejected') {
+      console.error('❌ Failed to fetch user:', userResult.reason)
+    }
+    if (memoriesResult.status === 'rejected') {
+      console.error('❌ Failed to fetch memories:', memoriesResult.reason)
+    }
   }
 
   // Setup real-time updates
@@ -162,30 +215,23 @@ export default function Dashboard() {
     }
   })
 
-  const fetchMemories = async () => {
+  const fetchMemories = async (token?: string) => {
     try {
       if (!supabaseUser) {
         console.log('No Supabase user found')
         return
       }
 
-      // Get custom JWT token for API
-      const tokenResponse = await fetch('/api/auth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: supabaseUser.id, email: supabaseUser.email }),
-      })
-
-      if (!tokenResponse.ok) {
+      // Use provided token or get a new one
+      const authToken = token || await getAuthToken()
+      if (!authToken) {
         console.error('Failed to get auth token')
         return
       }
 
-      const { token } = await tokenResponse.json()
-
       const response = await fetch('/api/memories', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${authToken}`
         }
       })
 
@@ -236,7 +282,7 @@ export default function Dashboard() {
     }
   }
 
-  const fetchUser = async () => {
+  const fetchUser = async (token?: string) => {
     try {
       console.log('🚀 FETCH USER: Starting user profile fetch...')
       
@@ -246,25 +292,19 @@ export default function Dashboard() {
         return
       }
 
-      // Get custom JWT token for API
-      const tokenResponse = await fetch('/api/auth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: supabaseUser.id, email: supabaseUser.email }),
-      })
-
-      if (!tokenResponse.ok) {
+      // Use provided token or get a new one
+      const authToken = token || await getAuthToken()
+      if (!authToken) {
         console.error('❌ FETCH USER: Failed to get auth token for user profile')
         setIsLoadingUser(false)
         return
       }
-
-      const { token } = await tokenResponse.json()
+      
       console.log('✅ FETCH USER: Got auth token, fetching profile...')
 
       const response = await fetch('/api/user/profile', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${authToken}`
         }
       })
       
@@ -870,16 +910,61 @@ export default function Dashboard() {
 
 
   const renderContent = () => {
-    // Don't render timeline components until we have user data to avoid birth year timing issues
+    // Show engaging skeleton loader while data is loading
     if (isLoadingUser && !user) {
       return (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-              <span className="text-white text-2xl font-bold">L</span>
+        <div className="flex-1 overflow-hidden">
+          {/* Skeleton Header */}
+          <div className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 p-6 animate-pulse">
+            <div className="max-w-7xl mx-auto">
+              <div className="h-8 w-64 bg-slate-300 rounded-lg mb-3"></div>
+              <div className="h-4 w-96 bg-slate-200 rounded"></div>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Loading your timeline...</h3>
-            <p className="text-slate-600">Preparing your memories and chapters</p>
+          </div>
+          
+          {/* Skeleton Content */}
+          <div className="p-6 space-y-6 max-w-7xl mx-auto">
+            {/* Timeline Skeleton Cards */}
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-pulse" style={{ animationDelay: `${i * 100}ms` }}>
+                <div className="flex">
+                  {/* Left side - Chapter/Date */}
+                  <div className="w-48 bg-gradient-to-br from-slate-100 to-slate-50 p-6 border-r border-slate-200">
+                    <div className="h-6 w-24 bg-slate-300 rounded mb-3"></div>
+                    <div className="h-4 w-32 bg-slate-200 rounded"></div>
+                  </div>
+                  
+                  {/* Right side - Memory content */}
+                  <div className="flex-1 p-6">
+                    <div className="flex items-start space-x-4">
+                      {/* Image placeholder */}
+                      <div className="w-32 h-32 bg-gradient-to-br from-slate-200 to-slate-100 rounded-xl flex-shrink-0"></div>
+                      
+                      {/* Content */}
+                      <div className="flex-1 space-y-3">
+                        <div className="h-6 w-3/4 bg-slate-300 rounded"></div>
+                        <div className="h-4 w-full bg-slate-200 rounded"></div>
+                        <div className="h-4 w-5/6 bg-slate-200 rounded"></div>
+                        <div className="flex space-x-2 mt-4">
+                          <div className="h-8 w-20 bg-slate-200 rounded-lg"></div>
+                          <div className="h-8 w-20 bg-slate-200 rounded-lg"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {/* Loading indicator at bottom */}
+            <div className="text-center py-8">
+              <div className="inline-flex items-center space-x-3 bg-white px-6 py-3 rounded-full shadow-sm border border-slate-200">
+                <div className="relative">
+                  <div className="w-5 h-5 border-3 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
+                </div>
+                <span className="text-slate-600 font-medium">Loading your memories...</span>
+              </div>
+            </div>
           </div>
         </div>
       )
@@ -917,26 +1002,28 @@ export default function Dashboard() {
         // Show the TimelineView as vertical feed with chapters on left axis
         return (
           <>
-            <TimelineView 
-              memories={filteredMemoriesForTimeline} 
-              birthYear={timelineBirthYear}
-              user={user}
-              onEdit={handleEditMemory}
-              onDelete={handleDeleteMemory}
-              onStartCreating={handleCreateMemory}
-              onCreateChapter={() => setActiveTab('create-timezone')}
-              onChapterSelected={(chapterId, chapterTitle) => {
-                console.log('🎯 DASHBOARD: Chapter selected:', chapterTitle, chapterId)
-              }}
-              highlightedMemories={highlightedMemories}
-              voiceAddedMemories={voiceAddedMemories}
-              highlightedChapters={highlightedChapters}
-              onNavigateToMyPeople={(personId) => {
-                console.log('🏷️ DASHBOARD: Navigating to My People for person:', personId)
-                setActiveTab('people')
-                // TODO: Pass personId to MyPeople component to highlight/filter
-              }}
-            />
+            <div className="animate-fade-in">
+              <TimelineView 
+                memories={filteredMemoriesForTimeline} 
+                birthYear={timelineBirthYear}
+                user={user}
+                onEdit={handleEditMemory}
+                onDelete={handleDeleteMemory}
+                onStartCreating={handleCreateMemory}
+                onCreateChapter={() => setActiveTab('create-timezone')}
+                onChapterSelected={(chapterId, chapterTitle) => {
+                  console.log('🎯 DASHBOARD: Chapter selected:', chapterTitle, chapterId)
+                }}
+                highlightedMemories={highlightedMemories}
+                voiceAddedMemories={voiceAddedMemories}
+                highlightedChapters={highlightedChapters}
+                onNavigateToMyPeople={(personId) => {
+                  console.log('🏷️ DASHBOARD: Navigating to My People for person:', personId)
+                  setActiveTab('people')
+                  // TODO: Pass personId to MyPeople component to highlight/filter
+                }}
+              />
+            </div>
             
             {/* Debug Panel for Force Delete */}
             {(failedDeletes.size > 0 || permanentlyDeleted.size > 0) && (
@@ -1159,19 +1246,43 @@ export default function Dashboard() {
           </>
         )
       case 'profile':
-        return <UserProfile onLogout={handleLogout} />
+        return (
+          <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
+            <UserProfile onLogout={handleLogout} />
+          </Suspense>
+        )
       case 'support':
         return <TicketNotifications />
       case 'create':
-        return <CreateMemory onMemoryCreated={handleMemoryCreated} />
+        return (
+          <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
+            <CreateMemory onMemoryCreated={handleMemoryCreated} />
+          </Suspense>
+        )
       case 'timezones':
-        return <GroupManager user={user} onCreateGroup={() => setActiveTab('create-timezone')} onStartCreating={handleCreateMemory} onNavigateToMyPeople={() => setActiveTab('people')} />
+        return (
+          <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
+            <GroupManager user={user} onCreateGroup={() => setActiveTab('create-timezone')} onStartCreating={handleCreateMemory} onNavigateToMyPeople={() => setActiveTab('people')} />
+          </Suspense>
+        )
       case 'create-timezone':
-        return <CreateTimeZone onSuccess={() => { setActiveTab('timezones'); fetchMemories(); }} onCancel={() => setActiveTab('timezones')} />
+        return (
+          <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
+            <CreateTimeZone onSuccess={() => { setActiveTab('timezones'); fetchMemories(); }} onCancel={() => setActiveTab('timezones')} />
+          </Suspense>
+        )
       case 'people':
-        return <MyPeopleEnhanced />
+        return (
+          <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
+            <MyPeopleEnhanced />
+          </Suspense>
+        )
       case 'collaborative':
-        return <CollaborativeMemories user={user} />
+        return (
+          <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
+            <CollaborativeMemories user={user} />
+          </Suspense>
+        )
       default:
         return <div className="flex items-center justify-center h-full"><p>Select a view from the navigation</p></div>
     }
@@ -1519,13 +1630,23 @@ export default function Dashboard() {
         />
 
 
-      {/* Maya Toggle Button - Small, unobtrusive */}
+      {/* Maya Toggle Button - Lazy loaded to not block initial render */}
       <div className="fixed bottom-6 left-6 z-40">
-        <VoiceChatButton 
-          onDataChange={refreshAll}
-          onChapterUpdate={handleMayaChapterUpdate}
-          onMemoryUpdate={handleMayaMemoryUpdate}
-        />
+        <Suspense fallback={
+          <button 
+            disabled
+            className="w-14 h-14 bg-slate-300 text-white rounded-full shadow-lg flex items-center justify-center opacity-50"
+            title="Loading Maya..."
+          >
+            <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+          </button>
+        }>
+          <VoiceChatButton 
+            onDataChange={refreshAll}
+            onChapterUpdate={handleMayaChapterUpdate}
+            onMemoryUpdate={handleMayaMemoryUpdate}
+          />
+        </Suspense>
       </div>
 
 

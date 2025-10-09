@@ -80,13 +80,10 @@ export default function MayaEnrichmentChat({
   // Load VAPI SDK
   useEffect(() => {
     if (typeof window !== 'undefined' && !vapiLoaded) {
-      const script = document.createElement('script')
-      script.src = 'https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js'
-      script.async = true
-      script.onload = () => {
-        const VapiSDK = (window as any).vapiSDK
-        if (VapiSDK) {
-          const vapiInstance = new VapiSDK(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY!)
+      const loadVapi = async () => {
+        try {
+          const { default: Vapi } = await import('@vapi-ai/web')
+          const vapiInstance = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY!)
           setVapi(vapiInstance)
           setVapiLoaded(true)
           
@@ -100,9 +97,12 @@ export default function MayaEnrichmentChat({
             setIsVapiCallActive(false)
             toast('Call ended')
           })
+        } catch (error) {
+          console.error('Failed to load VAPI SDK:', error)
+          toast.error('Failed to load voice system')
         }
       }
-      document.body.appendChild(script)
+      loadVapi()
     }
   }, [vapiLoaded])
 

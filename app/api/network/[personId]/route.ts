@@ -92,7 +92,13 @@ export async function PUT(
       .single()
 
     if (error) {
-      console.error('❌ NETWORK UPDATE API: Database error:', error)
+      console.error('❌ NETWORK UPDATE API: Database error:', {
+        error,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      })
       throw error
     }
 
@@ -103,9 +109,19 @@ export async function PUT(
       person: updatedPerson
     })
   } catch (error) {
-    console.error('❌ NETWORK UPDATE API: Failed to update person:', error)
+    console.error('❌ NETWORK UPDATE API: Failed to update person:', {
+      error,
+      errorType: typeof error,
+      errorString: String(error),
+      errorJSON: JSON.stringify(error, null, 2)
+    })
+    
     return NextResponse.json(
-      { error: 'Failed to update person' },
+      { 
+        error: 'Failed to update person',
+        details: error instanceof Error ? error.message : String(error),
+        code: (error as any)?.code || 'UNKNOWN'
+      },
       { status: 500 }
     )
   }

@@ -50,6 +50,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   const [autoSaveError, setAutoSaveError] = useState<string | null>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isInitialLoad = useRef(true)
+  const hasSavedRef = useRef(false) // Track if we've saved during this session
 
   // Enhanced memory sorting with error handling and validation
   const sortMemories = (memories: MemoryWithRelations[] | undefined): MemoryWithRelations[] => {
@@ -111,6 +112,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         setLastSaved(new Date())
         setAutoSaveError(null)
         isInitialLoad.current = true
+        hasSavedRef.current = false // Reset save tracking
         checkPremiumStatus()
       } catch (error) {
         console.error('Error initializing chapter editing:', error)
@@ -144,7 +146,6 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
   // Auto-save function
   const autoSave = useCallback(async () => {
     if (!editingChapter || !user || isInitialLoad.current) {
-      isInitialLoad.current = false
       return
     }
 
@@ -165,6 +166,13 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       return
     }
 
+    console.log('🔄 Auto-saving changes:', {
+      title: editingChapter.title !== originalChapter.title ? 'changed' : 'same',
+      description: editingChapter.description !== originalChapter.description ? 'changed' : 'same',
+      descriptionLength: editingChapter.description?.length || 0,
+      originalDescLength: originalChapter.description?.length || 0,
+    })
+
     setIsAutoSaving(true)
     setAutoSaveError(null)
 
@@ -181,6 +189,8 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       formData.append('endDate', editingChapter.endDate)
       formData.append('location', editingChapter.location)
       
+      console.log('📤 Sending auto-save request with description length:', editingChapter.description?.length || 0)
+      
       if (selectedHeaderImage) {
         formData.append('headerImage', selectedHeaderImage)
       } else if (editingChapter.headerImageUrl === null) {
@@ -196,23 +206,42 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
       })
 
       if (response.ok) {
+        const result = await response.json()
+        console.log('✅ Auto-save successful, server returned:', {
+          description: result.data?.description?.substring(0, 50) || 'none',
+          descriptionLength: result.data?.description?.length || 0
+        })
+        
         setLastSaved(new Date())
         setHasUnsavedChanges(false)
+        // Update originalChapter with the saved values to prevent false change detection
         setOriginalChapter({ ...editingChapter })
         setSelectedHeaderImage(null)
         setPreviewImageUrl(null)
-        console.log('✅ Auto-save successful')
+        // Mark that we've saved this session so we can refresh on close
+        hasSavedRef.current = true
       } else {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Auto-save failed')
       }
     } catch (error) {
-      console.error('Auto-save error:', error)
+      console.error('❌ Auto-save error:', error)
       setAutoSaveError(error instanceof Error ? error.message : 'Auto-save failed')
     } finally {
       setIsAutoSaving(false)
     }
   }, [editingChapter, originalChapter, selectedHeaderImage, user, getAuthToken])
+
+  // Reset initial load flag after a short delay
+  useEffect(() => {
+    if (isOpen && editingChapter) {
+      const timer = setTimeout(() => {
+        isInitialLoad.current = false
+      }, 500) // Give 500ms for initial load to complete
+      
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen, editingChapter])
 
   // Debounced auto-save effect
   useEffect(() => {
@@ -377,15 +406,55 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
     setShowVoiceRecorder(false)
   }
 
-  // Handle close with unsaved changes warning
-  const handleClose = () => {
+  // Handle close with auto-save consideration
+  const handleClose = async () => {
+    // If there are unsaved changes and auto-save is not in progress, trigger it immediately
     if (hasUnsavedChanges && !isAutoSaving) {
-      const shouldClose = window.confirm(
-        'You have unsaved changes. Are you sure you want to close? Your changes will be lost.'
-      )
-      if (!shouldClose) return
+      toast('Saving your changes...', { icon: '💾' })
+      // Clear any pending auto-save timeout
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+      // Trigger immediate save
+      await autoSave()
+      hasSavedRef.current = true
     }
-    onClose()
+    
+    // If auto-save is still in progress, wait for it to complete
+    if (isAutoSaving) {
+      toast('Waiting for auto-save to complete...', { icon: '⏳' })
+      
+      // Wait up to 5 seconds for auto-save to complete
+      const startTime = Date.now()
+      while (isAutoSaving && Date.now() - startTime < 5000) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      
+      if (isAutoSaving) {
+        // Auto-save is taking too long, warn user
+        const shouldClose = window.confirm(
+          'Auto-save is still in progress. Close anyway? Unsaved changes may be lost.'
+        )
+        if (!shouldClose) return
+      } else {
+        toast.success('Changes saved!')
+        hasSavedRef.current = true
+      }
+    }
+    
+    // Clear the timeout to prevent auto-save after close
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+    }
+    
+    // If we saved during this session, trigger onSuccess to refresh the UI
+    if (hasSavedRef.current) {
+      console.log('✅ Changes were saved, triggering onSuccess to refresh UI')
+      onSuccess()
+      hasSavedRef.current = false // Reset for next time
+    } else {
+      onClose()
+    }
   }
 
   // Handle update
@@ -806,16 +875,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-slate-200 flex-shrink-0">
-          <div className="text-sm text-slate-500">
-            {isAutoSaving ? (
-              <span className="text-blue-600">Auto-saving your changes...</span>
-            ) : lastSaved && !hasUnsavedChanges ? (
-              <span className="text-green-600">All changes saved automatically</span>
-            ) : hasUnsavedChanges ? (
-              <span className="text-amber-600">Changes will be saved automatically</span>
-            ) : null}
-          </div>
+        <div className="flex items-center justify-end p-6 border-t border-slate-200 flex-shrink-0">
           <div className="flex items-center space-x-4">
             <button
               onClick={handleClose}
@@ -828,7 +888,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
               disabled={isUpdating || !editingChapter.title.trim()}
               className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isUpdating ? 'Updating...' : 'Update Chapter'}
+              {isUpdating ? 'Updating...' : 'Save & Close'}
             </button>
           </div>
         </div>
