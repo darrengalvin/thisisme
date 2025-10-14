@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
-import { Users, Plus, Mail, User, X, Calendar, BookOpen, ArrowLeft, UserPlus, Settings, Eye, MessageCircle, Image, FileText, Lock, Unlock, Crown, Star } from 'lucide-react'
+import { Users, Plus, Mail, User, X, Calendar, BookOpen, ArrowLeft, UserPlus, Settings, Eye, MessageCircle, Image, FileText, Lock, Unlock, Crown, Star, Share2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 // ✨ Improved TypeScript interfaces for better type safety
@@ -2032,18 +2032,22 @@ With love and remembrance,
                         </span>
                       </div>
 
-                      {/* Tagged Memories Section */}
+                      {/* Memories They're Tagged In */}
                       {selectedPerson.recent_memories && selectedPerson.recent_memories.length > 0 && (
-                        <div className="mb-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <p className="text-base font-semibold text-gray-900">Tagged Memories</p>
-                            <span className="text-sm text-gray-500">{selectedPerson.recent_memories.length} memories</span>
+                        <div className="mb-6">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <Users className="w-5 h-5 text-purple-600" />
+                            <p className="text-base font-semibold text-gray-900">Tagged in Photos</p>
+                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                              {selectedPerson.tagged_memories_count || 0}
+                            </span>
                           </div>
+                          <p className="text-sm text-gray-500 mb-3">Memories where {selectedPerson.person_name} appears in photos</p>
                           <div className="space-y-3">
                             {selectedPerson.recent_memories.map((memory) => (
                               <div 
                                 key={memory.id} 
-                                className="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors group"
+                                className="flex items-center space-x-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg cursor-pointer transition-colors group border border-purple-100"
                                 onClick={() => viewMemory(memory, selectedPerson)}
                               >
                                 {memory.image_url && (
@@ -2056,17 +2060,78 @@ With love and remembrance,
                                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
                                       <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </div>
+                                    {/* Tag indicator */}
+                                    <div className="absolute top-1 right-1 bg-purple-600 text-white p-1 rounded">
+                                      <Users className="w-3 h-3" />
+                                    </div>
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">{memory.title}</h4>
+                                  <h4 className="font-medium text-gray-900 truncate group-hover:text-purple-600 transition-colors">{memory.title}</h4>
                                   <div className="flex items-center space-x-2 mt-1">
                                     <span className="text-sm text-gray-600">{memory.chapter}</span>
                                     <span className="text-gray-400">•</span>
                                     <span className="text-sm text-gray-500">{new Date(memory.date).toLocaleDateString()}</span>
                                   </div>
                                 </div>
-                                <Eye className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+                                <Eye className="w-5 h-5 text-purple-400 group-hover:text-purple-600 transition-colors flex-shrink-0" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Memories They Have Access To (Invited/Shared) */}
+                      {selectedPerson.permissions?.memory_access && selectedPerson.permissions.memory_access.length > 0 && (
+                        <div className="mb-6">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <Share2 className="w-5 h-5 text-blue-600" />
+                            <p className="text-base font-semibold text-gray-900">Shared Memories</p>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                              {selectedPerson.permissions.memory_access.length}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500 mb-3">Memories {selectedPerson.person_name} can view and contribute to</p>
+                          <div className="space-y-2">
+                            {selectedPerson.permissions.memory_access.map((memory: any, idx: number) => (
+                              <div 
+                                key={idx} 
+                                className="flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 rounded-lg cursor-pointer transition-colors group border border-blue-100"
+                              >
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                                    {memory.memory_title}
+                                  </h4>
+                                  {memory.count && (
+                                    <span className="text-sm text-gray-500">{memory.count} memories</span>
+                                  )}
+                                  <div className="flex items-center space-x-1 mt-1">
+                                    {memory.permissions.includes('view') && (
+                                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 bg-white rounded text-xs text-green-700 border border-green-200">
+                                        <Eye className="w-3 h-3" />
+                                        <span>View</span>
+                                      </span>
+                                    )}
+                                    {memory.permissions.includes('add_text') && (
+                                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 bg-white rounded text-xs text-blue-700 border border-blue-200">
+                                        <FileText className="w-3 h-3" />
+                                        <span>Edit</span>
+                                      </span>
+                                    )}
+                                    {memory.permissions.includes('add_images') && (
+                                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 bg-white rounded text-xs text-purple-700 border border-purple-200">
+                                        <Image className="w-3 h-3" />
+                                        <span>Photos</span>
+                                      </span>
+                                    )}
+                                    {memory.permissions.includes('comment') && (
+                                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 bg-white rounded text-xs text-orange-700 border border-orange-200">
+                                        <MessageCircle className="w-3 h-3" />
+                                        <span>Comment</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             ))}
                           </div>
