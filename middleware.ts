@@ -47,6 +47,11 @@ export async function middleware(request: NextRequest) {
              request.headers.get('x-real-ip') ?? 
              '127.0.0.1';
 
+  // Skip rate limiting for localhost in development
+  if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost') {
+    return NextResponse.next();
+  }
+
   const pathname = request.nextUrl.pathname;
 
   // Skip rate limiting for test/debug endpoints
