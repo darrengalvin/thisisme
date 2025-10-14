@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Settings, Calendar, MapPin, Edit, Camera, Trash2, Users, Upload, X, Save, Info, Move, Mic, Crown, Sparkles, CheckCircle, AlertCircle } from 'lucide-react'
+import { Plus, Settings, Calendar, MapPin, Edit, Camera, Trash2, Users, Upload, X, Save, Info, Move, Mic, Crown, Sparkles, CheckCircle, AlertCircle, List, BookOpen, BarChart3 } from 'lucide-react'
 import { TimeZoneWithRelations, MemoryWithRelations } from '@/lib/types'
 import { useAuth } from './AuthProvider'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
@@ -10,6 +10,9 @@ import ImageCropper from './ImageCropper'
 import VoiceRecorder from './VoiceRecorder'
 import UpgradeModal from './UpgradeModal'
 import InviteCollaborators from './InviteCollaborators'
+import MemoryContributions from './MemoryContributions'
+import PhotoTagDisplay from './PhotoTagDisplay'
+import ChronologicalTimelineView from './ChronologicalTimelineView'
 import toast from 'react-hot-toast'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -20,6 +23,8 @@ interface GroupManagerProps {
   onCreateGroup?: () => void
   onStartCreating?: (chapterId?: string, chapterTitle?: string) => void
   onNavigateToMyPeople?: () => void
+  onEdit?: (memory: MemoryWithRelations) => void
+  onDelete?: (memory: MemoryWithRelations) => void
 }
 
 interface EditChapterData {
@@ -56,7 +61,7 @@ const formatDateRange = (startDate?: string | null, endDate?: string | null) => 
   return 'No dates set'
 }
 
-export default function GroupManager({ user: propUser, onCreateGroup, onStartCreating, onNavigateToMyPeople }: GroupManagerProps) {
+export default function GroupManager({ user: propUser, onCreateGroup, onStartCreating, onNavigateToMyPeople, onEdit, onDelete }: GroupManagerProps) {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
@@ -69,6 +74,16 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [chapterToDelete, setChapterToDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeletingChapter, setIsDeletingChapter] = useState(false)
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null)
+  const [showCollaboratorsModal, setShowCollaboratorsModal] = useState(false)
+  const [collaboratorsChapter, setCollaboratorsChapter] = useState<TimeZoneWithRelations | null>(null)
+  const [networkCollaborators, setNetworkCollaborators] = useState<any[]>([])
+  
+  // View mode toggle
+  const [viewMode, setViewMode] = useState<'chapters' | 'feed' | 'timeline'>('chapters')
+  
+  // FAB state
+  const [isFabOpen, setIsFabOpen] = useState(false)
   
   // Image cropping state
   const [showImageCropper, setShowImageCropper] = useState(false)
@@ -101,6 +116,13 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       checkPremiumStatus()
     }
   }, [user])
+
+  // Fetch network collaborators when chapter is selected
+  useEffect(() => {
+    if (selectedChapterId) {
+      fetchNetworkCollaborators(selectedChapterId)
+    }
+  }, [selectedChapterId])
 
   const checkPremiumStatus = async () => {
     if (!user) {
@@ -233,6 +255,51 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
     }
   }
 
+  // Fetch network people who have access to a specific chapter
+  const fetchNetworkCollaborators = async (chapterId: string) => {
+    try {
+      if (!user?.id || !user?.email) {
+        console.log('❌ No user data for fetching network collaborators')
+        return
+      }
+
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      })
+
+      if (!tokenResponse.ok) {
+        console.error('❌ Failed to get auth token for network collaborators')
+        return
+      }
+
+      const { token } = await tokenResponse.json()
+
+      const response = await fetch('/api/network', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Filter to only people who have this chapter in their pending_chapter_invitations
+        const peopleWithAccess = (data.people || []).filter((person: any) => 
+          person.pending_chapter_invitations?.includes(chapterId)
+        )
+        console.log('👥 Loaded network collaborators for chapter:', peopleWithAccess.length)
+        setNetworkCollaborators(peopleWithAccess)
+      } else {
+        console.error('❌ Failed to fetch network collaborators')
+        setNetworkCollaborators([])
+      }
+    } catch (error) {
+      console.error('Failed to fetch network collaborators:', error)
+      setNetworkCollaborators([])
+    }
+  }
+
   const fetchChapters = async () => {
     try {
       const token = await getAuthToken()
@@ -327,7 +394,11 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
 
   // Auto-save function
   const autoSave = useCallback(async () => {
-    if (!editingChapter || !user || !originalChapter || isInitialLoad.current) {
+    // Skip if no data, initial load, or currently updating manually
+    if (!editingChapter || !user || !originalChapter || isInitialLoad.current || isUpdating) {
+      if (isUpdating) {
+        console.log('⏸️ AUTO-SAVE: Skipping (manual update in progress)')
+      }
       return
     }
 
@@ -410,7 +481,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
     } finally {
       setIsAutoSaving(false)
     }
-  }, [editingChapter, originalChapter, selectedHeaderImage, user, getAuthToken])
+  }, [editingChapter, originalChapter, selectedHeaderImage, user, getAuthToken, isUpdating])
 
   // Reset initial load flag after modal opens
   useEffect(() => {
@@ -571,6 +642,13 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
   const handleUpdateChapter = async () => {
     if (!editingChapter) return
 
+    // Clear auto-save timeout to prevent duplicate saves
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+      autoSaveTimeoutRef.current = null
+      console.log('🛑 AUTO-SAVE: Cleared timeout (manual save triggered)')
+    }
+
     setIsUpdating(true)
     try {
       const formData = new FormData()
@@ -599,8 +677,16 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
 
       if (response.ok) {
         toast.success('Chapter updated successfully!')
+        
+        // Clear editing state and selected image
         setEditingChapter(null)
-        fetchChaptersAndMemories() // Refresh the list
+        setSelectedHeaderImage(null)
+        setPreviewImageUrl(null)
+        
+        // Refresh the chapters list
+        await fetchChaptersAndMemories()
+        
+        console.log('✅ GROUP MANAGER: Chapter updated and list refreshed')
       } else {
         const errorData = await response.json()
         toast.error(errorData.error || 'Failed to update chapter')
@@ -667,19 +753,19 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
     )
   }
 
+  // Get memories for selected chapter
+  const selectedChapterMemories = selectedChapterId 
+    ? memories.filter(memory => memory.timeZoneId === selectedChapterId)
+    : []
+
+  const selectedChapter = selectedChapterId 
+    ? chapters.find(ch => ch.id === selectedChapterId)
+    : null
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-slate-50">
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
-        {/* Page Title - Only show when user has chapters */}
-        {chapters.length > 0 && (
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Life Chapters</h1>
-            <p className="text-slate-600">
-              {chapters.length} {chapters.length === 1 ? 'chapter' : 'chapters'} • Organise and edit your life story
-            </p>
-          </div>
-        )}
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
         {chapters.length === 0 ? (
           <div className="text-center max-w-2xl mx-auto py-12 pb-40">
             <div className="w-20 h-20 bg-sky-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
@@ -717,10 +803,119 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
             </div>
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pb-32">
+          <div className="lg:flex lg:gap-6 pb-32 min-h-[calc(100vh-300px)]">
+            {/* Mobile: Chapters Dropdown/Tabs + View Toggle */}
+            <div className="lg:hidden mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-amber-900">📖 Life Chapters</h2>
+                {/* View Mode Toggle - Cycles through all 3 views */}
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setViewMode(viewMode === 'chapters' ? 'feed' : viewMode === 'feed' ? 'timeline' : 'chapters')}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors flex items-center space-x-1.5 font-medium text-sm"
+                  >
+                    {viewMode === 'chapters' && (
+                      <>
+                        <BookOpen size={14} />
+                        <span>Chapters</span>
+                      </>
+                    )}
+                    {viewMode === 'feed' && (
+                      <>
+                        <List size={14} />
+                        <span>Feed</span>
+                      </>
+                    )}
+                    {viewMode === 'timeline' && (
+                      <>
+                        <BarChart3 size={14} />
+                        <span>Timeline</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              {viewMode === 'chapters' && (
+                <div className="bg-white rounded-2xl shadow-lg border-2 border-amber-200 p-4">
+                  <label className="block text-sm font-semibold text-amber-900 mb-2">
+                    Select Chapter
+                  </label>
+                  <select
+                    value={selectedChapterId || ''}
+                    onChange={(e) => setSelectedChapterId(e.target.value || null)}
+                    className="w-full p-3 border-2 border-amber-300 rounded-xl bg-amber-50 text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  >
+                    <option value="">Choose a chapter...</option>
             {chapters
               .sort((a, b) => {
-                // Robust chronological sorting - same logic as TimelineView and ChronologicalTimelineView
+                const aDate = a.startDate ? new Date(a.startDate) : (a.createdAt ? new Date(a.createdAt) : new Date('1900-01-01'))
+                const bDate = b.startDate ? new Date(b.startDate) : (b.createdAt ? new Date(b.createdAt) : new Date('1900-01-01'))
+                const aTime = isNaN(aDate.getTime()) ? new Date('1900-01-01').getTime() : aDate.getTime()
+                const bTime = isNaN(bDate.getTime()) ? new Date('1900-01-01').getTime() : bDate.getTime()
+                return aTime - bTime
+              })
+              .map((chapter, index) => (
+                      <option key={chapter.id} value={chapter.id}>
+                        Chapter {index + 1}: {chapter.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop: Left Sidebar - Chapters List (Table of Contents) */}
+            <div className={`hidden lg:block ${viewMode === 'chapters' ? 'w-80' : 'w-0 opacity-0 pointer-events-none'} flex-shrink-0 transition-all duration-300`}>
+              <div className="bg-white rounded-2xl shadow-lg border-2 border-amber-200 p-6 sticky top-8">
+                <div className="mb-6 pb-4 border-b-2 border-amber-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <h2 className="text-xl font-bold text-amber-900 flex items-center">
+                      <span className="mr-2">📖</span>
+                      Chapters
+                    </h2>
+                    <div className="flex items-center space-x-2">
+                      {/* View Mode Toggle - Shows current mode, cycles through all 3 */}
+                      <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                        <button
+                          onClick={() => setViewMode('chapters')}
+                          className={`p-1.5 rounded transition-colors ${viewMode === 'chapters' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                          title="Chapter View"
+                        >
+                          <BookOpen size={14} />
+                        </button>
+                        <button
+                          onClick={() => setViewMode('feed')}
+                          className={`p-1.5 rounded transition-colors ${viewMode === 'feed' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                          title="Feed View"
+                        >
+                          <List size={14} />
+                        </button>
+                        <button
+                          onClick={() => setViewMode('timeline')}
+                          className={`p-1.5 rounded transition-colors ${viewMode === 'timeline' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                          title="Timeline View"
+                        >
+                          <BarChart3 size={14} />
+                        </button>
+                      </div>
+                      <button
+                        onClick={onCreateGroup}
+                        className="p-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors"
+                        title="Add new chapter"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-amber-700">{chapters.length} total</p>
+                </div>
+                
+                {/* Chapters List */}
+                <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+                  {chapters
+                    .sort((a, b) => {
+                      // Robust chronological sorting
                 const aDate = a.startDate ? new Date(a.startDate) : (a.createdAt ? new Date(a.createdAt) : new Date('1900-01-01'))
                 const bDate = b.startDate ? new Date(b.startDate) : (b.createdAt ? new Date(b.createdAt) : new Date('1900-01-01'))
                 
@@ -729,86 +924,356 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                 
                 return aTime - bTime
               })
-              .map((chapter, index) => (
-              <div 
+                    .map((chapter, index) => {
+                      const isSelected = selectedChapterId === chapter.id
+                      return (
+                        <button
                 key={chapter.id} 
-                className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-visible border border-slate-200/50 group"
-              >
-                {/* Chapter Image/Header */}
-                <div className="relative h-64 bg-gradient-to-br from-slate-100 to-slate-200">
-                  {chapter.headerImageUrl ? (
-                    <img
-                      src={chapter.headerImageUrl}
-                      alt={chapter.title}
-                      className="w-full h-full object-cover object-top sm:object-center"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <div className="text-center">
-                        <Camera size={40} className="text-slate-400 mx-auto mb-2" />
-                        <p className="text-slate-500 text-sm font-medium">No header image</p>
+                          onClick={() => setSelectedChapterId(chapter.id)}
+                          className={`w-full text-left p-4 rounded-xl transition-all duration-200 border-2 ${
+                            isSelected 
+                              ? 'bg-amber-100 border-amber-400 shadow-md' 
+                              : 'bg-amber-50 border-amber-200 hover:bg-amber-100 hover:border-amber-300 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="text-xs font-semibold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full">
+                                  Chapter {index + 1}
+                                </span>
                       </div>
+                              <h3 className={`font-bold text-sm leading-tight ${
+                                isSelected ? 'text-amber-900' : 'text-slate-800'
+                              }`}>
+                                {chapter.title}
+                              </h3>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            {(chapter.startDate || chapter.endDate) && (
+                              <div className="flex items-center space-x-1.5">
+                                <Calendar size={12} className="text-amber-600" />
+                                <span className="text-xs text-amber-700">
+                                  {formatDateRange(chapter.startDate, chapter.endDate)}
+                                </span>
                     </div>
                   )}
                   
-                  {/* Overlay with action buttons */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center space-x-3">
-                    {/* Info Icon with Hover Details */}
-                    <div className="relative group/info">
+                            <div className="flex items-center space-x-1.5">
+                              <Users size={12} className="text-amber-600" />
+                              <span className="text-xs text-amber-700">
+                                {getMemoryCount(chapter.id)} {getMemoryCount(chapter.id) === 1 ? 'memory' : 'memories'}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Panel - Chapter Content, Feed, or Timeline */}
+            <div className="lg:flex-1 lg:min-w-0 w-full">
+              {viewMode === 'timeline' ? (
+                /* TIMELINE VIEW - Beautiful chronological visualization with bubbles */
+                <ChronologicalTimelineView
+                  memories={memories}
+                  birthYear={(user as any)?.birthYear}
+                  user={user ? { id: user.id, email: (user as any).email || '', birthYear: (user as any)?.birthYear } : null}
+                  onStartCreating={onStartCreating}
+                  onCreateChapter={onCreateGroup}
+                  onZoomChange={(zoomLevel, currentYear, formatLabel, handlers) => {
+                    // Timeline controls for zoom/navigation - can be exposed in header if needed
+                    console.log('Timeline controls:', { zoomLevel, currentYear })
+                  }}
+                  onViewChange={(view) => setViewMode(view)}
+                  highlightedMemories={new Set()}
+                  voiceAddedMemories={new Set()}
+                />
+              ) : viewMode === 'feed' ? (
+                /* FEED VIEW - All memories from all chapters */
+                <div className="space-y-6">
+                  <div className="bg-white rounded-2xl shadow-lg border-2 border-slate-200 p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-2xl font-bold text-slate-900">
+                        All Memories
+                      </h2>
                       <button
-                        className="bg-white/90 hover:bg-white text-slate-700 p-2 rounded-lg shadow-lg transition-all duration-200"
-                        title="Chapter Details"
+                        onClick={() => setViewMode('chapters')}
+                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors flex items-center space-x-2"
+                        title="Switch to Chapter View"
                       >
-                        <Info size={16} />
+                        <BookOpen size={16} />
+                        <span className="hidden sm:inline">Chapter View</span>
                       </button>
-                      
-                      {/* Hover Tooltip */}
-                      <div className="absolute left-1/2 transform -translate-x-1/2 bottom-full mb-2 w-80 bg-white rounded-lg shadow-2xl border border-slate-200 p-4 opacity-0 group-hover/info:opacity-100 transition-all duration-200 pointer-events-none z-[99999]" style={{ zIndex: 99999 }}>
-                        <div className="space-y-3">
-                          <div className="border-b border-slate-100 pb-2">
-                            <h4 className="font-semibold text-slate-900 text-sm">{chapter.title}</h4>
-                            <p className="text-xs text-slate-500">
-                              {chapter.startDate && chapter.endDate && 
-                                `${new Date(chapter.startDate).getFullYear()} - ${new Date(chapter.endDate).getFullYear()}`
-                              }
+                    </div>
+                    <p className="text-slate-600 mb-4">
+                      Showing {memories.length} memories from {chapters.length} chapters
+                    </p>
+                  </div>
+
+                  {memories.length === 0 ? (
+                    <div className="bg-white rounded-2xl shadow-lg border-2 border-dashed border-slate-200 p-12 text-center">
+                      <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span className="text-4xl">📝</span>
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">No memories yet</h3>
+                      <p className="text-slate-600">
+                        Add memories to your chapters to see them here
                             </p>
                           </div>
-                          
-                          {chapter.description && (
-                            <div>
-                              <p className="text-xs font-medium text-slate-700 mb-1">Description:</p>
-                              <p className="text-xs text-slate-600 leading-relaxed">{chapter.description}</p>
-                            </div>
-                          )}
-                          
-                          {chapter.location && (
-                            <div>
-                              <p className="text-xs font-medium text-slate-700 mb-1">Location:</p>
-                              <p className="text-xs text-slate-600">{chapter.location}</p>
-                            </div>
-                          )}
-                          
-                          <div className="pt-2 border-t border-slate-100">
-                            <p className="text-xs text-slate-500">
-                              {getMemoryCount(chapter.id)} {getMemoryCount(chapter.id) === 1 ? 'memory' : 'memories'} in this chapter
-                            </p>
-                          </div>
-                        </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {(() => {
+                        // Sort memories by date
+                        const sortedMemories = memories.sort((a, b) => {
+                          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                          return dateB - dateA
+                        })
                         
-                        {/* Arrow pointing up to button */}
-                        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white border-l border-b border-slate-200 rotate-45"></div>
+                        // Group memories by date
+                        const groupedByDate: { [key: string]: typeof memories } = {}
+                        sortedMemories.forEach(memory => {
+                          if (memory.createdAt) {
+                            const date = new Date(memory.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })
+                            if (!groupedByDate[date]) {
+                              groupedByDate[date] = []
+                            }
+                            groupedByDate[date].push(memory)
+                          }
+                        })
+                        
+                        // Render grouped memories with date separators
+                        return Object.entries(groupedByDate).map(([dateStr, dateMemories]) => {
+                          // Format the date nicely
+                          const firstMemory = dateMemories[0]
+                          const date = new Date(firstMemory.createdAt!)
+                          const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' })
+                          const formattedDate = `${dayOfWeek}, ${dateStr}`
+                          
+                          return (
+                            <div key={dateStr}>
+                              {/* Date Separator */}
+                              <div className="relative flex items-center justify-center my-8">
+                                <div className="absolute inset-0 flex items-center">
+                                  <div className="w-full border-t-2 border-slate-200"></div>
+                            </div>
+                                <div className="relative px-6 py-2 bg-gradient-to-r from-amber-50 to-slate-50 rounded-full border-2 border-slate-200 shadow-sm">
+                                  <span className="text-sm font-bold text-slate-700 tracking-wide">
+                                    {formattedDate}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Memories for this date */}
+                              <div className="space-y-6">
+                                {dateMemories.map((memory) => {
+                                  // Find the chapter this memory belongs to
+                                  const memoryChapter = chapters.find(ch => ch.id === memory.timeZoneId)
+                                  
+                                  return (
+                            <div
+                              key={memory.id}
+                              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-200"
+                            >
+                              {/* Chapter Tag */}
+                              {memoryChapter && (
+                                <div className="mb-3">
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full border border-amber-200">
+                                    <BookOpen size={12} />
+                                    {memoryChapter.title}
+                                  </span>
+                            </div>
+                          )}
+                          
+                              {/* Header with Title and Collaborator Badge */}
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <h4 className="font-bold text-slate-900 text-xl mb-2">
+                                    {memory.title || 'Untitled Memory'}
+                                  </h4>
+                                  <div className="flex items-center flex-wrap gap-2">
+                                    {memory.createdAt && (
+                                      <span className="text-sm text-slate-500">
+                                        {new Date(memory.createdAt).toLocaleDateString('en-US', { 
+                                          year: 'numeric', 
+                                          month: 'long', 
+                                          day: 'numeric' 
+                                        })}
+                                      </span>
+                                    )}
+                                    
+                                    {memory.user && memory.userId !== user?.id && (
+                                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full border border-amber-200">
+                                        <Users size={12} />
+                                        Added by {(memory.user as any).full_name || memory.user.email?.split('@')[0] || 'Collaborator'}
+                                      </span>
+                                    )}
+                                    
+                                    {memory.userId === user?.id && (
+                                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded-full border border-purple-200">
+                                        Added by you
+                                      </span>
+                                    )}
+                            </div>
+                                </div>
+                                
+                                {/* Action Buttons - Only show if user owns the memory */}
+                                {memory.userId === user?.id && (
+                                  <div className="flex items-center space-x-2 ml-4">
+                                    {onEdit && (
+                                      <button
+                                        onClick={() => onEdit(memory)}
+                                        className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Edit memory"
+                                      >
+                                        <Edit size={18} />
+                                      </button>
+                                    )}
+                                    {onDelete && (
+                                      <button
+                                        onClick={() => onDelete(memory)}
+                                        className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete memory"
+                                      >
+                                        <Trash2 size={18} />
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {memory.textContent && (
+                                <p className="text-slate-700 leading-relaxed mb-4 text-base">
+                                  {memory.textContent}
+                                </p>
+                              )}
+
+                              {memory.media && memory.media.length > 0 && (
+                                <div className="mt-4 space-y-3">
+                                  {memory.media.map((mediaItem) => (
+                                    <div key={mediaItem.id}>
+                                      {mediaItem.type === 'IMAGE' && (
+                                        <PhotoTagDisplay
+                                          mediaId={mediaItem.id}
+                                          imageUrl={mediaItem.storage_url}
+                                          className="w-full max-w-full h-auto object-contain bg-slate-50 rounded-lg border border-slate-200"
+                                          showTagsOnHover={true}
+                                          showTagIndicator={true}
+                                          onPersonClick={(personId, personName) => {
+                                            console.log('🏷️ FEED: Person clicked:', personName, personId)
+                                            if (onNavigateToMyPeople) {
+                                              onNavigateToMyPeople()
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                      {mediaItem.type === 'VIDEO' && (
+                                        <video 
+                                          src={mediaItem.storage_url} 
+                                          controls 
+                                          className="w-full max-w-full rounded-lg"
+                                        />
+                                      )}
+                                      {mediaItem.type === 'AUDIO' && (
+                                        <audio 
+                                          src={mediaItem.storage_url} 
+                                          controls 
+                                          className="w-full"
+                                        />
+                                      )}
+                          </div>
+                                  ))}
+                        </div>
+                              )}
+
+                              {(memory as any).categories && (memory as any).categories.length > 0 && (
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                  {(memory as any).categories.map((category: string, index: number) => (
+                                    <span 
+                                      key={index}
+                                      className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full"
+                                    >
+                                      {category}
+                                    </span>
+                                  ))}
+                      </div>
+                              )}
+
+                              <div className="mt-6 pt-4 border-t border-slate-200">
+                                <MemoryContributions 
+                                  memoryId={memory.id}
+                                  memoryTitle={memory.title || 'this memory'}
+                                  onNavigateToMyPeople={onNavigateToMyPeople}
+                                />
+                    </div>
+                            </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })
+                      })()}
+                    </div>
+                  )}
+                </div>
+              ) : selectedChapter ? (
+                <div className="bg-white rounded-2xl shadow-lg border-2 border-slate-200 overflow-hidden">
+                  {/* Chapter Header */}
+                  <div className="relative">
+                    {/* Header Image */}
+                    {selectedChapter.headerImageUrl ? (
+                      <div className="relative h-48 sm:h-64 bg-gradient-to-br from-slate-100 to-slate-200">
+                        <img
+                          src={selectedChapter.headerImageUrl}
+                          alt={selectedChapter.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                      </div>
+                    ) : (
+                      <div className="h-32 sm:h-48 bg-gradient-to-br from-amber-100 via-amber-50 to-slate-100"></div>
+                    )}
+                    
+                    {/* Chapter Title Overlay */}
+                    <div className={`${selectedChapter.headerImageUrl ? 'absolute bottom-0 left-0 right-0' : ''} p-4 sm:p-8 ${selectedChapter.headerImageUrl ? 'text-white' : 'text-slate-900'}`}>
+                      <h2 className="text-2xl sm:text-3xl font-bold mb-2">{selectedChapter.title}</h2>
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                        {(selectedChapter.startDate || selectedChapter.endDate) && (
+                          <div className="flex items-center space-x-2">
+                            <Calendar size={16} />
+                            <span>{formatDateRange(selectedChapter.startDate, selectedChapter.endDate)}</span>
+                          </div>
+                        )}
+                        {selectedChapter.location && (
+                          <div className="flex items-center space-x-2">
+                            <MapPin size={16} />
+                            <span>{selectedChapter.location}</span>
+                        </div>
+                        )}
                       </div>
                     </div>
                     
+                    {/* Action Buttons */}
+                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 flex items-center space-x-2">
                     <button
-                      onClick={() => handleEditChapter(chapter)}
+                        onClick={() => handleEditChapter(selectedChapter)}
                       className="bg-white/90 hover:bg-white text-slate-700 p-2 rounded-lg shadow-lg transition-all duration-200"
                       title="Edit Chapter"
                     >
                       <Edit size={16} />
                     </button>
                     <button
-                      onClick={() => handleDeleteChapter(chapter.id, chapter.title)}
+                        onClick={() => handleDeleteChapter(selectedChapter.id, selectedChapter.title)}
                       className="bg-red-500/90 hover:bg-red-500 text-white p-2 rounded-lg shadow-lg transition-all duration-200"
                       title="Delete Chapter"
                     >
@@ -817,141 +1282,261 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                   </div>
                 </div>
 
-                {/* Chapter Content */}
-                <div className="p-5">
-                  <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-slate-700 transition-colors line-clamp-2">
-                    {chapter.title}
+                  {/* Chapter Description */}
+                  {selectedChapter.description && (
+                    <div className="px-4 sm:px-8 py-4 sm:py-6 bg-amber-50 border-b border-amber-100">
+                      <p className="text-slate-700 leading-relaxed text-sm sm:text-base">{selectedChapter.description}</p>
+                    </div>
+                  )}
+
+                  {/* Memories Section */}
+                  <div className="p-4 sm:p-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                        <h3 className="text-xl font-bold text-slate-900">
+                          Memories from this chapter
                   </h3>
                   
-                  {chapter.description && (
-                    <p className="text-slate-600 text-sm mb-4 line-clamp-3 leading-relaxed">
-                      {chapter.description}
-                    </p>
-                  )}
-
-                  {/* Chapter Details */}
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center space-x-2">
-                      <Calendar size={14} className="text-blue-500" />
-                      <span className="text-sm text-slate-600 font-medium">
-                        {formatDateRange(chapter.startDate, chapter.endDate)}
+                        {/* Collaborators - Google Drive style overlapping avatars */}
+                        <button
+                          onClick={() => {
+                            setCollaboratorsChapter(selectedChapter)
+                            setShowCollaboratorsModal(true)
+                            fetchNetworkCollaborators(selectedChapter.id)
+                          }}
+                          className="flex items-center hover:opacity-80 transition-opacity"
+                          title="View and manage collaborators"
+                        >
+                          <div className="flex -space-x-2">
+                            {/* You (Creator) */}
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 border-2 border-white flex items-center justify-center shadow-md">
+                              <span className="text-white text-xs font-bold">You</span>
+                            </div>
+                            
+                            {/* Registered members - show all */}
+                            {selectedChapter.members && selectedChapter.members.length > 0 && 
+                              selectedChapter.members.map((member, index) => (
+                                <div 
+                                  key={member.id || index}
+                                  className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white flex items-center justify-center shadow-md"
+                                  title="Registered member"
+                                >
+                                  <span className="text-white text-xs font-bold">
+                                    {index + 1}
                       </span>
                     </div>
-
-                    {chapter.location && (
-                      <div className="flex items-center space-x-2">
-                        <MapPin size={14} className="text-green-500" />
-                        <span className="text-sm text-slate-600 font-medium line-clamp-1">
-                          {chapter.location}
-                        </span>
+                              ))
+                            }
+                            
+                            {/* Network collaborators (pending) - show all */}
+                            {(() => {
+                              // Find all network people who have access to this chapter
+                              // This will be populated when the modal is opened, but we can also check here
+                              const networkWithAccess = networkCollaborators.length > 0 ? networkCollaborators : []
+                              return networkWithAccess.map((person, index) => (
+                                <div 
+                                  key={person.id}
+                                  className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 border-2 border-white flex items-center justify-center shadow-md"
+                                  title={`${person.person_name} (Pending)`}
+                                >
+                                  <Users size={14} className="text-white" />
                       </div>
-                    )}
-
-                    <div className="flex items-center space-x-2">
-                      <Users size={14} className="text-purple-500" />
-                      <span className="text-sm text-slate-600 font-medium">
-                        {getMemoryCount(chapter.id)} {getMemoryCount(chapter.id) === 1 ? 'memory' : 'memories'}
-                      </span>
+                              ))
+                            })()}
+                            
+                            {/* Add collaborator button */}
+                            <div className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 border-2 border-white flex items-center justify-center shadow-md transition-colors">
+                              <Plus size={14} className="text-slate-600" />
                     </div>
+                          </div>
+                        </button>
                   </div>
 
-                  {/* Add Memory Button - Prominent placement */}
                   {onStartCreating && (
-                    <div className="mb-4">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onStartCreating(chapter.id, chapter.title)
-                        }}
-                        className="w-full bg-sky-600 hover:bg-sky-700 text-white py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2"
-                        title={`Add new memory to ${chapter.title}`}
+                          onClick={() => onStartCreating(selectedChapter.id, selectedChapter.title)}
+                          className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2"
                       >
                         <Plus size={16} />
-                        <span>Add Memories</span>
+                          <span>Add Memory</span>
                       </button>
+                      )}
                     </div>
-                  )}
 
-                  {/* Quick Actions */}
-                  <div className="flex items-center space-x-2">
-                    
-                    {/* Info Icon with Details */}
-                    <div className="relative group/quickinfo">
+                    {selectedChapterMemories.length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                        <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <span className="text-2xl">💭</span>
+                        </div>
+                        <p className="text-slate-600 mb-4">No memories in this chapter yet</p>
+                        {onStartCreating && (
                       <button
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2 rounded-lg transition-all duration-200"
-                        title="Chapter Details"
+                            onClick={() => onStartCreating(selectedChapter.id, selectedChapter.title)}
+                            className="bg-sky-600 hover:bg-sky-700 text-white py-2 px-6 rounded-lg text-sm font-medium transition-all duration-200"
                       >
-                        <Info size={14} />
+                            Add your first memory
                       </button>
-                      
-                      {/* Hover Tooltip */}
-                      <div className="absolute right-0 bottom-full mb-2 w-80 bg-white rounded-lg shadow-2xl border border-slate-200 p-4 opacity-0 group-hover/quickinfo:opacity-100 transition-all duration-200 pointer-events-none z-[99999]" style={{ zIndex: 99999 }}>
-                        <div className="space-y-3">
-                          <div className="border-b border-slate-100 pb-2">
-                            <h4 className="font-semibold text-slate-900 text-sm">{chapter.title}</h4>
-                            <p className="text-xs text-slate-500">
-                              {chapter.startDate && chapter.endDate && 
-                                `${new Date(chapter.startDate).getFullYear()} - ${new Date(chapter.endDate).getFullYear()}`
-                              }
-                            </p>
+                        )}
                           </div>
-                          
-                          {chapter.description && (
-                            <div>
-                              <p className="text-xs font-medium text-slate-700 mb-1">Description:</p>
-                              <p className="text-xs text-slate-600 leading-relaxed">{chapter.description}</p>
-                            </div>
-                          )}
-                          
-                          {chapter.location && (
-                            <div>
-                              <p className="text-xs font-medium text-slate-700 mb-1">Location:</p>
-                              <p className="text-xs text-slate-600">{chapter.location}</p>
-                            </div>
-                          )}
-                          
-                          <div className="pt-2 border-t border-slate-100">
-                            <p className="text-xs text-slate-500">
-                              {getMemoryCount(chapter.id)} {getMemoryCount(chapter.id) === 1 ? 'memory' : 'memories'} in this chapter
-                            </p>
+                    ) : (
+                      <div className="space-y-4">
+                        {selectedChapterMemories
+                          .sort((a, b) => {
+                            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+                            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                            return dateB - dateA
+                          })
+                          .map((memory) => (
+                            <div
+                              key={memory.id}
+                              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-200"
+                            >
+                              {/* Header with Title and Collaborator Badge */}
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <h4 className="font-bold text-slate-900 text-xl mb-2">
+                                    {memory.title || 'Untitled Memory'}
+                                  </h4>
+                                  <div className="flex items-center flex-wrap gap-2">
+                                    {/* Date */}
+                                    {memory.createdAt && (
+                                      <span className="text-sm text-slate-500">
+                                        {new Date(memory.createdAt).toLocaleDateString('en-US', { 
+                                          year: 'numeric', 
+                                          month: 'long', 
+                                          day: 'numeric' 
+                                        })}
+                                      </span>
+                                    )}
+                                    
+                                    {/* Creator Badge */}
+                                    {memory.user && memory.userId !== user?.id && (
+                                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full border border-amber-200">
+                                        <Users size={12} />
+                                        Added by {(memory.user as any).full_name || memory.user.email?.split('@')[0] || 'Collaborator'}
+                                      </span>
+                                    )}
+                                    
+                                    {memory.userId === user?.id && (
+                                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded-full border border-purple-200">
+                                        Added by you
+                                      </span>
+                                    )}
                           </div>
                         </div>
                         
-                        {/* Arrow pointing up to button */}
-                        <div className="absolute -bottom-1 right-6 w-2 h-2 bg-white border-l border-b border-slate-200 rotate-45"></div>
-                      </div>
-                    </div>
-                    
+                                {/* Action Buttons - Only show if user owns the memory */}
+                                {memory.userId === user?.id && (
+                                  <div className="flex items-center space-x-2 ml-4">
+                                    {onEdit && (
                     <button
-                      onClick={() => handleEditChapter(chapter)}
-                      className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-1"
+                                        onClick={() => onEdit(memory)}
+                                        className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Edit memory"
                     >
-                      <Edit size={14} />
-                      <span>Edit</span>
+                                        <Edit size={18} />
                     </button>
+                                    )}
+                                    {onDelete && (
+                                      <button
+                                        onClick={() => onDelete(memory)}
+                                        className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete memory"
+                                      >
+                                        <Trash2 size={18} />
+                                      </button>
+                                    )}
                   </div>
+                                )}
+                </div>
+                        
+                              {/* Description */}
+                              {memory.textContent && (
+                                <p className="text-slate-700 leading-relaxed mb-4 text-base">
+                                  {memory.textContent}
+                                </p>
+                              )}
+
+                              {/* Media */}
+                              {memory.media && memory.media.length > 0 && (
+                                <div className="mt-4 space-y-3">
+                                  {memory.media.map((mediaItem) => (
+                                    <div key={mediaItem.id}>
+                                      {mediaItem.type === 'IMAGE' && (
+                                        <PhotoTagDisplay
+                                          mediaId={mediaItem.id}
+                                          imageUrl={mediaItem.storage_url}
+                                          className="w-full max-w-full h-auto object-contain bg-slate-50 rounded-lg border border-slate-200"
+                                          showTagsOnHover={true}
+                                          showTagIndicator={true}
+                                          onPersonClick={(personId, personName) => {
+                                            console.log('🏷️ CHAPTER: Person clicked:', personName, personId)
+                                            if (onNavigateToMyPeople) {
+                                              onNavigateToMyPeople()
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                      {mediaItem.type === 'VIDEO' && (
+                                        <video 
+                                          src={mediaItem.storage_url} 
+                                          controls 
+                                          className="w-full max-w-full rounded-lg"
+                                        />
+                                      )}
+                                      {mediaItem.type === 'AUDIO' && (
+                                        <audio 
+                                          src={mediaItem.storage_url} 
+                                          controls 
+                                          className="w-full"
+                                        />
+                                      )}
+              </div>
+            ))}
+                    </div>
+                              )}
+
+                              {/* Categories/Tags */}
+                              {(memory as any).categories && (memory as any).categories.length > 0 && (
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                  {(memory as any).categories.map((category: string, index: number) => (
+                                    <span 
+                                      key={index}
+                                      className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full"
+                                    >
+                                      {category}
+                                    </span>
+                                  ))}
+                  </div>
+                              )}
+
+                              {/* Memory Contributions (Comments, Additions, Corrections) */}
+                              <div className="mt-6 pt-4 border-t border-slate-200">
+                                <MemoryContributions 
+                                  memoryId={memory.id}
+                                  memoryTitle={memory.title || 'this memory'}
+                                  onNavigateToMyPeople={onNavigateToMyPeople}
+                                />
                 </div>
               </div>
             ))}
-
-            {/* Add New Chapter Card */}
-            <div 
-              onClick={onCreateGroup}
-              className="bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-300 hover:border-slate-400 rounded-2xl transition-all duration-300 cursor-pointer group"
-            >
-              <div className="h-48 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-slate-200 group-hover:bg-slate-300 rounded-2xl flex items-center justify-center mx-auto mb-3 transition-colors">
-                    <Plus size={24} className="text-slate-500" />
                   </div>
-                  <p className="text-slate-600 font-medium">Add New Chapter</p>
+                    )}
                 </div>
               </div>
-              <div className="p-5">
-                <p className="text-slate-500 text-sm text-center">
-                  Create a new life chapter to organise your memories
+              ) : (
+                <div className="bg-white rounded-2xl shadow-lg border-2 border-dashed border-slate-200 p-12 text-center h-full flex items-center justify-center">
+                  <div>
+                    <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <span className="text-4xl">📖</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-slate-900 mb-3">Select a chapter</h3>
+                    <p className="text-slate-600 max-w-md mx-auto">
+                      Choose a chapter from the left to view its memories and details
                 </p>
               </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1313,6 +1898,114 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
         </div>
       )}
 
+      {/* Collaborators Modal */}
+      {showCollaboratorsModal && collaboratorsChapter && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[80vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Share Chapter</h2>
+                <p className="text-sm text-slate-600 mt-1">{collaboratorsChapter.title}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCollaboratorsModal(false)
+                  setCollaboratorsChapter(null)
+                }}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto flex-1">
+              {/* Current Collaborators */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">People with access</h3>
+                <div className="space-y-2">
+                  {/* You (Owner) */}
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">You</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{user?.email}</p>
+                        <p className="text-xs text-slate-500">Owner</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">Full access</span>
+                  </div>
+
+                  {/* Registered Members */}
+                  {collaboratorsChapter.members && collaboratorsChapter.members.length > 0 && 
+                    collaboratorsChapter.members.map((member, index) => (
+                      <div key={member.id || index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                            <span className="text-white text-sm font-bold">{index + 1}</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">Collaborator {index + 1}</p>
+                            <p className="text-xs text-slate-500">Member</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">Can view & edit</span>
+                      </div>
+                    ))
+                  }
+
+                  {/* Network Collaborators (Pending Invitations) */}
+                  {networkCollaborators.map((person, index) => (
+                    <div key={person.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+                          <Users size={18} className="text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{person.person_name}</p>
+                          <p className="text-xs text-amber-700">Invited from My People</p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Pending</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Invite Section */}
+              <div className="border-t border-slate-200 pt-6">
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">Invite to collaborate</h3>
+                <InviteCollaborators 
+                  chapterId={collaboratorsChapter.id}
+                  chapterTitle={collaboratorsChapter.title}
+                  onInviteSent={async () => {
+                    // Refresh network collaborators to show newly added people
+                    await fetchNetworkCollaborators(collaboratorsChapter.id)
+                  }}
+                  onNavigateToMyPeople={onNavigateToMyPeople}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end p-6 border-t border-slate-200">
+              <button
+                onClick={() => {
+                  setShowCollaboratorsModal(false)
+                  setCollaboratorsChapter(null)
+                }}
+                className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         isOpen={showDeleteModal}
@@ -1375,27 +2068,77 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
         document.body
       )}
 
-      {/* Fixed bottom button for adding new chapter - Shows when user has chapters */}
+      {/* Mobile Floating Action Button (FAB) with Menu - Shows when chapters exist */}
       {isMounted && chapters.length > 0 && createPortal(
-        <div 
-          className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg overflow-x-hidden"
-          style={{
-            position: 'fixed',
-            zIndex: 9999,
-            transform: 'translate3d(0, 0, 0)',
-            WebkitTransform: 'translate3d(0, 0, 0)',
-            willChange: 'transform'
-          }}
-        >
-          <div className="max-w-2xl mx-auto px-4">
+        <div className="sm:hidden">
+          {/* Backdrop when menu is open */}
+          {isFabOpen && (
+            <div 
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity duration-200"
+              onClick={() => setIsFabOpen(false)}
+            />
+          )}
+
+          {/* FAB Menu Options */}
+          {isFabOpen && (
+            <div className="fixed bottom-24 right-6 z-50 space-y-3 animate-fade-in">
+              {/* Add Memory Option - Only show if there's a selected chapter or chapters exist */}
+              {(selectedChapterId || chapters.length > 0) && onStartCreating && (
+                <button
+                  onClick={() => {
+                    const targetChapter = selectedChapterId 
+                      ? chapters.find(ch => ch.id === selectedChapterId)
+                      : chapters[0] // Default to first chapter if none selected
+                    onStartCreating(targetChapter?.id, targetChapter?.title)
+                    setIsFabOpen(false)
+                  }}
+                  className="flex items-center space-x-3 bg-white text-slate-900 px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                >
+                  <div className="w-10 h-10 bg-sky-600 rounded-full flex items-center justify-center">
+                    <Camera size={18} className="text-white" />
+                  </div>
+                  <span className="font-medium pr-2">
+                    {selectedChapterId && chapters.find(ch => ch.id === selectedChapterId)
+                      ? `Add to ${chapters.find(ch => ch.id === selectedChapterId)!.title.length > 15 
+                          ? chapters.find(ch => ch.id === selectedChapterId)!.title.substring(0, 15) + '...' 
+                          : chapters.find(ch => ch.id === selectedChapterId)!.title}`
+                      : 'Add Memory'}
+                  </span>
+                </button>
+              )}
+
+              {/* New Chapter Option */}
+              {onCreateGroup && (
             <button
-              onClick={onCreateGroup}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white px-4 sm:px-6 py-4 rounded-xl text-base sm:text-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 sm:space-x-3 shadow-lg hover:shadow-xl active:scale-95 min-w-0"
-            >
-              <Plus size={20} className="flex-shrink-0" />
-              <span className="truncate">New Chapter</span>
+                  onClick={() => {
+                    onCreateGroup()
+                    setIsFabOpen(false)
+                  }}
+                  className="flex items-center space-x-3 bg-white text-slate-900 px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                >
+                  <div className="w-10 h-10 bg-amber-600 rounded-full flex items-center justify-center">
+                    <BookOpen size={18} className="text-white" />
+                  </div>
+                  <span className="font-medium pr-2">New Chapter</span>
             </button>
+              )}
           </div>
+          )}
+
+          {/* Main FAB Button */}
+          <button
+            onClick={() => setIsFabOpen(!isFabOpen)}
+            className={`fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center z-50 ${
+              isFabOpen 
+                ? 'bg-slate-900 rotate-45' 
+                : 'bg-gradient-to-r from-amber-600 to-orange-500 hover:from-amber-700 hover:to-orange-600'
+            }`}
+            style={{
+              transform: isFabOpen ? 'rotate(45deg) scale(1.05)' : 'rotate(0deg) scale(1)',
+            }}
+          >
+            <Plus size={24} className="text-white" />
+          </button>
         </div>,
         document.body
       )}

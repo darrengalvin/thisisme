@@ -27,7 +27,10 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
 
   // Load notifications
   const loadNotifications = async () => {
-    if (!user || !session) return
+    if (!user || !session || !user.id || !user.email) {
+      console.log('🔔 NOTIFICATION BELL: Skipping - user not fully loaded:', { hasUser: !!user, hasSession: !!session, hasId: !!user?.id, hasEmail: !!user?.email })
+      return
+    }
 
     try {
       setLoading(true)
@@ -71,7 +74,7 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
 
   // Mark notifications as read
   const markAsRead = async (notificationIds?: string[], markAllRead = false) => {
-    if (!user || !session) return
+    if (!user || !session || !user.id || !user.email) return
 
     try {
       console.log('🔔 NOTIFICATION BELL: Marking as read:', { notificationIds, markAllRead })

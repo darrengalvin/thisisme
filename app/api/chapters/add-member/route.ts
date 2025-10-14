@@ -29,13 +29,7 @@ export async function POST(request: NextRequest) {
     // Verify user has access to this chapter
     const { data: chapter, error: chapterError } = await supabaseAdmin
       .from('timezones')
-      .select(`
-        id,
-        title,
-        timezone_members!inner(
-          user_id
-        )
-      `)
+      .select('id, title, creator_id')
       .eq('id', chapterId)
       .single()
 
@@ -44,54 +38,76 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Chapter not found' }, { status: 404 })
     }
 
-    // Check if user is a member of this chapter
-    const isMember = chapter.timezone_members.some((member: any) => member.user_id === user.userId)
-    if (!isMember) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-
-    // Check if person is already a member
-    const { data: existingMember } = await supabaseAdmin
+    // Check if user is the creator or a member of this chapter
+    const { data: membership } = await supabaseAdmin
       .from('timezone_members')
       .select('id')
       .eq('timezone_id', chapterId)
-      .eq('person_id', personId)
+      .eq('user_id', user.userId)
       .single()
 
-    if (existingMember) {
-      console.log('👥 ADD MEMBER API: Person already a member:', personName)
+    const isCreator = chapter.creator_id === user.userId
+    const isMember = !!membership
+
+    if (!isCreator && !isMember) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
+
+    // Get the person from user_networks
+    console.log('👥 ADD MEMBER API: Querying user_networks for person:', { personId, userId: user.userId })
+    
+    const { data: networkPerson, error: networkError } = await supabaseAdmin
+      .from('user_networks')
+      .select('id, pending_chapter_invitations')
+      .eq('id', personId)
+      .eq('owner_id', user.userId) // Fixed: use owner_id instead of user_id
+      .single()
+
+    console.log('👥 ADD MEMBER API: Network query result:', { 
+      found: !!networkPerson, 
+      error: networkError?.message,
+      errorCode: networkError?.code 
+    })
+
+    if (networkError || !networkPerson) {
+      console.error('👥 ADD MEMBER API: Person not found in network:', networkError)
+      return NextResponse.json({ 
+        error: 'Person not found in your network',
+        details: networkError?.message 
+      }, { status: 404 })
+    }
+
+    // Check if person already has a pending invitation for this chapter
+    const pendingInvitations = networkPerson.pending_chapter_invitations || []
+    if (pendingInvitations.includes(chapterId)) {
+      console.log('👥 ADD MEMBER API: Person already has pending invitation:', personName)
       return NextResponse.json({ 
         success: true, 
-        message: `${personName} is already a member of this chapter`,
-        alreadyMember: true
+        message: `${personName} already has access to this chapter`,
+        alreadyInvited: true
       })
     }
 
-    // Add person to chapter
-    const { data: newMember, error: addError } = await supabaseAdmin
-      .from('timezone_members')
-      .insert({
-        timezone_id: chapterId,
-        person_id: personId,
-        person_name: personName,
-        person_email: personEmail,
-        added_by: user.userId,
-        added_at: new Date().toISOString()
+    // Add chapter to person's pending invitations
+    const updatedInvitations = [...pendingInvitations, chapterId]
+    const { error: updateError } = await supabaseAdmin
+      .from('user_networks')
+      .update({
+        pending_chapter_invitations: updatedInvitations
       })
-      .select()
-      .single()
+      .eq('id', personId)
 
-    if (addError) {
-      console.error('👥 ADD MEMBER API: Failed to add member:', addError)
-      return NextResponse.json({ error: 'Failed to add person to chapter' }, { status: 500 })
+    if (updateError) {
+      console.error('👥 ADD MEMBER API: Failed to add invitation:', updateError)
+      return NextResponse.json({ error: 'Failed to invite person to chapter' }, { status: 500 })
     }
 
-    console.log('👥 ADD MEMBER API: Successfully added member:', personName)
+    console.log('👥 ADD MEMBER API: Successfully invited person:', personName)
 
     return NextResponse.json({
       success: true,
-      message: `${personName} has been added to the chapter`,
-      member: newMember
+      message: `${personName} has been given access to the chapter`,
+      personId: personId
     })
 
   } catch (error) {

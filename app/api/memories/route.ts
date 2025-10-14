@@ -49,16 +49,32 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    // Get all memories for the user
+    // Get chapters the user created
+    const { data: ownedChapters } = await supabase
+      .from('timezones')
+      .select('id')
+      .eq('creator_id', targetUserId)
+
+    // Get chapters the user is a member of
+    const { data: memberChapters } = await supabase
+      .from('timezone_members')
+      .select('timezone_id')
+      .eq('user_id', targetUserId)
+
+    const ownedIds = ownedChapters?.map(ch => ch.id) || []
+    const memberIds = memberChapters?.map(m => m.timezone_id) || []
+    const chapterIds = [...new Set([...ownedIds, ...memberIds])]
+
+    // Get all memories from chapters the user has access to
     const { data: memories, error: memoriesError } = await supabase
       .from('memories')
       .select(`
         *,
-        user:users!memories_user_id_fkey(id, email),
+        user:users!memories_user_id_fkey(id, email, full_name),
         chapter:chapters!memories_chapter_id_fkey(id, title, type),
         media(*)
       `)
-      .eq('user_id', targetUserId)
+      .in('chapter_id', chapterIds.length > 0 ? chapterIds : ['no-chapters'])
       .order('created_at', { ascending: false })
 
     if (memoriesError) {

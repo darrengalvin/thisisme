@@ -12,6 +12,7 @@ interface NetworkPerson {
   person_phone?: string
   relationship?: string
   photo_url?: string
+  pending_chapter_invitations?: string[]
 }
 
 interface InviteCollaboratorsProps {
@@ -44,7 +45,10 @@ export default function InviteCollaborators({
 
   // Fetch network people
   const fetchNetworkPeople = async () => {
-    if (!user) return
+    if (!user || !user.id || !user.email) {
+      console.log('👥 INVITE: Skipping fetch - user not fully loaded:', { hasUser: !!user, hasId: !!user?.id, hasEmail: !!user?.email })
+      return
+    }
     
     setLoadingPeople(true)
     try {
@@ -70,6 +74,8 @@ export default function InviteCollaborators({
         const data = await response.json()
         setNetworkPeople(data.people || [])
         console.log('👥 INVITE: Fetched network people:', data.people?.length || 0)
+        console.log('👥 INVITE: Network people IDs:', data.people?.map((p: any) => ({ id: p.id, name: p.person_name })))
+        console.log('👥 INVITE: People with chapter access:', data.people?.filter((p: any) => p.pending_chapter_invitations?.includes(chapterId)).map((p: any) => p.person_name))
       } else {
         console.error('Failed to fetch network people')
         toast.error('Failed to load your network')
@@ -105,6 +111,8 @@ export default function InviteCollaborators({
         const person = networkPeople.find(p => p.id === personId)
         if (!person) return
 
+        console.log('👥 INVITE: Adding person to chapter:', { personId, personName: person.person_name, chapterId })
+
         const response = await fetch('/api/chapters/add-member', {
           method: 'POST',
           headers: {
@@ -120,9 +128,17 @@ export default function InviteCollaborators({
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to add ${person.person_name}`)
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          console.error('👥 INVITE: Failed to add person:', { 
+            personName: person.person_name, 
+            status: response.status, 
+            error: errorData 
+          })
+          throw new Error(`Failed to add ${person.person_name}: ${errorData.error || response.statusText}`)
         }
 
+        const result = await response.json()
+        console.log('👥 INVITE: Successfully added person:', { personName: person.person_name, result })
         return person
       })
 
@@ -130,6 +146,9 @@ export default function InviteCollaborators({
       
       console.log('👥 INVITE: Added people to chapter:', selectedPeople.length)
       toast.success(`Added ${selectedPeople.length} people to the chapter!`)
+      
+      // Refresh the network people list to update "Already added" status
+      await fetchNetworkPeople()
       
       // Reset form
       setSelectedPeople([])
@@ -148,10 +167,10 @@ export default function InviteCollaborators({
 
   // Load network people when switching to people method
   useEffect(() => {
-    if (inviteMethod === 'people' && networkPeople.length === 0) {
+    if (inviteMethod === 'people' && networkPeople.length === 0 && user?.id && user?.email) {
       fetchNetworkPeople()
     }
-  }, [inviteMethod, networkPeople.length])
+  }, [inviteMethod, networkPeople.length, user?.id, user?.email])
 
   // Generate share link
   const generateShareLink = async () => {
@@ -362,27 +381,33 @@ export default function InviteCollaborators({
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {networkPeople.map((person) => (
-                      <label
-                        key={person.id}
-                        className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
-                          selectedPeople.includes(person.id)
-                            ? 'bg-blue-50 border-blue-200'
-                            : 'bg-white border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedPeople.includes(person.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedPeople(prev => [...prev, person.id])
-                            } else {
-                              setSelectedPeople(prev => prev.filter(id => id !== person.id))
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
+                    {networkPeople.map((person) => {
+                      const alreadyAdded = person.pending_chapter_invitations?.includes(chapterId)
+                      return (
+                        <label
+                          key={person.id}
+                          className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 ${
+                            alreadyAdded
+                              ? 'bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed'
+                              : selectedPeople.includes(person.id)
+                              ? 'bg-blue-50 border-blue-200 cursor-pointer'
+                              : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedPeople.includes(person.id) || alreadyAdded}
+                            disabled={alreadyAdded}
+                            onChange={(e) => {
+                              if (alreadyAdded) return
+                              if (e.target.checked) {
+                                setSelectedPeople(prev => [...prev, person.id])
+                              } else {
+                                setSelectedPeople(prev => prev.filter(id => id !== person.id))
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2">
                             {person.photo_url ? (
@@ -396,10 +421,17 @@ export default function InviteCollaborators({
                                 <UserCheck className="w-4 h-4 text-gray-500" />
                               </div>
                             )}
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {person.person_name}
-                              </p>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-gray-900">
+                                  {person.person_name}
+                                </p>
+                                {alreadyAdded && (
+                                  <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded">
+                                    Already added
+                                  </span>
+                                )}
+                              </div>
                               {person.relationship && (
                                 <p className="text-xs text-gray-500">
                                   {person.relationship}
@@ -409,7 +441,8 @@ export default function InviteCollaborators({
                           </div>
                         </div>
                       </label>
-                    ))}
+                    )
+                  })}
                   </div>
                 )}
               </div>

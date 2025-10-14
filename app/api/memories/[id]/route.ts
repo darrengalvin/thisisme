@@ -265,3 +265,198 @@ export async function GET(
     )
   }
 }
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const memoryId = params.id
+    console.log('✏️ UPDATE MEMORY API: Request for memory:', memoryId)
+    
+    // Get token from request
+    const token = extractTokenFromHeader(request.headers.get('authorization') || undefined)
+    
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    const user = await verifyToken(token)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      )
+    }
+
+    // Check if user owns this memory
+    const { data: existingMemory, error: fetchError } = await supabaseAdmin
+      .from('memories')
+      .select('user_id, chapter_id')
+      .eq('id', memoryId)
+      .single()
+
+    if (fetchError || !existingMemory) {
+      return NextResponse.json(
+        { error: 'Memory not found' },
+        { status: 404 }
+      )
+    }
+
+    if (existingMemory.user_id !== user.userId) {
+      return NextResponse.json(
+        { error: 'You do not have permission to edit this memory' },
+        { status: 403 }
+      )
+    }
+
+    // Parse FormData
+    const formData = await request.formData()
+    const title = formData.get('title') as string
+    const textContent = formData.get('textContent') as string
+    const timeZoneId = formData.get('timeZoneId') as string
+
+    console.log('✏️ UPDATE MEMORY API: Updating with data:', { 
+      title, 
+      hasTextContent: !!textContent, 
+      timeZoneId,
+      currentChapterId: existingMemory.chapter_id
+    })
+
+    // Update the memory with proper column names
+    const { data: updatedMemory, error: updateError } = await supabaseAdmin
+      .from('memories')
+      .update({
+        title: title || null,
+        text_content: textContent || null,
+        chapter_id: timeZoneId || existingMemory.chapter_id || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', memoryId)
+      .select(`
+        id,
+        title,
+        text_content,
+        image_url,
+        user_id,
+        chapter_id,
+        created_at,
+        updated_at,
+        media(*)
+      `)
+      .single()
+
+    if (updateError) {
+      console.error('✏️ UPDATE MEMORY API: Error updating memory:', updateError)
+      return NextResponse.json(
+        { error: 'Failed to update memory', details: updateError.message },
+        { status: 500 }
+      )
+    }
+
+    console.log('✏️ UPDATE MEMORY API: Successfully updated memory:', memoryId)
+
+    // Transform snake_case to camelCase for frontend
+    const transformedMemory = {
+      ...updatedMemory,
+      textContent: updatedMemory.text_content,
+      userId: updatedMemory.user_id,
+      chapterId: updatedMemory.chapter_id,
+      createdAt: updatedMemory.created_at,
+      updatedAt: updatedMemory.updated_at,
+      imageUrl: updatedMemory.image_url
+    }
+
+    return NextResponse.json({
+      success: true,
+      memory: transformedMemory
+    })
+
+  } catch (error) {
+    console.error('✏️ UPDATE MEMORY API: Unexpected error:', error)
+    return NextResponse.json(
+      { error: 'Failed to update memory' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const memoryId = params.id
+    console.log('🗑️ DELETE MEMORY API: Request for memory:', memoryId)
+    
+    // Get token from request
+    const token = extractTokenFromHeader(request.headers.get('authorization') || undefined)
+    
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    const user = await verifyToken(token)
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      )
+    }
+
+    // Check if user owns this memory
+    const { data: existingMemory, error: fetchError } = await supabaseAdmin
+      .from('memories')
+      .select('user_id')
+      .eq('id', memoryId)
+      .single()
+
+    if (fetchError || !existingMemory) {
+      return NextResponse.json(
+        { error: 'Memory not found' },
+        { status: 404 }
+      )
+    }
+
+    if (existingMemory.user_id !== user.userId) {
+      return NextResponse.json(
+        { error: 'You do not have permission to delete this memory' },
+        { status: 403 }
+      )
+    }
+
+    // Delete the memory (cascade will handle related records)
+    const { error: deleteError } = await supabaseAdmin
+      .from('memories')
+      .delete()
+      .eq('id', memoryId)
+
+    if (deleteError) {
+      console.error('🗑️ DELETE MEMORY API: Error deleting memory:', deleteError)
+      return NextResponse.json(
+        { error: 'Failed to delete memory', details: deleteError.message },
+        { status: 500 }
+      )
+    }
+
+    console.log('🗑️ DELETE MEMORY API: Successfully deleted memory:', memoryId)
+
+    return NextResponse.json({
+      success: true,
+      message: 'Memory deleted successfully'
+    })
+
+  } catch (error) {
+    console.error('🗑️ DELETE MEMORY API: Unexpected error:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete memory' },
+      { status: 500 }
+    )
+  }
+}

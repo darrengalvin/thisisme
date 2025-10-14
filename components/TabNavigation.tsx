@@ -1,8 +1,8 @@
 'use client'
 
-import { Home, BarChart3, BookOpen, Users, Share2 } from 'lucide-react'
+import { BookOpen, Users, Share2 } from 'lucide-react'
 
-type TabType = 'home' | 'timeline' | 'timezones' | 'people' | 'collaborative'
+type TabType = 'timezones' | 'people' | 'collaborative'
 
 interface TabNavigationProps {
   activeTab: TabType
@@ -26,20 +26,6 @@ const tabs: Tab[] = [
     shortLabel: 'Life',
     icon: BookOpen,
     description: 'Organize memories by life periods'
-  },
-  {
-    id: 'home',
-    label: 'Feed',
-    shortLabel: 'Feed',
-    icon: Home,
-    description: 'Recent memories and activity'
-  },
-  {
-    id: 'timeline',
-    label: 'Timeline',
-    shortLabel: 'Time',
-    icon: BarChart3,
-    description: 'Chronological memory timeline'
   },
   {
     id: 'people',

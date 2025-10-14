@@ -29,8 +29,8 @@ const VoiceChatButton = lazy(() => import('./VoiceChatButton'))
 import { MemoryWithRelations } from '@/lib/types'
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates'
 
-type TabType = 'home' | 'timeline' | 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support' | 'people' | 'collaborative'
-type MainTabType = 'home' | 'timeline' | 'timezones' | 'people' | 'collaborative'
+type TabType = 'create' | 'timezones' | 'create-timezone' | 'profile' | 'support' | 'people' | 'collaborative'
+type MainTabType = 'timezones' | 'people' | 'collaborative'
 
 interface UserType {
   id: string
@@ -117,22 +117,20 @@ export default function Dashboard() {
     console.log('🎯 Admin state changed:', { isAdmin, userEmail: user?.email });
   }, [isAdmin, user?.email])
 
-  // Refetch data when returning to timeline views after profile changes
+  // Refetch data when returning to life chapters after profile changes
   useEffect(() => {
-    if (supabaseUser && (activeTab === 'home' || activeTab === 'timeline')) {
+    if (supabaseUser && activeTab === 'timezones') {
       fetchUserAndMemories()
     }
     
-    // Clear timeline controls when not on timeline view
-    if (activeTab !== 'timeline') {
-      setTimelineControls(null)
-    }
+    // Clear timeline controls (no longer used, timeline is now part of Life Chapters)
+    setTimelineControls(null)
   }, [activeTab, supabaseUser])
 
   // Auto-refresh data when window regains focus to prevent stale data issues
   useEffect(() => {
     const handleFocus = () => {
-      if (supabaseUser && (activeTab === 'home' || activeTab === 'timeline')) {
+      if (supabaseUser && activeTab === 'timezones') {
         console.log('🔄 DASHBOARD: Window focused - refreshing data to prevent stale state')
         // Clear failed deletes on focus to allow retry (but keep permanently deleted)
         if (failedDeletes.size > 0) {
@@ -861,8 +859,8 @@ export default function Dashboard() {
       })
     }, 10000)
     
-    // Auto-scroll to chapter in sidebar if in feed view
-    if (activeTab === 'home') {
+    // Auto-scroll to chapter in sidebar if in life chapters view
+    if (activeTab === 'timezones') {
       setTimeout(() => {
         const chapterButton = document.querySelector(`[data-chapter-name="${chapterName}"]`)
         if (chapterButton) {
@@ -880,8 +878,8 @@ export default function Dashboard() {
       handleMayaChapterUpdate(chapterName)
     }
     
-    // Auto-switch to chapter view if in timeline view and chapter specified
-    if (activeTab === 'home' && chapterName) {
+    // Auto-switch to chapter view if in life chapters and chapter specified
+    if (activeTab === 'timezones' && chapterName) {
       console.log('🎯 DASHBOARD: Switching to chapter view for:', chapterName)
       
       // Wait for data refresh then switch to chapter
@@ -975,277 +973,6 @@ export default function Dashboard() {
     const effectiveActiveTab = activeTab
 
     switch (effectiveActiveTab) {
-      case 'home':
-        // Use the TimelineView for vertical feed with chapters on left axis
-        const timelineBirthYear = user?.birthYear || new Date().getFullYear() - 25 // Better default than 1950
-        console.log('🎯 DASHBOARD: Using vertical feed view with birth year:', {
-          actual: user?.birthYear,
-          fallback: new Date().getFullYear() - 25,
-          used: timelineBirthYear,
-          userLoaded: !!user
-        })
-        
-        // Only render if we have user data
-        if (!user) {
-          return <div className="flex-1 flex items-center justify-center"><div>Loading...</div></div>
-        }
-        
-        // Apply failed delete and permanent delete filtering to memories passed to TimelineView
-        const filteredMemoriesForTimeline = memories.filter((memory: any) => 
-          !failedDeletes.has(memory.id) && !permanentlyDeleted.has(memory.id)
-        )
-        if (filteredMemoriesForTimeline.length !== memories.length) {
-          const failedCount = memories.filter((m: any) => failedDeletes.has(m.id)).length
-          const permanentCount = memories.filter((m: any) => permanentlyDeleted.has(m.id)).length
-          console.log(`🔄 DASHBOARD: Passing ${filteredMemoriesForTimeline.length}/${memories.length} memories to TimelineView (filtered out ${failedCount} failed deletes, ${permanentCount} permanently deleted)`)
-        }
-        
-        // Show the TimelineView as vertical feed with chapters on left axis
-        return (
-          <>
-            <div className="animate-fade-in">
-              <TimelineView 
-                memories={filteredMemoriesForTimeline} 
-                birthYear={timelineBirthYear}
-                user={user}
-                onEdit={handleEditMemory}
-                onDelete={handleDeleteMemory}
-                onStartCreating={handleCreateMemory}
-                onCreateChapter={() => setActiveTab('create-timezone')}
-                onChapterSelected={(chapterId, chapterTitle) => {
-                  console.log('🎯 DASHBOARD: Chapter selected:', chapterTitle, chapterId)
-                }}
-                highlightedMemories={highlightedMemories}
-                voiceAddedMemories={voiceAddedMemories}
-                highlightedChapters={highlightedChapters}
-                onNavigateToMyPeople={(personId) => {
-                  console.log('🏷️ DASHBOARD: Navigating to My People for person:', personId)
-                  setActiveTab('people')
-                  // TODO: Pass personId to MyPeople component to highlight/filter
-                }}
-              />
-            </div>
-            
-            {/* Debug Panel for Force Delete */}
-            {(failedDeletes.size > 0 || permanentlyDeleted.size > 0) && (
-              <div className="fixed bottom-4 right-4 bg-red-100 border border-red-300 rounded-lg p-4 shadow-lg max-w-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-red-800 font-medium text-sm">🚨 Stuck Memory Debug</h3>
-                  <button 
-                    onClick={() => setDebugMode(!debugMode)}
-                    className="text-red-600 hover:text-red-800 text-xs"
-                  >
-                    {debugMode ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-                
-                {debugMode && (
-                  <div className="space-y-2">
-                    <p className="text-red-700 text-xs">
-                      {failedDeletes.size} memory(ies) failed to delete, {permanentlyDeleted.size} permanently removed
-                    </p>
-                    
-                    <div className="space-y-1">
-                      {Array.from(failedDeletes).map(memoryId => {
-                        const memory = memories.find(m => m.id === memoryId)
-                        return (
-                          <div key={memoryId} className="bg-red-50 p-2 rounded text-xs">
-                            <div className="font-medium text-red-800">
-                              {memory?.title || 'Unknown'} ({memoryId.slice(0, 8)}...)
-                            </div>
-                            <button
-                              onClick={() => {
-                                console.log('💥 DEBUG: PERMANENTLY DELETING memory:', memoryId)
-                                // Add to permanently deleted list
-                                setPermanentlyDeleted(prev => new Set([...Array.from(prev), memoryId]))
-                                setFailedDeletes(prev => {
-                                  const updated = new Set(prev)
-                                  updated.delete(memoryId)
-                                  return updated
-                                })
-                                setMemories(prev => prev.filter(m => m.id !== memoryId))
-                                toast.success('Memory permanently removed from view')
-                                console.log('🎯 DEBUG: Memory permanently deleted - will never reappear')
-                              }}
-                              className="mt-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
-                            >
-                              Force Remove
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    
-                    {permanentlyDeleted.size > 0 && (
-                      <div className="space-y-1 border-t border-red-200 pt-2">
-                        <p className="text-green-700 text-xs font-medium">✅ Permanently Removed:</p>
-                        {Array.from(permanentlyDeleted).map(memoryId => {
-                          const memory = memories.find(m => m.id === memoryId) // This might be null since it's filtered out
-                          return (
-                            <div key={memoryId} className="bg-green-50 p-2 rounded text-xs">
-                              <div className="font-medium text-green-800">
-                                {memory?.title || 'Deleted Memory'} ({memoryId.slice(0, 8)}...)
-                              </div>
-                              <div className="text-green-600 text-xs mt-1">
-                                This memory will never reappear
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                    
-                    <button
-                      onClick={() => {
-                        console.log('🧹 DEBUG: Clearing all failed deletes and permanent deletes')
-                        setFailedDeletes(new Set())
-                        setPermanentlyDeleted(new Set())
-                        toast.success('Cleared all stuck memory references')
-                      }}
-                      className="w-full bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs font-medium"
-                    >
-                      Clear All Stuck References
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )
-      case 'timeline': 
-        const chronoBirthYear = user?.birthYear || new Date().getFullYear() - 25 // Better fallback
-        console.log('🎯 DASHBOARD: Using chronological timeline for timeline tab:', {
-          actual: user?.birthYear,
-          userObject: user,
-          fallback: new Date().getFullYear() - 25,
-          used: chronoBirthYear,
-          userLoaded: !!user,
-          isNewUser: isNewUser
-        })
-        
-        // Only render if we have user data
-        if (!user) {
-          return <div className="flex-1 flex items-center justify-center"><div>Loading...</div></div>
-        }
-        
-        // Apply failed delete and permanent delete filtering to memories passed to ChronologicalTimelineView
-        const filteredMemoriesForChrono = memories.filter((memory: any) => 
-          !failedDeletes.has(memory.id) && !permanentlyDeleted.has(memory.id)
-        )
-        if (filteredMemoriesForChrono.length !== memories.length) {
-          const failedCount = memories.filter((m: any) => failedDeletes.has(m.id)).length
-          const permanentCount = memories.filter((m: any) => permanentlyDeleted.has(m.id)).length
-          console.log(`🔄 DASHBOARD: Passing ${filteredMemoriesForChrono.length}/${memories.length} memories to ChronologicalTimelineView (filtered out ${failedCount} failed deletes, ${permanentCount} permanently deleted)`)
-        }
-        
-        // Keep the chronological timeline as the main timeline view
-        return (
-          <>
-            <ChronologicalTimelineView 
-              memories={filteredMemoriesForChrono} 
-              birthYear={chronoBirthYear}
-              user={user}
-              onStartCreating={handleCreateMemory}
-              onCreateChapter={() => setActiveTab('create-timezone')}
-              onZoomChange={(zoomLevel, currentYear, formatLabel, handlers) => {
-                setTimelineControls({
-                  zoomLevel,
-                  currentYear,
-                  formatLabel,
-                  handlers
-                })
-              }}
-              isNewUser={isNewUser}
-              highlightedMemories={highlightedMemories}
-              voiceAddedMemories={voiceAddedMemories}
-            />
-            
-            {/* Debug Panel for Force Delete */}
-            {(failedDeletes.size > 0 || permanentlyDeleted.size > 0) && (
-              <div className="fixed bottom-4 right-4 bg-red-100 border border-red-300 rounded-lg p-4 shadow-lg max-w-sm z-50">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-red-800 font-medium text-sm">🚨 Stuck Memory Debug</h3>
-                  <button 
-                    onClick={() => setDebugMode(!debugMode)}
-                    className="text-red-600 hover:text-red-800 text-xs"
-                  >
-                    {debugMode ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-                
-                {debugMode && (
-                  <div className="space-y-2">
-                    <p className="text-red-700 text-xs">
-                      {failedDeletes.size} memory(ies) failed to delete, {permanentlyDeleted.size} permanently removed
-                    </p>
-                    
-                    <div className="space-y-1">
-                      {Array.from(failedDeletes).map(memoryId => {
-                        const memory = memories.find(m => m.id === memoryId)
-                        return (
-                          <div key={memoryId} className="bg-red-50 p-2 rounded text-xs">
-                            <div className="font-medium text-red-800">
-                              {memory?.title || 'Unknown'} ({memoryId.slice(0, 8)}...)
-                            </div>
-                            <button
-                              onClick={() => {
-                                console.log('💥 DEBUG: PERMANENTLY DELETING memory:', memoryId)
-                                // Add to permanently deleted list
-                                setPermanentlyDeleted(prev => new Set([...Array.from(prev), memoryId]))
-                                setFailedDeletes(prev => {
-                                  const updated = new Set(prev)
-                                  updated.delete(memoryId)
-                                  return updated
-                                })
-                                setMemories(prev => prev.filter(m => m.id !== memoryId))
-                                toast.success('Memory permanently removed from view')
-                                console.log('🎯 DEBUG: Memory permanently deleted - will never reappear')
-                              }}
-                              className="mt-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
-                            >
-                              Force Remove
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    
-                    {permanentlyDeleted.size > 0 && (
-                      <div className="space-y-1 border-t border-red-200 pt-2">
-                        <p className="text-green-700 text-xs font-medium">✅ Permanently Removed:</p>
-                        {Array.from(permanentlyDeleted).map(memoryId => {
-                          const memory = memories.find(m => m.id === memoryId) // This might be null since it's filtered out
-                          return (
-                            <div key={memoryId} className="bg-green-50 p-2 rounded text-xs">
-                              <div className="font-medium text-green-800">
-                                {memory?.title || 'Deleted Memory'} ({memoryId.slice(0, 8)}...)
-                              </div>
-                              <div className="text-green-600 text-xs mt-1">
-                                This memory will never reappear
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                    
-                    <button
-                      onClick={() => {
-                        console.log('🧹 DEBUG: Clearing all failed deletes and permanent deletes')
-                        setFailedDeletes(new Set())
-                        setPermanentlyDeleted(new Set())
-                        toast.success('Cleared all stuck memory references')
-                      }}
-                      className="w-full bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs font-medium"
-                    >
-                      Clear All Stuck References
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )
       case 'profile':
         return (
           <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
@@ -1263,7 +990,14 @@ export default function Dashboard() {
       case 'timezones':
         return (
           <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
-            <GroupManager user={user} onCreateGroup={() => setActiveTab('create-timezone')} onStartCreating={handleCreateMemory} onNavigateToMyPeople={() => setActiveTab('people')} />
+            <GroupManager 
+              user={user} 
+              onCreateGroup={() => setActiveTab('create-timezone')} 
+              onStartCreating={handleCreateMemory} 
+              onNavigateToMyPeople={() => setActiveTab('people')}
+              onEdit={handleEditMemory}
+              onDelete={handleDeleteMemory}
+            />
           </Suspense>
         )
       case 'create-timezone':
@@ -1305,9 +1039,9 @@ export default function Dashboard() {
                 This is Me
               </h1>
               <p className="text-xs text-slate-500 font-medium hidden lg:block">
-                {activeTab === 'timeline' ?
-                  `Interactive timeline • ${memories.length} memories` :
-                  'Your Memory Feed'
+                {activeTab === 'timezones' ?
+                  `Life Chapters • ${memories.length} memories` :
+                  'Your Memory Collection'
                 }
               </p>
             </div>
@@ -1372,16 +1106,6 @@ export default function Dashboard() {
               </div>
             )}
             
-            {/* Add Chapter Button - Available for all users - Hidden on mobile, use FAB instead */}
-            <button
-              onClick={() => setActiveTab('create-timezone')}
-              className="hidden sm:flex bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-700 hover:to-slate-600 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg items-center space-x-2"
-            >
-              <Plus size={18} />
-              <span className="hidden lg:inline">Add Chapter</span>
-            </button>
-
-
             {/* Notification Bell */}
             <NotificationBell />
 

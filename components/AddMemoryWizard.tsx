@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check, Mic, Crown, Sparkles, Crop, Tag } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check, Mic, Crown, Sparkles, Crop, Tag, Edit } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import VoiceRecorder from '@/components/VoiceRecorder'
 import ImageCropper from '@/components/ImageCropper'
@@ -64,6 +64,10 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [showAiImageGenerator, setShowAiImageGenerator] = useState(false)
   const [aiImagePrompt, setAiImagePrompt] = useState('')
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+  const [showAiImageEditor, setShowAiImageEditor] = useState(false)
+  const [editingImageFile, setEditingImageFile] = useState<File | null>(null)
+  const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null)
+  const [aiEditPrompt, setAiEditPrompt] = useState('')
   const [showMayaEnrichment, setShowMayaEnrichment] = useState(false)
   const [mayaEnrichmentData, setMayaEnrichmentData] = useState<any>(null)
   const [liveEnrichment, setLiveEnrichment] = useState<any>(null)
@@ -406,7 +410,13 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate image')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('❌ Image generation API error:', { 
+          status: response.status, 
+          statusText: response.statusText,
+          error: errorData 
+        })
+        throw new Error(errorData.error || `Failed to generate image: ${response.statusText}`)
       }
 
       const data = await response.json()
@@ -434,6 +444,90 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     } catch (error) {
       console.error('Error generating AI image:', error)
       toast.error('Failed to generate image. Please try again.')
+    } finally {
+      setIsGeneratingImage(false)
+    }
+  }
+
+  const handleEditAiImage = (file: File, index: number) => {
+    setEditingImageFile(file)
+    setEditingImageIndex(index)
+    setShowAiImageEditor(true)
+    setAiEditPrompt('')
+  }
+
+  const handleSaveEditedImage = async () => {
+    if (!aiEditPrompt.trim()) {
+      toast.error('Please describe what you want to change')
+      return
+    }
+
+    if (!editingImageFile || editingImageIndex === null) {
+      toast.error('No image selected for editing')
+      return
+    }
+
+    setIsGeneratingImage(true)
+    try {
+      toast.loading('✨ Editing your image...', { duration: 3000 })
+
+      // Convert file to base64
+      const reader = new FileReader()
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1]
+          resolve(base64)
+        }
+        reader.readAsDataURL(editingImageFile)
+      })
+      const imageBase64 = await base64Promise
+      
+      const response = await fetch('/api/ai/edit-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({
+          imageBase64,
+          editPrompt: aiEditPrompt,
+          originalPrompt: memoryData.description || memoryData.title
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('❌ Image edit API error:', { 
+          status: response.status, 
+          error: errorData 
+        })
+        throw new Error(errorData.error || 'Failed to edit image')
+      }
+
+      const data = await response.json()
+      
+      // Convert base64 to blob
+      const base64Response = await fetch(data.imageUrl)
+      const blob = await base64Response.blob()
+      
+      // Create new file from blob
+      const newFile = new File([blob], `ai-edited-${Date.now()}.png`, { type: 'image/png' })
+      
+      // Replace the old file with the edited one
+      setMemoryData(prev => ({
+        ...prev,
+        files: prev.files.map((f, i) => i === editingImageIndex ? newFile : f)
+      }))
+      
+      setShowAiImageEditor(false)
+      setAiEditPrompt('')
+      setEditingImageFile(null)
+      setEditingImageIndex(null)
+      
+      toast.success('✨ Image edited successfully!')
+    } catch (error) {
+      console.error('Error editing AI image:', error)
+      toast.error('Failed to edit image. Please try again.')
     } finally {
       setIsGeneratingImage(false)
     }
@@ -1107,6 +1201,10 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                         setUpgradeFeature('ai-image-generation')
                         setShowUpgradeModal(true)
                       } else {
+                        // Pre-fill with memory description to ease user experience
+                        if (memoryData.description && !aiImagePrompt) {
+                          setAiImagePrompt(memoryData.description)
+                        }
                         setShowAiImageGenerator(true)
                       }
                     }}
@@ -1115,6 +1213,61 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                     <Sparkles size={18} />
                     <span>Describe memory to generate image</span>
                   </button>
+                )}
+
+                {/* AI Image Editor */}
+                {showAiImageEditor && editingImageFile && (
+                  <div className="space-y-3 border-2 border-amber-300 rounded-xl p-4 bg-amber-50">
+                    <div className="flex items-center space-x-2 text-amber-900 font-semibold mb-2">
+                      <Edit size={18} />
+                      <span>Edit AI-Generated Image</span>
+                    </div>
+                    
+                    {/* Show preview of current image */}
+                    <div className="w-full h-40 rounded-lg overflow-hidden border-2 border-amber-200 mb-3">
+                      <img 
+                        src={URL.createObjectURL(editingImageFile)} 
+                        alt="Editing" 
+                        className="w-full h-full object-contain bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <textarea
+                        value={aiEditPrompt}
+                        onChange={(e) => setAiEditPrompt(e.target.value)}
+                        placeholder="Describe what you want to change... (e.g., 'Make the child have lighter skin tone', 'Change the uniform to red and white', 'Add more children in the background')"
+                        className="w-full px-4 py-3 border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none bg-white"
+                        rows={3}
+                        disabled={isGeneratingImage}
+                      />
+                      <p className="text-xs text-amber-700 mt-1">
+                        💡 Tip: Be specific about what to change. The AI will keep the overall composition and only modify what you describe.
+                      </p>
+                    </div>
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={handleSaveEditedImage}
+                        disabled={isGeneratingImage || !aiEditPrompt.trim()}
+                        className="flex-1 flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-lg hover:from-amber-700 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all"
+                      >
+                        <Sparkles size={16} />
+                        <span>{isGeneratingImage ? 'Editing...' : 'Save Edits'}</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAiImageEditor(false)
+                          setAiEditPrompt('')
+                          setEditingImageFile(null)
+                          setEditingImageIndex(null)
+                        }}
+                        disabled={isGeneratingImage}
+                        className="px-6 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 disabled:opacity-50 font-medium transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -1160,18 +1313,19 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                     {memoryData.files.length} file{memoryData.files.length !== 1 ? 's' : ''} selected
                   </div>
                   {memoryData.files.map((file, index) => (
-                    <div key={index} className="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
-                      <div className="flex items-start space-x-3 flex-1">
+                    <div key={index} className="p-4 bg-slate-50 rounded-lg">
+                      <div className="flex items-start space-x-4">
                         {file.type.startsWith('image/') ? (
-                          <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 border-slate-200">
+                          <div className="w-40 h-40 rounded-lg overflow-hidden flex-shrink-0 border-2 border-slate-200 shadow-sm">
                             <img 
                               src={URL.createObjectURL(file)} 
                               alt={file.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-200 cursor-pointer"
+                              onClick={() => window.open(URL.createObjectURL(file), '_blank')}
                             />
                         </div>
                         ) : (
-                          <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <div className="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center flex-shrink-0">
                             {file.type.startsWith('video/') ? '🎥' : '🎵'}
                           </div>
                         )}
@@ -1184,49 +1338,65 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-slate-500 mb-3">
                             {(file.size / 1024 / 1024).toFixed(1)} MB
                           </div>
+                          
+                          {/* Action buttons */}
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            {file.name.includes('ai-generated') && file.type.startsWith('image/') && (
+                              <button
+                                onClick={() => handleEditAiImage(file, index)}
+                                className="px-3 py-1.5 text-purple-600 hover:bg-purple-50 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-1 border border-purple-200"
+                                title="Edit this AI-generated image"
+                              >
+                                <Edit size={14} />
+                                <span>Edit</span>
+                              </button>
+                            )}
+                            {file.type.startsWith('image/') && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setSelectedImageForTagging({
+                                      url: URL.createObjectURL(file),
+                                      fileIndex: index
+                                    })
+                                    setShowPhotoTagger(true)
+                                  }}
+                                  className="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-1 border border-blue-200"
+                                  title="Tag people in this photo"
+                                >
+                                  <Tag size={14} />
+                                  <span>Tag</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setTempImageForCrop({ file, index })
+                                    const reader = new FileReader()
+                                    reader.onload = (e) => {
+                                      setShowImageCropper(true)
+                                    }
+                                    reader.readAsDataURL(file)
+                                  }}
+                                  className="px-3 py-1.5 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-1 border border-slate-200"
+                                  title="Crop image"
+                                >
+                                  <Crop size={14} />
+                                  <span>Crop</span>
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => removeFile(index)}
+                              className="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center space-x-1 border border-red-200"
+                              title="Remove file"
+                            >
+                              <X size={14} />
+                              <span>Remove</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {file.type.startsWith('image/') && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setSelectedImageForTagging({
-                                  url: URL.createObjectURL(file),
-                                  fileIndex: index
-                                })
-                                setShowPhotoTagger(true)
-                              }}
-                              className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                              title="Tag people in this photo"
-                            >
-                              <Tag size={16} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setTempImageForCrop({ file, index })
-                                const reader = new FileReader()
-                                reader.onload = (e) => {
-                                  setShowImageCropper(true)
-                                }
-                                reader.readAsDataURL(file)
-                              }}
-                              className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
-                              title="Crop image"
-                            >
-                              <Crop size={16} />
-                            </button>
-                          </>
-                        )}
-                        <button
-                          onClick={() => removeFile(index)}
-                          className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
-                        >
-                          <X size={16} className="text-slate-500" />
-                        </button>
                       </div>
                     </div>
                   ))}

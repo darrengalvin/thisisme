@@ -287,27 +287,27 @@ export default function MemoryContributions({
   if (!user) return null
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className={`space-y-3 sm:space-y-4 ${className}`}>
+      {/* Header - Mobile Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center space-x-2">
-          <MessageCircle className="w-5 h-5 text-gray-600" />
-          <h3 className="text-lg font-semibold text-gray-900">
+          <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
             Contributions
           </h3>
           {contributions.length > 0 && (
-            <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm font-medium">
+            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium">
               {contributions.length}
             </span>
           )}
         </div>
 
         {/* Action Buttons - Mobile optimized */}
-        <div className="flex items-center space-x-1 sm:space-x-2">
+        <div className="flex items-center gap-2">
           <MemoryInviteSystem
             memoryId={memoryId}
             memoryTitle={memoryTitle}
-            className="text-xs sm:text-sm"
+            className="text-xs sm:text-sm flex-1 sm:flex-initial"
             onInviteSent={() => {
               // Refresh contributions after invite
               loadContributions()
@@ -316,29 +316,27 @@ export default function MemoryContributions({
           />
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 active:scale-95 flex items-center space-x-1.5 sm:space-x-2 text-xs sm:text-sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 active:scale-95 flex items-center justify-center space-x-1.5 text-xs sm:text-sm flex-1 sm:flex-initial whitespace-nowrap"
           >
-            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Add</span>
+            <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Comment</span>
           </button>
         </div>
       </div>
 
-      {/* Contributor Permissions */}
-      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-        <div className="flex items-center space-x-2 mb-3">
-          <Users className="w-4 h-4 text-gray-600" />
-          <h4 className="text-sm font-medium text-gray-900">Collaborators</h4>
+      {/* Contributor Permissions - Mobile Responsive */}
+      <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
+        <div className="flex items-center space-x-2 mb-2 sm:mb-3">
+          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
+          <h4 className="text-xs sm:text-sm font-medium text-gray-900">Collaborators</h4>
         </div>
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-0 text-xs sm:text-sm">
             <span className="text-gray-600">You (Owner)</span>
-            <div className="flex items-center space-x-1">
-              <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">Full Access</span>
-            </div>
+            <span className="bg-green-100 text-green-800 px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium inline-block w-fit">Full Access</span>
           </div>
           {/* TODO: Add actual collaborators when they exist */}
-          <div className="text-sm text-gray-500 italic">
+          <div className="text-xs sm:text-sm text-gray-500 italic">
             No other collaborators yet
           </div>
         </div>

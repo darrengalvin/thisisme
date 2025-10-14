@@ -25,6 +25,7 @@ interface ChronologicalTimelineViewProps {
     canZoomIn: boolean
     canZoomOut: boolean
   }) => void
+  onViewChange?: (view: 'chapters' | 'feed' | 'timeline') => void
   isNewUser?: boolean
   highlightedMemories?: Set<string>
   voiceAddedMemories?: Set<string>
@@ -37,6 +38,7 @@ export default function ChronologicalTimelineView({
   onStartCreating,
   onCreateChapter,
   onZoomChange,
+  onViewChange,
   isNewUser = false,
   highlightedMemories = new Set(),
   voiceAddedMemories = new Set()
@@ -267,6 +269,35 @@ export default function ChronologicalTimelineView({
               )}
             </div>
             
+            {/* View Switcher - Desktop */}
+            {onViewChange && (
+              <div className="absolute top-2 right-4 flex items-center space-x-2">
+                <span className="text-xs text-slate-600 mr-2">Switch View:</span>
+                <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                  <button
+                    onClick={() => onViewChange('chapters')}
+                    className="p-1.5 rounded transition-colors text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                    title="Chapter View"
+                  >
+                    <Box size={14} />
+                  </button>
+                  <button
+                    onClick={() => onViewChange('feed')}
+                    className="p-1.5 rounded transition-colors text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                    title="Feed View"
+                  >
+                    <List size={14} />
+                  </button>
+                  <button
+                    className="p-1.5 rounded transition-colors bg-white text-amber-700 shadow-sm"
+                    title="Timeline View (Current)"
+                    disabled
+                  >
+                    <Calendar size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
 
           </div>
 
@@ -606,6 +637,36 @@ export default function ChronologicalTimelineView({
                   </p>
                 )}
               </div>
+              
+              {/* View Switcher - Mobile */}
+              {onViewChange && (
+                <div className="mt-4 flex items-center justify-center space-x-2">
+                  <span className="text-xs text-slate-600 mr-2">Switch View:</span>
+                  <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                    <button
+                      onClick={() => onViewChange('chapters')}
+                      className="p-2 rounded transition-colors text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                      title="Chapter View"
+                    >
+                      <Box size={16} />
+                    </button>
+                    <button
+                      onClick={() => onViewChange('feed')}
+                      className="p-2 rounded transition-colors text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                      title="Feed View"
+                    >
+                      <List size={16} />
+                    </button>
+                    <button
+                      className="p-2 rounded transition-colors bg-white text-amber-700 shadow-sm"
+                      title="Timeline View (Current)"
+                      disabled
+                    >
+                      <Calendar size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
           </div>
 
           {/* Mobile Vertical Timeline Content */}
