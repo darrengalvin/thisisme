@@ -1946,7 +1946,7 @@ With love and remembrance,
               {/* Right Side: Person Details */}
               <div className="flex-1">
                 {selectedPerson ? (
-                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden max-h-[calc(100vh-200px)] overflow-y-auto">
                     {/* Header with Photo and Basic Info */}
                     <div className="p-6 pb-4">
                       <div className="flex items-center justify-between mb-4">
@@ -2032,30 +2032,41 @@ With love and remembrance,
                         </span>
                       </div>
 
-                      {/* Recent Memories Preview */}
+                      {/* Tagged Memories Section */}
                       {selectedPerson.recent_memories && selectedPerson.recent_memories.length > 0 && (
                         <div className="mb-4">
-                          <p className="text-sm font-medium text-gray-900 mb-3">Recent Memories</p>
-                          <div className="grid grid-cols-3 gap-3">
-                            {selectedPerson.recent_memories.slice(0, 3).map((memory) => (
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-base font-semibold text-gray-900">Tagged Memories</p>
+                            <span className="text-sm text-gray-500">{selectedPerson.recent_memories.length} memories</span>
+                          </div>
+                          <div className="space-y-3">
+                            {selectedPerson.recent_memories.map((memory) => (
                               <div 
                                 key={memory.id} 
-                                className="relative group/memory cursor-pointer"
+                                className="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors group"
                                 onClick={() => viewMemory(memory, selectedPerson)}
                               >
-                                <img
-                                  src={memory.image_url}
-                                  alt={memory.title}
-                                  className="w-full h-16 object-cover rounded-lg transition-transform group-hover/memory:scale-105"
-                                />
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover/memory:bg-opacity-50 transition-all duration-200 rounded-lg flex items-center justify-center">
-                                  <Eye className="w-4 h-4 text-white opacity-0 group-hover/memory:opacity-100 transition-opacity" />
-                                </div>
-                                <div className="absolute bottom-1 left-1 right-1">
-                                  <div className="bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/memory:opacity-100 transition-opacity truncate">
-                                    {memory.title}
+                                {memory.image_url && (
+                                  <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
+                                    <img
+                                      src={memory.image_url}
+                                      alt={memory.title}
+                                      className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                                    />
+                                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                                      <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">{memory.title}</h4>
+                                  <div className="flex items-center space-x-2 mt-1">
+                                    <span className="text-sm text-gray-600">{memory.chapter}</span>
+                                    <span className="text-gray-400">•</span>
+                                    <span className="text-sm text-gray-500">{new Date(memory.date).toLocaleDateString()}</span>
                                   </div>
                                 </div>
+                                <Eye className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
                               </div>
                             ))}
                           </div>
@@ -2196,68 +2207,6 @@ With love and remembrance,
                     </p>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-
-          {/* Person Details Modal */}
-          {selectedPerson && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <img
-                        src={selectedPerson.photo_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face'}
-                        alt={selectedPerson.person_name}
-                        className="w-16 h-16 rounded-full object-cover"
-                      />
-                      <div>
-                        <h2 className="text-2xl font-bold text-gray-900">{selectedPerson.person_name}</h2>
-                        <p className="text-gray-600">{selectedPerson.relationship}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setSelectedPerson(null)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <X className="w-6 h-6 text-gray-500" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Shared Memories ({personMemories.length})</h3>
-                  {personMemories.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {personMemories.map((memory) => (
-                        <div 
-                          key={memory.id} 
-                          className="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors group"
-                          onClick={() => viewMemory(memory, selectedPerson!)}
-                        >
-                          {memory.image_url && (
-                            <div className="relative overflow-hidden rounded-lg mb-3">
-                              <img
-                                src={memory.image_url}
-                                alt={memory.title}
-                                className="w-full h-32 object-cover transition-transform group-hover:scale-105"
-                              />
-                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
-                                <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                            </div>
-                          )}
-                          <h4 className="font-medium text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">{memory.title}</h4>
-                          <p className="text-sm text-gray-600 mb-2">{memory.chapter}</p>
-                          <p className="text-xs text-gray-500">{new Date(memory.memory_date).toLocaleDateString()}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-center py-8">No shared memories yet</p>
-                  )}
-                </div>
               </div>
             </div>
           )}
