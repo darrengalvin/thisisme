@@ -825,6 +825,8 @@ export default function MyPeopleEnhanced() {
     setIsDeleting(true)
     try {
       console.log('🔄 DELETING PERSON: Starting delete process for:', personToDelete.person_name)
+      console.log('🔍 DELETING PERSON: Person ID:', personToDelete.id)
+      console.log('🔍 DELETING PERSON: Full person object:', JSON.stringify(personToDelete, null, 2))
       
       // Get JWT token for API call
       const tokenResponse = await fetch('/api/auth/token', {

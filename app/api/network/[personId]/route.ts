@@ -154,16 +154,32 @@ export async function DELETE(
     console.log('✅ NETWORK DELETE API: Token verified for user:', user.userId)
 
     const personId = params.personId
+    console.log('🔍 NETWORK DELETE API: Attempting to delete person ID:', personId)
+    console.log('🔍 NETWORK DELETE API: User ID from token:', user.userId)
 
     // First, verify that this person belongs to the user
     const { data: existingPerson, error: fetchError } = await supabaseAdmin
       .from('user_networks')
-      .select('id, owner_id')
+      .select('id, owner_id, person_name')
       .eq('id', personId)
       .single()
 
+    console.log('🔍 NETWORK DELETE API: Query result:', {
+      found: !!existingPerson,
+      error: fetchError?.message,
+      personData: existingPerson
+    })
+
     if (fetchError || !existingPerson) {
-      console.log('❌ NETWORK DELETE API: Person not found:', personId)
+      console.log('❌ NETWORK DELETE API: Person not found:', personId, 'Error:', fetchError)
+      // Let's also check if the person exists at all (without owner filter)
+      const { data: anyPerson } = await supabaseAdmin
+        .from('user_networks')
+        .select('id, owner_id, person_name')
+        .eq('id', personId)
+        .maybeSingle()
+      console.log('🔍 NETWORK DELETE API: Person exists in DB (any owner)?', anyPerson)
+      
       return NextResponse.json({ error: 'Person not found' }, { status: 404 })
     }
 
