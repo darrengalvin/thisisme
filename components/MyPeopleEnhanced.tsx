@@ -1880,72 +1880,168 @@ With love and remembrance,
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {people.map((person) => {
-                const badge = getCollaborationBadge(person.collaboration_stats || { contributions_made: 0, memories_shared: 0 })
-                
-                return (
-                  <div key={person.id} className="bg-white rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 overflow-hidden group">
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Left Side: People List */}
+              <div className="w-full lg:w-2/5 xl:w-1/3">
+                <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 bg-gray-50">
+                    <h2 className="font-semibold text-gray-900">People ({people.length})</h2>
+                  </div>
+                  <div className="overflow-y-auto max-h-[calc(100vh-300px)]">
+                    {people.map((person) => {
+                      const badge = getCollaborationBadge(person.collaboration_stats || { contributions_made: 0, memories_shared: 0 })
+                      const isSelected = selectedPerson?.id === person.id
+                      
+                      return (
+                        <div
+                          key={person.id}
+                          onClick={() => viewPersonDetails(person)}
+                          className={`p-4 border-b border-gray-100 cursor-pointer transition-all hover:bg-blue-50 ${
+                            isSelected ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            {/* Avatar */}
+                            <div className="relative flex-shrink-0">
+                              {person.photo_url && !person.photo_url.includes('unsplash') ? (
+                                <img
+                                  src={person.photo_url}
+                                  alt={person.person_name}
+                                  className="w-12 h-12 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+                                  {person.relationship?.includes('In Memory') || person.personType === 'legacy' ? (
+                                    <span className="text-xl">🕊️</span>
+                                  ) : (
+                                    <User className="w-6 h-6 text-blue-600" />
+                                  )}
+                                </div>
+                              )}
+                              {person.person_user_id && (
+                                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                              )}
+                            </div>
+                            
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-900 truncate">{person.person_name}</h3>
+                              <p className="text-sm text-gray-500 truncate">{person.relationship}</p>
+                            </div>
+                            
+                            {/* Memory Count Badge */}
+                            <div className="flex-shrink-0">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {person.tagged_memories_count || 0}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side: Person Details */}
+              <div className="flex-1">
+                {selectedPerson ? (
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
                     {/* Header with Photo and Basic Info */}
                     <div className="p-6 pb-4">
-                      <div className="flex items-center space-x-4 mb-4">
-                        <div className="relative">
-                          {person.photo_url && !person.photo_url.includes('unsplash') ? (
-                            <img
-                              src={person.photo_url}
-                              alt={person.person_name}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="relative">
+                            {selectedPerson.photo_url && !selectedPerson.photo_url.includes('unsplash') ? (
+                              <img
+                                src={selectedPerson.photo_url}
+                                alt={selectedPerson.person_name}
                               className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg"
                             />
                           ) : (
                             <div className="w-16 h-16 rounded-full bg-gray-100 border-4 border-white shadow-lg flex items-center justify-center">
-                              {person.relationship?.includes('In Memory') || person.personType === 'legacy' ? (
+                              {selectedPerson.relationship?.includes('In Memory') || selectedPerson.personType === 'legacy' ? (
                                 <span className="text-2xl">🕊️</span>
                               ) : (
                                 <User className="w-8 h-8 text-gray-400" />
                               )}
                             </div>
                           )}
-                          {person.person_user_id && (
+                          {selectedPerson.person_user_id && (
                             <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2">
-                            <h3 className="text-lg font-semibold text-gray-900 truncate">{person.person_name}</h3>
-                            {person.relationship?.includes('In Memory') && (
+                            <h3 className="text-2xl font-bold text-gray-900">{selectedPerson.person_name}</h3>
+                            {selectedPerson.relationship?.includes('In Memory') && (
                               <span className="text-gray-400">🕊️</span>
                             )}
                           </div>
-                          <p className={`text-sm ${person.relationship?.includes('In Memory') ? 'text-gray-400 italic' : 'text-gray-500'}`}>
-                            {person.relationship}
+                          <p className={`text-sm ${selectedPerson.relationship?.includes('In Memory') ? 'text-gray-400 italic' : 'text-gray-600'}`}>
+                            {selectedPerson.relationship}
                           </p>
-                          {person.person_email && (
-                            <p className="text-xs text-gray-400 truncate">{person.person_email}</p>
+                          {selectedPerson.person_email && (
+                            <p className="text-sm text-gray-500 mt-1">{selectedPerson.person_email}</p>
                           )}
+                          {selectedPerson.person_phone && (
+                            <p className="text-sm text-gray-500">{selectedPerson.person_phone}</p>
+                          )}
+                        </div>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex items-center space-x-2 flex-shrink-0">
+                          <button
+                            onClick={() => editPerson(selectedPerson)}
+                            className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                            title="Edit Person"
+                          >
+                            <Settings className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => invitePerson(selectedPerson)}
+                            className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                            title="Send Invitation"
+                          >
+                            <UserPlus className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => deletePerson(selectedPerson)}
+                            className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                            title="Delete Person"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
                         </div>
                       </div>
 
                       {/* Collaboration Badge */}
                       <div className="flex items-center justify-between mb-4">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
-                          <span className="mr-1">{badge.icon}</span>
-                          {badge.label}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {person.tagged_memories_count} memories
+                        {(() => {
+                          const badge = getCollaborationBadge(selectedPerson.collaboration_stats || { contributions_made: 0, memories_shared: 0 })
+                          return (
+                            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${badge.color}`}>
+                              <span className="mr-1.5">{badge.icon}</span>
+                              {badge.label}
+                            </span>
+                          )
+                        })()}
+                        <span className="text-base font-semibold text-gray-700">
+                          {selectedPerson.tagged_memories_count || 0} memories
                         </span>
                       </div>
 
                       {/* Recent Memories Preview */}
-                      {person.recent_memories && person.recent_memories.length > 0 && (
+                      {selectedPerson.recent_memories && selectedPerson.recent_memories.length > 0 && (
                         <div className="mb-4">
-                          <p className="text-sm font-medium text-gray-700 mb-2">Recent Memories</p>
-                          <div className="grid grid-cols-3 gap-2">
-                            {person.recent_memories.slice(0, 3).map((memory) => (
+                          <p className="text-sm font-medium text-gray-900 mb-3">Recent Memories</p>
+                          <div className="grid grid-cols-3 gap-3">
+                            {selectedPerson.recent_memories.slice(0, 3).map((memory) => (
                               <div 
                                 key={memory.id} 
                                 className="relative group/memory cursor-pointer"
-                                onClick={() => viewMemory(memory, person)}
+                                onClick={() => viewMemory(memory, selectedPerson)}
                               >
                                 <img
                                   src={memory.image_url}
@@ -1967,34 +2063,36 @@ With love and remembrance,
                       )}
 
                       {/* Collaboration Stats */}
-                      {person.collaboration_stats && (
-                        <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
+                      {selectedPerson.collaboration_stats && (
+                        <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
                           <div className="text-center">
-                            <p className="text-lg font-semibold text-gray-900">{person.collaboration_stats.contributions_made}</p>
-                            <p className="text-xs text-gray-500">Contributions</p>
+                            <p className="text-2xl font-bold text-gray-900">{selectedPerson.collaboration_stats.contributions_made}</p>
+                            <p className="text-sm text-gray-600">Contributions</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-lg font-semibold text-gray-900">{person.collaboration_stats.memories_shared}</p>
-                            <p className="text-xs text-gray-500">Shared</p>
+                            <p className="text-2xl font-bold text-gray-900">{selectedPerson.collaboration_stats.memories_shared}</p>
+                            <p className="text-sm text-gray-600">Shared</p>
                           </div>
                         </div>
                       )}
 
                       {/* Chapter Access */}
-                      {person.permissions?.chapters_access && person.permissions.chapters_access.length > 0 && (
+                      {selectedPerson.permissions?.chapters_access && selectedPerson.permissions.chapters_access.length > 0 && (
                         <div className="mb-4">
-                          <p className="text-sm font-medium text-gray-700 mb-2">Chapter Access</p>
-                          <div className="space-y-1">
-                            {person.permissions.chapters_access.slice(0, 2).map((chapter, index) => (
-                              <div key={index} className="flex items-center space-x-2 text-xs">
-                                <BookOpen className="w-3 h-3 text-blue-500" />
-                                <span className="text-gray-600 truncate">{chapter.chapter_name}</span>
-                                <span className="text-gray-400">({chapter.permissions.join(', ')})</span>
+                          <p className="text-sm font-medium text-gray-900 mb-3">Chapter Access</p>
+                          <div className="space-y-2">
+                            {selectedPerson.permissions.chapters_access.slice(0, 2).map((chapter, index) => (
+                              <div key={index} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
+                                <div className="flex items-center space-x-2">
+                                  <BookOpen className="w-4 h-4 text-blue-600" />
+                                  <span className="text-sm font-medium text-gray-900">{chapter.chapter_name}</span>
+                                </div>
+                                <span className="text-xs text-gray-500">({chapter.permissions.join(', ')})</span>
                               </div>
                             ))}
-                            {person.permissions.chapters_access.length > 2 && (
-                              <p className="text-xs text-gray-400">
-                                +{person.permissions.chapters_access.length - 2} more chapters
+                            {selectedPerson.permissions.chapters_access.length > 2 && (
+                              <p className="text-sm text-gray-500 text-center">
+                                +{selectedPerson.permissions.chapters_access.length - 2} more chapters
                               </p>
                             )}
                           </div>
@@ -2002,60 +2100,60 @@ With love and remembrance,
                       )}
 
                       {/* Visual Permissions Overview */}
-                      {person.permissions && (
+                      {selectedPerson.permissions && (
                         <div className="mb-4">
-                          <p className="text-sm font-medium text-gray-700 mb-2">Access Level</p>
-                          <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-gray-900 mb-3">Access Level</p>
+                          <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
                             <div className="flex items-center space-x-2">
-                              {person.permissions.can_view_memories && person.permissions.can_add_text && person.permissions.can_add_images && person.permissions.can_comment ? (
-                                <div className="flex items-center space-x-1">
-                                  <Crown className="w-4 h-4 text-yellow-500" />
-                                  <span className="text-xs font-medium text-yellow-700">Full Access</span>
+                              {selectedPerson.permissions.can_view_memories && selectedPerson.permissions.can_add_text && selectedPerson.permissions.can_add_images && selectedPerson.permissions.can_comment ? (
+                                <div className="flex items-center space-x-2">
+                                  <Crown className="w-5 h-5 text-yellow-600" />
+                                  <span className="text-sm font-semibold text-yellow-800">Full Access</span>
                                 </div>
-                              ) : person.permissions.can_view_memories && (person.permissions.can_add_text || person.permissions.can_comment) ? (
-                                <div className="flex items-center space-x-1">
-                                  <Star className="w-4 h-4 text-blue-500" />
-                                  <span className="text-xs font-medium text-blue-700">Contributor</span>
+                              ) : selectedPerson.permissions.can_view_memories && (selectedPerson.permissions.can_add_text || selectedPerson.permissions.can_comment) ? (
+                                <div className="flex items-center space-x-2">
+                                  <Star className="w-5 h-5 text-blue-600" />
+                                  <span className="text-sm font-semibold text-blue-800">Contributor</span>
                                 </div>
-                              ) : person.permissions.can_view_memories ? (
-                                <div className="flex items-center space-x-1">
-                                  <Eye className="w-4 h-4 text-green-500" />
-                                  <span className="text-xs font-medium text-green-700">Viewer</span>
+                              ) : selectedPerson.permissions.can_view_memories ? (
+                                <div className="flex items-center space-x-2">
+                                  <Eye className="w-5 h-5 text-green-600" />
+                                  <span className="text-sm font-semibold text-green-800">Viewer</span>
                                 </div>
                               ) : (
-                                <div className="flex items-center space-x-1">
-                                  <Lock className="w-4 h-4 text-gray-400" />
-                                  <span className="text-xs font-medium text-gray-500">No Access</span>
+                                <div className="flex items-center space-x-2">
+                                  <Lock className="w-5 h-5 text-gray-500" />
+                                  <span className="text-sm font-semibold text-gray-600">No Access</span>
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-center space-x-1">
-                              {person.permissions.can_add_text && <FileText className="w-3 h-3 text-green-500" />}
-                              {person.permissions.can_add_images && <Image className="w-3 h-3 text-blue-500" />}
-                              {person.permissions.can_comment && <MessageCircle className="w-3 h-3 text-purple-500" />}
+                            <div className="flex items-center space-x-2">
+                              {selectedPerson.permissions.can_add_text && <FileText className="w-4 h-4 text-green-600" />}
+                              {selectedPerson.permissions.can_add_images && <Image className="w-4 h-4 text-blue-600" />}
+                              {selectedPerson.permissions.can_comment && <MessageCircle className="w-4 h-4 text-purple-600" />}
                             </div>
                           </div>
                         </div>
                       )}
 
                       {/* Specific Chapter & Memory Permissions */}
-                      {person.permissions && ((person.permissions.chapters_access?.length || 0) > 0 || (person.permissions.memory_access?.length || 0) > 0) && (
+                      {selectedPerson.permissions && ((selectedPerson.permissions.chapters_access?.length || 0) > 0 || (selectedPerson.permissions.memory_access?.length || 0) > 0) && (
                         <div className="mb-4">
                           <p className="text-sm font-medium text-gray-700 mb-3">Specific Access</p>
                           
                           {/* Chapter Permissions */}
-                          {(person.permissions.chapters_access?.length || 0) > 0 && (
+                          {(selectedPerson.permissions.chapters_access?.length || 0) > 0 && (
                             <div className="mb-3">
-                              <p className="text-xs font-medium text-gray-600 mb-2">📚 Chapters</p>
+                              <p className="text-sm font-medium text-gray-900 mb-2">📚 Chapters</p>
                               <div className="space-y-2">
-                                {person.permissions.chapters_access?.map((chapter: any, idx: number) => (
+                                {selectedPerson.permissions.chapters_access?.map((chapter: any, idx: number) => (
                                   <div key={idx} className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2">
-                                    <span className="text-xs font-medium text-blue-800">{chapter.chapter_name}</span>
+                                    <span className="text-sm font-medium text-blue-900">{chapter.chapter_name}</span>
                                     <div className="flex items-center space-x-1">
-                                      {chapter.permissions.includes('view') && <div title="Can view"><Eye className="w-3 h-3 text-green-500" /></div>}
-                                      {chapter.permissions.includes('add_text') && <div title="Can add text"><FileText className="w-3 h-3 text-blue-500" /></div>}
-                                      {chapter.permissions.includes('add_images') && <div title="Can add images"><Image className="w-3 h-3 text-purple-500" /></div>}
-                                      {chapter.permissions.includes('comment') && <div title="Can comment"><MessageCircle className="w-3 h-3 text-orange-500" /></div>}
+                                      {chapter.permissions.includes('view') && <div title="Can view"><Eye className="w-4 h-4 text-green-600" /></div>}
+                                      {chapter.permissions.includes('add_text') && <div title="Can add text"><FileText className="w-4 h-4 text-blue-600" /></div>}
+                                      {chapter.permissions.includes('add_images') && <div title="Can add images"><Image className="w-4 h-4 text-purple-600" /></div>}
+                                      {chapter.permissions.includes('comment') && <div title="Can comment"><MessageCircle className="w-4 h-4 text-orange-600" /></div>}
                                     </div>
                                   </div>
                                 ))}
@@ -2064,11 +2162,11 @@ With love and remembrance,
                           )}
 
                           {/* Memory Permissions */}
-                          {(person.permissions.memory_access?.length || 0) > 0 && (
+                          {(selectedPerson.permissions.memory_access?.length || 0) > 0 && (
                             <div>
-                              <p className="text-xs font-medium text-gray-600 mb-2">💭 Memories</p>
+                              <p className="text-sm font-medium text-gray-900 mb-2">💭 Memories</p>
                               <div className="space-y-2">
-                                {person.permissions.memory_access?.map((memory: any, idx: number) => (
+                                {selectedPerson.permissions.memory_access?.map((memory: any, idx: number) => (
                                   <div key={idx} className="flex items-center justify-between bg-purple-50 rounded-lg px-3 py-2">
                                     <div className="flex-1">
                                       <span className="text-xs font-medium text-purple-800">{memory.memory_title}</span>
@@ -2088,43 +2186,17 @@ With love and remembrance,
                         </div>
                       )}
                     </div>
-
-                    {/* Action Buttons */}
-                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => viewPersonDetails(person)}
-                          className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-1"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span>View Details</span>
-                        </button>
-                        <button
-                          onClick={() => editPerson(person)}
-                          className="bg-blue-100 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
-                          title="Edit Person"
-                        >
-                          <User className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => invitePerson(person)}
-                          className="bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-200 transition-colors"
-                          title="Send Invitation"
-                        >
-                          <UserPlus className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => deletePerson(person)}
-                          className="bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
-                          title="Delete Person"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
                   </div>
-                )
-              })}
+                ) : (
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-12 flex flex-col items-center justify-center text-center min-h-[500px]">
+                    <Users className="w-20 h-20 text-gray-300 mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Select a Person</h3>
+                    <p className="text-gray-500 max-w-sm">
+                      Click on someone from the list to view their details, memories, and permissions.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
