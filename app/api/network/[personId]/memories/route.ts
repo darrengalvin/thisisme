@@ -48,24 +48,24 @@ export async function GET(
     
     // Get memories tagged with this person
     const { data: taggedMemories, error: memoriesError } = await supabaseAdmin
-      .from('memory_tags')
+      .from('photo_tags')
       .select(`
-        memory_id,
         created_at,
-        memories (
+        media!inner (
           id,
-          title,
-          text_content,
-          image_url,
-          created_at,
-          timezone_id,
-          timezones (
-            title
-          ),
-          media (
+          storage_url,
+          type,
+          memory_id,
+          memories!inner (
             id,
-            file_url,
-            file_type
+            title,
+            text_content,
+            image_url,
+            created_at,
+            timezone_id,
+            timezones (
+              title
+            )
           )
         )
       `)
@@ -91,15 +91,19 @@ export async function GET(
 
     // Transform the data to be more usable
     const memories = taggedMemories?.map((tag: any) => ({
-      id: tag.memories.id,
-      title: tag.memories.title,
-      description: tag.memories.text_content,
-      text_content: tag.memories.text_content,
-      image_url: tag.memories.image_url || tag.memories.media?.[0]?.file_url, // Use image_url or first media file
-      memory_date: tag.memories.created_at, // Using created_at as memory_date
+      id: tag.media.memories.id,
+      title: tag.media.memories.title,
+      description: tag.media.memories.text_content,
+      text_content: tag.media.memories.text_content,
+      image_url: tag.media.storage_url || tag.media.memories.image_url, // Use photo's storage_url
+      memory_date: tag.media.memories.created_at, // Using created_at as memory_date
       tagged_at: tag.created_at,
-      chapter: tag.memories.timezones?.title || 'Personal', // Changed from chapters to timezones
-      media: tag.memories.media || []
+      chapter: tag.media.memories.timezones?.title || 'Personal',
+      media: [{ 
+        id: tag.media.id, 
+        storage_url: tag.media.storage_url, 
+        type: tag.media.type 
+      }]
     })) || []
 
     return NextResponse.json({
