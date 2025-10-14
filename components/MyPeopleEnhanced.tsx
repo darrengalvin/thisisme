@@ -991,20 +991,80 @@ export default function MyPeopleEnhanced() {
     }
   }
 
-  const viewPersonDetails = (person: NetworkPerson) => {
+  const viewPersonDetails = async (person: NetworkPerson) => {
     setSelectedPerson(person)
-    // Mock memories for this person
-    const mockMemories: TaggedMemory[] = person.recent_memories?.map(mem => ({
-      id: mem.id,
-      title: mem.title,
-      description: `Memory featuring ${person.person_name}`,
-      memory_date: mem.date,
-      tagged_at: new Date().toISOString(),
-      chapter: mem.chapter,
-      image_url: mem.image_url
-    })) || []
+    setLoadingMemories(true)
     
-    setPersonMemories(mockMemories)
+    // Check if this is mock data (numeric ID)
+    const isMockData = /^\d+$/.test(person.id)
+    
+    if (isMockData) {
+      // Use mock memories for demo data
+      const mockMemories: TaggedMemory[] = person.recent_memories?.map(mem => ({
+        id: mem.id,
+        title: mem.title,
+        description: `Memory featuring ${person.person_name}`,
+        memory_date: mem.date,
+        tagged_at: new Date().toISOString(),
+        chapter: mem.chapter,
+        image_url: mem.image_url
+      })) || []
+      
+      setPersonMemories(mockMemories)
+      setLoadingMemories(false)
+    } else {
+      // Fetch real tagged memories from API
+      try {
+        if (!user) {
+          console.error('❌ FETCHING TAGGED MEMORIES: No user logged in')
+          setPersonMemories([])
+          setLoadingMemories(false)
+          return
+        }
+        
+        console.log('🔍 FETCHING TAGGED MEMORIES: Starting fetch for person:', person.person_name, 'ID:', person.id)
+        
+        // Get JWT token
+        const tokenResponse = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId: user.id, 
+            email: user.email 
+          })
+        })
+        
+        if (!tokenResponse.ok) {
+          throw new Error('Failed to get auth token')
+        }
+        
+        const { token } = await tokenResponse.json()
+        console.log('✅ FETCHING TAGGED MEMORIES: Got auth token')
+        
+        // Fetch tagged memories for this person
+        const response = await fetch(`/api/network/${person.id}/memories`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (!response.ok) {
+          console.error('❌ FETCHING TAGGED MEMORIES: API error:', response.status)
+          throw new Error('Failed to fetch tagged memories')
+        }
+        
+        const data = await response.json()
+        console.log('✅ FETCHING TAGGED MEMORIES: Success!', data)
+        
+        setPersonMemories(data.memories || [])
+      } catch (error) {
+        console.error('❌ Error fetching tagged memories:', error)
+        setPersonMemories([])
+      } finally {
+        setLoadingMemories(false)
+      }
+    }
   }
 
   const getPermissionIcon = (permission: boolean) => {
@@ -2033,18 +2093,23 @@ With love and remembrance,
                       </div>
 
                       {/* Memories They're Tagged In */}
-                      {selectedPerson.recent_memories && selectedPerson.recent_memories.length > 0 && (
-                        <div className="mb-6">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <Users className="w-5 h-5 text-purple-600" />
-                            <p className="text-base font-semibold text-gray-900">Tagged in Photos</p>
-                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                              {selectedPerson.tagged_memories_count || 0}
-                            </span>
+                      <div className="mb-6">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Users className="w-5 h-5 text-purple-600" />
+                          <p className="text-base font-semibold text-gray-900">Tagged in Photos</p>
+                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                            {loadingMemories ? '...' : personMemories.length}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-3">Memories where {selectedPerson.person_name} appears in photos</p>
+                        
+                        {loadingMemories ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
                           </div>
-                          <p className="text-sm text-gray-500 mb-3">Memories where {selectedPerson.person_name} appears in photos</p>
+                        ) : personMemories.length > 0 ? (
                           <div className="space-y-3">
-                            {selectedPerson.recent_memories.map((memory) => (
+                            {personMemories.map((memory) => (
                               <div 
                                 key={memory.id} 
                                 className="flex items-center space-x-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg cursor-pointer transition-colors group border border-purple-100"
@@ -2071,15 +2136,20 @@ With love and remembrance,
                                   <div className="flex items-center space-x-2 mt-1">
                                     <span className="text-sm text-gray-600">{memory.chapter}</span>
                                     <span className="text-gray-400">•</span>
-                                    <span className="text-sm text-gray-500">{new Date(memory.date).toLocaleDateString()}</span>
+                                    <span className="text-sm text-gray-500">{new Date(memory.memory_date).toLocaleDateString()}</span>
                                   </div>
                                 </div>
                                 <Eye className="w-5 h-5 text-purple-400 group-hover:text-purple-600 transition-colors flex-shrink-0" />
                               </div>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="text-center py-8 px-4 bg-purple-50 rounded-lg border border-purple-100">
+                            <Users className="w-12 h-12 text-purple-300 mx-auto mb-2" />
+                            <p className="text-sm text-gray-600">{selectedPerson.person_name} hasn't been tagged in any photos yet</p>
+                          </div>
+                        )}
+                      </div>
 
                       {/* Memories They Have Access To (Invited/Shared) */}
                       {selectedPerson.permissions?.memory_access && selectedPerson.permissions.memory_access.length > 0 && (
