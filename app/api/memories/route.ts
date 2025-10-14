@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     const ownedIds = ownedChapters?.map(ch => ch.id) || []
     const memberIds = memberChapters?.map(m => m.timezone_id) || []
-    const chapterIds = [...new Set([...ownedIds, ...memberIds])]
+    const chapterIds = Array.from(new Set([...ownedIds, ...memberIds]))
 
     // Get all memories from chapters the user has access to
     const { data: memories, error: memoriesError } = await supabase
