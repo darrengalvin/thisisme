@@ -757,6 +757,21 @@ export default function MyPeopleEnhanced() {
     try {
       console.log('🔄 UPDATING PERSON: Starting update process for:', editingPerson.person_name)
       
+      // Check if this is mock/demo data (numeric ID instead of UUID)
+      const isMockData = /^\d+$/.test(editingPerson.id)
+      if (isMockData) {
+        console.log('⚠️ UPDATING PERSON: This is demo data, updating locally only')
+        // Update local state only
+        setPeople(prevPeople => 
+          prevPeople.map(p => p.id === editingPerson.id ? editingPerson : p)
+        )
+        setShowEditModal(false)
+        setEditingPerson(null)
+        setIsUpdating(false)
+        toast.success(`Demo person "${editingPerson.person_name}" updated locally`)
+        return
+      }
+      
       // Get JWT token for API call
       const tokenResponse = await fetch('/api/auth/token', {
         method: 'POST',
@@ -827,6 +842,19 @@ export default function MyPeopleEnhanced() {
       console.log('🔄 DELETING PERSON: Starting delete process for:', personToDelete.person_name)
       console.log('🔍 DELETING PERSON: Person ID:', personToDelete.id)
       console.log('🔍 DELETING PERSON: Full person object:', JSON.stringify(personToDelete, null, 2))
+      
+      // Check if this is mock/demo data (numeric ID instead of UUID)
+      const isMockData = /^\d+$/.test(personToDelete.id)
+      if (isMockData) {
+        console.log('⚠️ DELETING PERSON: This is demo data, removing locally only')
+        // Remove from local state only (not from database since it doesn't exist there)
+        setPeople(prevPeople => prevPeople.filter(p => p.id !== personToDelete.id))
+        setShowDeleteModal(false)
+        setPersonToDelete(null)
+        setIsDeleting(false)
+        toast.success(`Demo person "${personToDelete.person_name}" removed from view`)
+        return
+      }
       
       // Get JWT token for API call
       const tokenResponse = await fetch('/api/auth/token', {
