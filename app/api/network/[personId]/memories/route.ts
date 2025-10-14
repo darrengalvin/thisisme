@@ -56,10 +56,16 @@ export async function GET(
           id,
           title,
           text_content,
+          image_url,
           created_at,
-          timezone_id,
-          timezones (
+          chapter_id,
+          chapters!memories_chapter_id_fkey (
             title
+          ),
+          media (
+            id,
+            file_url,
+            file_type
           )
         )
       `)
@@ -67,21 +73,33 @@ export async function GET(
       .order('created_at', { ascending: false })
       
     console.log('🔍 PERSON MEMORIES API: Found', taggedMemories?.length || 0, 'tagged memories')
-    console.log('🔍 PERSON MEMORIES API: Query result:', { taggedMemories, memoriesError })
+    console.log('🔍 PERSON MEMORIES API: Raw data:', JSON.stringify(taggedMemories, null, 2))
 
     if (memoriesError) {
-      console.error('Error fetching tagged memories:', memoriesError)
-      return NextResponse.json({ error: 'Failed to fetch memories' }, { status: 500 })
+      console.error('❌ PERSON MEMORIES API: Error fetching tagged memories:', memoriesError)
+      console.error('❌ PERSON MEMORIES API: Error details:', JSON.stringify(memoriesError, null, 2))
+      return NextResponse.json({ 
+        error: 'Failed to fetch memories', 
+        details: memoriesError.message 
+      }, { status: 500 })
+    }
+
+    if (!taggedMemories || taggedMemories.length === 0) {
+      console.log('⚠️ PERSON MEMORIES API: No tagged memories found for person:', personId)
+      console.log('⚠️ PERSON MEMORIES API: This person may not be tagged in any photos yet')
     }
 
     // Transform the data to be more usable
     const memories = taggedMemories?.map((tag: any) => ({
       id: tag.memories.id,
       title: tag.memories.title,
+      description: tag.memories.text_content,
       text_content: tag.memories.text_content,
+      image_url: tag.memories.image_url || tag.memories.media?.[0]?.file_url, // Use image_url or first media file
       memory_date: tag.memories.created_at, // Using created_at as memory_date
       tagged_at: tag.created_at,
-      chapter: tag.memories.timezones?.title || 'Personal'
+      chapter: tag.memories.chapters?.title || 'Personal',
+      media: tag.memories.media || []
     })) || []
 
     return NextResponse.json({
