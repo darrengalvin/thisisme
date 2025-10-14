@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Sparkles, Lock, Mail, Check, AlertTriangle } from 'lucide-react'
+import { X, Sparkles, Lock, Mail, Check, AlertTriangle, CreditCard } from 'lucide-react'
 import { useAuth } from './AuthProvider'
 
 interface UpgradeModalProps {
@@ -15,6 +15,7 @@ export default function UpgradeModal({ isOpen, onClose, onUpgradeSuccess, featur
   const { user } = useAuth()
   const [showCodeEntry, setShowCodeEntry] = useState(false)
   const [showEmailEntry, setShowEmailEntry] = useState(false)
+  const [showPricing, setShowPricing] = useState(false)
   const [inviteCode, setInviteCode] = useState('')
   const [email, setEmail] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -24,7 +25,62 @@ export default function UpgradeModal({ isOpen, onClose, onUpgradeSuccess, featur
   if (!isOpen) return null
 
   const handleUpgradeToProClick = () => {
+    setShowPricing(true)
+    setShowCodeEntry(false)
+    setShowEmailEntry(false)
+    setMessage('')
+    setMessageType('')
+  }
+
+  const handleStripeCheckout = async (priceId: string) => {
+    if (!user) {
+      setMessage('Please log in to upgrade')
+      setMessageType('error')
+      return
+    }
+
+    setIsProcessing(true)
+    setMessage('')
+
+    try {
+      // Create checkout session
+      const response = await fetch('/api/stripe/create-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+          priceId: priceId,
+          mode: 'subscription',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session')
+      }
+
+      // Redirect to Stripe Checkout URL
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error('No checkout URL received')
+      }
+    } catch (error: any) {
+      console.error('Stripe checkout error:', error)
+      setMessage(error.message || 'Failed to start checkout')
+      setMessageType('error')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleCodeEntryClick = () => {
     setShowCodeEntry(true)
+    setShowPricing(false)
     setShowEmailEntry(false)
     setMessage('')
     setMessageType('')
@@ -33,6 +89,7 @@ export default function UpgradeModal({ isOpen, onClose, onUpgradeSuccess, featur
   const handleRequestAccess = () => {
     setShowEmailEntry(true)
     setShowCodeEntry(false)
+    setShowPricing(false)
     setMessage('')
     setMessageType('')
   }
@@ -231,6 +288,75 @@ export default function UpgradeModal({ isOpen, onClose, onUpgradeSuccess, featur
               </div>
             )}
 
+            {/* Pricing Section */}
+            {showPricing && (
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-slate-900 text-center mb-4">Choose Your Plan</h4>
+                
+                {/* Monthly Plan */}
+                <div className="border-2 border-purple-200 rounded-lg p-4 hover:border-purple-400 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h5 className="font-semibold text-slate-900">Monthly</h5>
+                      <p className="text-sm text-slate-600">Billed monthly</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-purple-600">$10</p>
+                      <p className="text-xs text-slate-500">/month</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleStripeCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY || 'price_monthly')}
+                    disabled={isProcessing}
+                    className="w-full px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                  >
+                    <CreditCard size={16} />
+                    <span>{isProcessing ? 'Processing...' : 'Subscribe Monthly'}</span>
+                  </button>
+                </div>
+
+                {/* Yearly Plan */}
+                <div className="border-2 border-purple-400 rounded-lg p-4 hover:border-purple-600 transition-colors bg-purple-50 relative">
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                    SAVE 20%
+                  </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h5 className="font-semibold text-slate-900">Yearly</h5>
+                      <p className="text-sm text-slate-600">Billed annually</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-purple-600">$100</p>
+                      <p className="text-xs text-slate-500 line-through">$120/year</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleStripeCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_YEARLY || 'price_yearly')}
+                    disabled={isProcessing}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 font-medium"
+                  >
+                    <CreditCard size={16} />
+                    <span>{isProcessing ? 'Processing...' : 'Subscribe Yearly'}</span>
+                  </button>
+                </div>
+
+                <div className="flex space-x-2 pt-2">
+                  <button
+                    onClick={() => setShowPricing(false)}
+                    className="flex-1 px-4 py-2 text-slate-600 hover:text-slate-800 border border-slate-300 rounded-lg transition-colors text-sm"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleCodeEntryClick}
+                    className="flex-1 px-4 py-2 text-purple-600 hover:text-purple-800 border border-purple-300 rounded-lg transition-colors text-sm"
+                  >
+                    Have a code?
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Code Entry Section */}
             {showCodeEntry && (
               <div className="space-y-3">
@@ -314,8 +440,8 @@ export default function UpgradeModal({ isOpen, onClose, onUpgradeSuccess, featur
           </div>
         </div>
 
-        {/* Footer - only show when not in code/email entry mode */}
-        {!showCodeEntry && !showEmailEntry && (
+        {/* Footer - only show when not in code/email/pricing entry mode */}
+        {!showCodeEntry && !showEmailEntry && !showPricing && (
           <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-between space-x-3">
             <button
               onClick={handleRequestAccess}

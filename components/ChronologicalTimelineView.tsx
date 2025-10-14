@@ -587,38 +587,96 @@ export default function ChronologicalTimelineView({
           )}
 
       {/* Mobile: Vertical Timeline with Blobs */}
-      {birthYear && chapters.length > 0 && (
-        <div className="md:hidden">
+      {birthYear && (
+        <div className="md:hidden min-h-screen bg-gradient-to-br from-slate-50 to-white">
           {/* Mobile Header */}
-          <div className="sticky top-[130px] z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 px-4 py-3 shadow-sm">
+          <div className="bg-white border-b border-slate-200 px-4 py-6 shadow-sm">
               <div className="text-center">
-              <h3 className="text-lg font-bold text-slate-900 mb-1">Your Life Timeline</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">Your Life Timeline</h3>
               <p className="text-slate-600 text-sm">{birthYear} - {currentYear} • {currentYear - birthYear} years</p>
               </div>
               
               {/* Mobile Chapter count indicator */}
-              <div className="mt-2 text-center">
+              <div className="mt-3 text-center">
                 {isLoadingChapters ? (
                   <p className="text-slate-500 text-xs">Loading chapters...</p>
                 ) : (
                   <p className="text-slate-500 text-xs">
-                    {chapters.length} life chapters loaded
+                    {chapters.length > 0 ? `${chapters.length} life chapters loaded` : 'Your timeline is ready for chapters'}
                   </p>
                 )}
               </div>
-
-
-                </div>
+          </div>
 
           {/* Mobile Vertical Timeline Content */}
-          <div className="pt-4 px-4 pb-8">
-            <div className="relative">
-              {/* Vertical timeline line */}
-              <div className="absolute left-20 top-0 bottom-0 w-0.5 bg-gradient-to-b from-slate-300 via-slate-400 to-slate-500"></div>
-              
-              {/* Chapter Blobs in chronological order */}
-              <div className="space-y-6">
-                {chapters
+          <div className="pt-8 px-4 pb-32 relative">
+            {chapters.length === 0 ? (
+              /* Empty State Timeline */
+              <div className="relative min-h-[70vh]">
+                {/* Vertical timeline line - positioned with higher z-index */}
+                <div className="absolute left-[4.5rem] top-0 bottom-0 w-1 bg-gradient-to-b from-slate-300 via-slate-400 to-slate-500 rounded-full shadow-sm z-0"></div>
+                
+                {/* Timeline markers for major life periods */}
+                <div className="space-y-16 relative z-10">
+                  {/* Generate decade markers from birth year to current year */}
+                  {Array.from({ length: Math.ceil((currentYear - birthYear) / 10) + 1 }, (_, i) => {
+                    const markerYear = birthYear + (i * 10);
+                    if (markerYear > currentYear) return null;
+                    
+                    return (
+                      <div key={`decade-${markerYear}`} className="flex items-center relative">
+                        {/* Year label */}
+                        <div className="flex-shrink-0 w-16 text-right pr-3">
+                          <div className="text-sm font-bold text-slate-700 bg-white px-2 py-1 rounded shadow-md border border-slate-200">
+                            {markerYear}
+                          </div>
+                        </div>
+                        
+                        {/* Timeline marker dot - overlays the line */}
+                        <div className="w-5 h-5 bg-white border-4 border-slate-400 rounded-full shadow-lg z-20 relative"></div>
+                        
+                        {/* Age indicator */}
+                        <div className="flex-1 ml-3">
+                          <div className="bg-white/90 backdrop-blur-sm rounded-lg p-2.5 border border-slate-200 shadow-sm">
+                            <p className="text-xs font-medium text-slate-700">
+                              Age {markerYear - birthYear}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }).filter(Boolean)}
+                </div>
+                
+                {/* Empty state message - below the timeline */}
+                <div className="mt-12 relative z-20">
+                  <div className="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-6 text-center max-w-sm mx-auto">
+                    <div className="w-16 h-16 bg-gradient-to-br from-sky-100 to-sky-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Calendar className="text-sky-600" size={32} />
+                    </div>
+                    <h4 className="text-lg font-bold text-slate-900 mb-2">Your Life Awaits</h4>
+                    <p className="text-sm text-slate-600 mb-4">
+                      This is your timeline from {birthYear} to {currentYear}. Start adding life chapters to bring your story to life!
+                    </p>
+                    <button
+                      onClick={() => onCreateChapter?.()}
+                      className="w-full bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600 text-white px-4 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 flex items-center justify-center space-x-2"
+                    >
+                      <Plus size={18} />
+                      <span>Create Your First Chapter</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Timeline with Chapters */
+              <div className="relative min-h-[70vh]">
+                {/* Vertical timeline line */}
+                <div className="absolute left-20 top-0 bottom-0 w-0.5 bg-gradient-to-b from-slate-300 via-slate-400 to-slate-500 z-0"></div>
+                
+                {/* Chapter Blobs in chronological order */}
+                <div className="space-y-6 relative z-10">
+                  {chapters
                   .filter(chapter => chapter && chapter.id && chapter.title)
                   .sort((a, b) => {
                     // Parse start dates with fallback to creation dates
@@ -667,14 +725,9 @@ export default function ChronologicalTimelineView({
                         <div 
                           className="relative cursor-pointer transition-all duration-300"
                   onClick={() => {
-                            console.log('📱 MOBILE BLOB TAP:', chapter.title)
-                            if (is3DMode) {
-                              // Toggle globe visibility for 3D mode
-                              setHoveredChapter(hoveredChapter === chapter.id ? null : chapter.id)
-                            } else {
-                              // Open chapter modal for list mode (when implemented)
-                              console.log('📱 LIST MODE - Chapter modal would open here')
-                            }
+                            console.log('📱 MOBILE BLOB TAP:', chapter.title, 'Mode:', is3DMode ? 'Globe' : 'List')
+                            // Open chapter overlay - will show globe or list depending on is3DMode
+                            setHoveredChapter(hoveredChapter === chapter.id ? null : chapter.id)
                           }}
                         >
                           {/* The Blob itself (same styling as desktop) */}
@@ -724,25 +777,33 @@ export default function ChronologicalTimelineView({
                               <span className="text-xs text-slate-600">
                                 {chapterMemories.length > 0 ? `${chapterMemories.length} memories` : 'No memories yet'}
                               </span>
-                              <span className="text-xs text-blue-600 font-medium">
-                                {is3DMode ? 'Tap blob for globe →' : 'Tap to explore →'}
-                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  // Open the chapter overlay - will show globe or list depending on is3DMode
+                                  setHoveredChapter(hoveredChapter === chapter.id ? null : chapter.id)
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-700 font-medium underline active:scale-95 transition-all"
+                              >
+                                View memories →
+                              </button>
                            </div>
                        </div>
                   </div>
                 </div>
                     )
                   })}
+                </div>
+                
+                {/* Mobile Globe gets rendered separately - see below timeline container */}
               </div>
-              
-              {/* Mobile Globe gets rendered separately - see below timeline container */}
-            </div>
+            )}
           </div>
         </div>
       )}
 
       {/* Mobile Globe - Central Overlay (Mobile Only) */}
-      {hoveredChapter && is3DMode && (
+      {hoveredChapter && (
         <div 
           className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={() => setHoveredChapter(null)}

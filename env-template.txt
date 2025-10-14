@@ -35,3 +35,19 @@ TWILIO_WEBHOOK_URL=https://your-domain.com/api/webhooks/twilio
 
 # AI Image Generation (Stability AI - SD 3.5 Large)
 STABILITY_API_KEY=your-stability-api-key-here
+
+# Stripe Payment Configuration
+# Get these from https://dashboard.stripe.com/apikeys
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxx
+
+# Stripe Webhook Secret
+# Get this from https://dashboard.stripe.com/webhooks
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxx
+
+# Stripe Price IDs (create products/prices in Stripe Dashboard)
+NEXT_PUBLIC_STRIPE_PRICE_MONTHLY=price_xxxxxxxxxxxxx
+NEXT_PUBLIC_STRIPE_PRICE_YEARLY=price_xxxxxxxxxxxxx
+
+# App URL for Stripe redirects
+NEXT_PUBLIC_APP_URL=https://your-app.vercel.app

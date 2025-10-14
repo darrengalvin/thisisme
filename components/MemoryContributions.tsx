@@ -302,12 +302,12 @@ export default function MemoryContributions({
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center space-x-2">
+        {/* Action Buttons - Mobile optimized */}
+        <div className="flex items-center space-x-1 sm:space-x-2">
           <MemoryInviteSystem
             memoryId={memoryId}
             memoryTitle={memoryTitle}
-            className="text-sm"
+            className="text-xs sm:text-sm"
             onInviteSent={() => {
               // Refresh contributions after invite
               loadContributions()
@@ -316,9 +316,9 @@ export default function MemoryContributions({
           />
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 active:scale-95 flex items-center space-x-1.5 sm:space-x-2 text-xs sm:text-sm"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>Add</span>
           </button>
         </div>

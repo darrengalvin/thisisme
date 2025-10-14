@@ -287,28 +287,28 @@ export default function MemoryInvitationPage() {
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
             
             {/* Main Memory Content */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               {/* Memory Header */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{invitationInfo.memory.title}</h1>
-                    <div className="flex items-center space-x-4 text-sm text-gray-600">
-                      <span>📅 {new Date(invitationInfo.memory.created_at).toLocaleDateString()}</span>
-                      <span>👤 Shared by {invitationInfo.inviterName}</span>
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 space-y-3 sm:space-y-0">
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 break-words">{invitationInfo.memory.title}</h1>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-gray-600">
+                      <span className="flex items-center">📅 {new Date(invitationInfo.memory.created_at).toLocaleDateString()}</span>
+                      <span className="flex items-center">👤 Shared by {invitationInfo.inviterName}</span>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mt-2 sm:mt-0 sm:ml-4">
                     {invitationInfo.permissions.map(permission => {
                       const Icon = permissionIcons[permission as keyof typeof permissionIcons]
                       return (
-                        <span key={permission} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                        <span key={permission} className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium whitespace-nowrap">
                           <Icon className="h-3 w-3" />
-                          {permissionLabels[permission as keyof typeof permissionLabels]}
+                          <span className="hidden sm:inline">{permissionLabels[permission as keyof typeof permissionLabels]}</span>
                         </span>
                       )
                     })}
@@ -317,9 +317,9 @@ export default function MemoryInvitationPage() {
 
                 {/* Memory Media Gallery */}
                 {invitationInfo.memory.media && invitationInfo.memory.media.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <Image className="w-5 h-5 mr-2 text-blue-600" />
+                  <div className="mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+                      <Image className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600 flex-shrink-0" />
                       Media ({invitationInfo.memory.media.length})
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -426,16 +426,16 @@ export default function MemoryInvitationPage() {
 
                 {/* Memory Text */}
                 {invitationInfo.memory.text_content && (
-                  <div className="prose prose-lg max-w-none">
-                    <div className="bg-gray-50 rounded-xl p-6 border-l-4 border-blue-500">
-                      <p className="text-gray-800 leading-relaxed text-lg">{invitationInfo.memory.text_content}</p>
+                  <div className="prose prose-sm sm:prose-base lg:prose-lg max-w-none">
+                    <div className="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border-l-4 border-blue-500">
+                      <p className="text-gray-800 leading-relaxed text-sm sm:text-base lg:text-lg">{invitationInfo.memory.text_content}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Contributions Section */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100">
                 <MemoryCollaboration 
                   memoryId={invitationInfo.memory.id}
                   memoryTitle={invitationInfo.memory.title}
@@ -446,19 +446,19 @@ export default function MemoryInvitationPage() {
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Start Your Own Timeline CTA */}
-              <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl shadow-xl p-6 text-white">
+              <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 text-white">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">✨</span>
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                    <span className="text-xl sm:text-2xl">✨</span>
                   </div>
-                  <h3 className="text-xl font-bold mb-2">Start Your Own Timeline</h3>
-                  <p className="text-blue-100 mb-4 text-sm leading-relaxed">
+                  <h3 className="text-lg sm:text-xl font-bold mb-2">Start Your Own Timeline</h3>
+                  <p className="text-blue-100 mb-4 text-xs sm:text-sm leading-relaxed">
                     Create your own memory collection and share life's precious moments with the people who matter most.
                   </p>
                   <Link href="/">
-                    <button className="w-full bg-white text-blue-600 py-3 px-4 rounded-xl font-semibold hover:bg-gray-50 transition-colors">
+                    <button className="w-full bg-white text-blue-600 py-2.5 sm:py-3 px-4 rounded-lg sm:rounded-xl font-semibold hover:bg-gray-50 transition-colors text-sm sm:text-base">
                       Get Started Free
                     </button>
                   </Link>
@@ -466,32 +466,32 @@ export default function MemoryInvitationPage() {
               </div>
 
               {/* Features Highlight */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-                <h4 className="font-semibold text-gray-900 mb-4">What you can do:</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <span className="text-green-600 text-sm">📸</span>
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100">
+                <h4 className="font-semibold text-gray-900 mb-3 sm:mb-4 text-sm sm:text-base">What you can do:</h4>
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-green-600 text-xs sm:text-sm">📸</span>
                     </div>
-                    <span className="text-sm text-gray-700">Capture & organize memories</span>
+                    <span className="text-xs sm:text-sm text-gray-700">Capture & organize memories</span>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 text-sm">👥</span>
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 text-xs sm:text-sm">👥</span>
                     </div>
-                    <span className="text-sm text-gray-700">Collaborate with family & friends</span>
+                    <span className="text-xs sm:text-sm text-gray-700">Collaborate with family & friends</span>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                      <span className="text-purple-600 text-sm">🗂️</span>
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-purple-600 text-xs sm:text-sm">🗂️</span>
                     </div>
-                    <span className="text-sm text-gray-700">Organize by life chapters</span>
+                    <span className="text-xs sm:text-sm text-gray-700">Organize by life chapters</span>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                      <span className="text-orange-600 text-sm">💬</span>
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-orange-600 text-xs sm:text-sm">💬</span>
                     </div>
-                    <span className="text-sm text-gray-700">Add comments & stories</span>
+                    <span className="text-xs sm:text-sm text-gray-700">Add comments & stories</span>
                   </div>
                 </div>
               </div>

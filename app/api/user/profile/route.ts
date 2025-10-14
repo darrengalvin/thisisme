@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     
     const { data: userProfile, error } = await supabaseAdmin
       .from('users')
-      .select('id, email, birth_year, created_at, updated_at, is_admin')
+      .select('id, email, birth_year, birth_date, full_name, profile_photo_url, created_at, updated_at, is_admin')
       .eq('id', targetUserId)
       .maybeSingle()
 
@@ -85,15 +85,18 @@ export async function GET(request: Request) {
     if (!userProfile) {
       console.log('⚠️ PROFILE API: No user profile found even with service role - record truly missing')
       console.log('⚠️ PROFILE API: This indicates a problem with the onboarding process')
-              return NextResponse.json({
+      return NextResponse.json({
         success: true,
-        user: {
+        data: {
           id: targetUserId,
           email: user.email, // Keep original email for now
-          birth_year: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          is_admin: false
+          birthYear: null,
+          birthDate: null,
+          fullName: null,
+          profilePhotoUrl: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isAdmin: false
         }
       })
     }
@@ -105,16 +108,19 @@ export async function GET(request: Request) {
       createdAt: userProfile.created_at
     })
 
-    // Return user profile data
+    // Return user profile data in camelCase
     return NextResponse.json({
       success: true,
-      user: {
+      data: {
         id: userProfile.id,
         email: userProfile.email,
-        birth_year: userProfile.birth_year,
-        created_at: userProfile.created_at,
-        updated_at: userProfile.updated_at,
-        is_admin: userProfile.is_admin
+        birthYear: userProfile.birth_year,
+        birthDate: userProfile.birth_date,
+        fullName: userProfile.full_name,
+        profilePhotoUrl: userProfile.profile_photo_url,
+        createdAt: userProfile.created_at,
+        updatedAt: userProfile.updated_at,
+        isAdmin: userProfile.is_admin
       }
     })
 
@@ -145,7 +151,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { birthYear } = await request.json()
+    const { birthYear, birthDate, fullName, profilePhotoUrl } = await request.json()
 
     // Validate birthYear if provided
     if (birthYear !== null && birthYear !== undefined) {
@@ -153,6 +159,17 @@ export async function PUT(request: NextRequest) {
       if (typeof birthYear !== 'number' || birthYear < 1900 || birthYear > currentYear) {
         return NextResponse.json(
           { success: false, error: 'Birth year must be between 1900 and current year' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Validate birthDate if provided
+    if (birthDate !== null && birthDate !== undefined) {
+      const date = new Date(birthDate)
+      if (isNaN(date.getTime()) || date > new Date()) {
+        return NextResponse.json(
+          { success: false, error: 'Birth date must be a valid date in the past' },
           { status: 400 }
         )
       }
@@ -170,12 +187,19 @@ export async function PUT(request: NextRequest) {
       }
     )
 
+    // Build update object with only provided fields
+    const updateData: any = {}
+    if (birthYear !== undefined) updateData.birth_year = birthYear
+    if (birthDate !== undefined) updateData.birth_date = birthDate
+    if (fullName !== undefined) updateData.full_name = fullName
+    if (profilePhotoUrl !== undefined) updateData.profile_photo_url = profilePhotoUrl
+
     // Try to update the user profile
     const { data: userProfile, error } = await supabase
       .from('users')
-      .update({ birth_year: birthYear })
+      .update(updateData)
       .eq('id', user.userId)
-      .select('id, email, birth_year, created_at, updated_at')
+      .select('id, email, birth_year, birth_date, full_name, profile_photo_url, created_at, updated_at')
       .maybeSingle()
 
     if (error) {
@@ -208,6 +232,9 @@ export async function PUT(request: NextRequest) {
       id: userProfile.id,
       email: userProfile.email,
       birthYear: userProfile.birth_year,
+      birthDate: userProfile.birth_date,
+      fullName: userProfile.full_name,
+      profilePhotoUrl: userProfile.profile_photo_url,
       createdAt: userProfile.created_at,
       updatedAt: userProfile.updated_at
     }

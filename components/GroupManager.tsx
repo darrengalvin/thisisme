@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Plus, Settings, Calendar, MapPin, Edit, Camera, Trash2, Users, Upload, X, Save, Info, Move, Mic, Crown, Sparkles, CheckCircle, AlertCircle } from 'lucide-react'
 import { TimeZoneWithRelations, MemoryWithRelations } from '@/lib/types'
 import { useAuth } from './AuthProvider'
@@ -86,6 +87,13 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isInitialLoad = useRef(true)
   const [originalChapter, setOriginalChapter] = useState<EditChapterData | null>(null)
+  
+  // Portal mounting state for SSR compatibility
+  const [isMounted, setIsMounted] = useState(false)
+  
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -663,40 +671,53 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
-        {/* Page Title and New Chapter Button */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
+        {/* Page Title - Only show when user has chapters */}
+        {chapters.length > 0 && (
+          <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-2">Life Chapters</h1>
             <p className="text-slate-600">
               {chapters.length} {chapters.length === 1 ? 'chapter' : 'chapters'} • Organise and edit your life story
             </p>
           </div>
-          <button
-            onClick={onCreateGroup}
-            className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-          >
-            <Plus size={20} />
-            <span>New Chapter</span>
-          </button>
-        </div>
+        )}
         {chapters.length === 0 ? (
-          <div className="text-center max-w-md mx-auto py-16">
-            <div className="w-24 h-24 bg-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <Camera size={40} className="text-slate-400" />
+          <div className="text-center max-w-2xl mx-auto py-12 pb-40">
+            <div className="w-20 h-20 bg-sky-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <span className="text-sky-600 text-3xl">📖</span>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3">No chapters yet</h3>
-            <p className="text-slate-600 mb-8 leading-relaxed">
-              Create your first life chapter to organise your memories around important periods, places, or themes in your life.
+            <h3 className="text-3xl font-bold text-slate-900 mb-4">Let's Create Your First Chapter</h3>
+            <p className="text-slate-600 mb-8 text-lg leading-relaxed">
+              Think of chapters as different periods or phases of your life. They help organize your memories chronologically and make your story easier to explore.
             </p>
-            <button 
-              onClick={onCreateGroup} 
-              className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              Create Your First Chapter
-            </button>
+            
+            <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-2xl p-6 mb-8 border border-sky-100">
+              <h4 className="font-semibold text-sky-900 mb-4">💡 Chapter inspiration:</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">🏫</span>
+                  <span className="text-sky-800">School or university years</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">🏢</span>
+                  <span className="text-sky-800">Your first job or career</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">🏠</span>
+                  <span className="text-sky-800">Living in a particular city</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">✈️</span>
+                  <span className="text-sky-800">Traveling or living abroad</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 text-sm text-slate-500">
+              <p>💡 <strong>Tip:</strong> You can always add memories to chapters later, but starting with chapters makes your timeline more organized!</p>
+            </div>
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pb-32">
             {chapters
               .sort((a, b) => {
                 // Robust chronological sorting - same logic as TimelineView and ChronologicalTimelineView
@@ -719,7 +740,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                     <img
                       src={chapter.headerImageUrl}
                       alt={chapter.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-top sm:object-center"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -846,7 +867,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                         title={`Add new memory to ${chapter.title}`}
                       >
                         <Plus size={16} />
-                        <span>Add to this Chapter</span>
+                        <span>Add Memories</span>
                       </button>
                     </div>
                   )}
@@ -903,16 +924,10 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                     
                     <button
                       onClick={() => handleEditChapter(chapter)}
-                      className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-1"
+                      className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-1"
                     >
                       <Edit size={14} />
                       <span>Edit</span>
-                    </button>
-                    <button
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2 rounded-lg transition-all duration-200"
-                      title="More options"
-                    >
-                      <Settings size={14} />
                     </button>
                   </div>
                 </div>
@@ -1333,6 +1348,56 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
           onClose={() => setShowVoiceRecorder(false)}
           isPremium={isPremiumUser}
         />
+      )}
+      
+      {/* Fixed bottom button for creating first chapter - Shows when no chapters exist */}
+      {isMounted && chapters.length === 0 && createPortal(
+        <div 
+          className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg overflow-x-hidden"
+          style={{
+            position: 'fixed',
+            zIndex: 9999,
+            transform: 'translate3d(0, 0, 0)',
+            WebkitTransform: 'translate3d(0, 0, 0)',
+            willChange: 'transform'
+          }}
+        >
+          <div className="max-w-2xl mx-auto px-4">
+            <button
+              onClick={onCreateGroup}
+              className="w-full bg-sky-600 hover:bg-sky-700 text-white px-4 sm:px-8 py-4 rounded-xl text-base sm:text-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 sm:space-x-3 shadow-lg hover:shadow-xl active:scale-95 min-w-0"
+            >
+              <span className="text-xl flex-shrink-0">📖</span>
+              <span className="truncate">Create Your First Chapter</span>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Fixed bottom button for adding new chapter - Shows when user has chapters */}
+      {isMounted && chapters.length > 0 && createPortal(
+        <div 
+          className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg overflow-x-hidden"
+          style={{
+            position: 'fixed',
+            zIndex: 9999,
+            transform: 'translate3d(0, 0, 0)',
+            WebkitTransform: 'translate3d(0, 0, 0)',
+            willChange: 'transform'
+          }}
+        >
+          <div className="max-w-2xl mx-auto px-4">
+            <button
+              onClick={onCreateGroup}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white px-4 sm:px-6 py-4 rounded-xl text-base sm:text-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 sm:space-x-3 shadow-lg hover:shadow-xl active:scale-95 min-w-0"
+            >
+              <Plus size={20} className="flex-shrink-0" />
+              <span className="truncate">New Chapter</span>
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
       
       {/* Upgrade Modal */}

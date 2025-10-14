@@ -11,6 +11,7 @@ import { useAuth } from '@/components/AuthProvider'
 import TicketNotifications from '@/components/TicketNotifications'
 import TabNavigation from './TabNavigation'
 import NotificationBell from './NotificationBell'
+import LoadingTimeoutHandler from './LoadingTimeoutHandler'
 
 // Lazy load heavy components that aren't needed on initial page load
 const GroupManager = lazy(() => import('./GroupManager'))
@@ -42,7 +43,7 @@ interface UserType {
 
 export default function Dashboard() {
   const { user: supabaseUser, session } = useAuth()
-  const [activeTab, setActiveTab] = useState<TabType>('home')
+  const [activeTab, setActiveTab] = useState<TabType>('timezones')
   
   // Check for beta mode
   const [isBetaMode, setIsBetaMode] = useState(false)
@@ -313,19 +314,19 @@ export default function Dashboard() {
       if (response.ok) {
         const data = await response.json()
         console.log('👤 USER PROFILE DATA:', data)
-        console.log('👤 USER BIRTH YEAR:', data.user?.birth_year)
         
-        // Convert snake_case to camelCase for consistency
-        const userData = data.user ? {
-          id: data.user.id,
-          email: data.user.email,
-          birthYear: data.user.birth_year,
-          createdAt: data.user.created_at,
-          updatedAt: data.user.updated_at,
-          isAdmin: data.user.is_admin
+        // The API now returns camelCase data directly in data.data
+        const userData = data.data ? {
+          id: data.data.id,
+          email: data.data.email,
+          birthYear: data.data.birthYear,
+          createdAt: data.data.createdAt,
+          updatedAt: data.data.updatedAt,
+          isAdmin: data.data.isAdmin
         } : null
         
         console.log('👤 CONVERTED USER DATA:', userData)
+        console.log('👤 USER BIRTH YEAR:', userData?.birthYear)
         setUser(userData)
         
         // Set isNewUser flag based on account creation time (more generous window)
@@ -1289,9 +1290,9 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-white overflow-hidden">
       {/* Clean Top Navigation */}
-      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/50 px-4 lg:px-8 py-4 sticky top-0 z-50 shadow-sm">
+      <header className="flex-shrink-0 bg-white/95 backdrop-blur-md border-b border-slate-200/50 px-4 lg:px-8 py-4 sticky top-0 z-50 shadow-sm">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           
           {/* Logo */}
@@ -1371,10 +1372,10 @@ export default function Dashboard() {
               </div>
             )}
             
-            {/* Add Chapter Button - Available for all users */}
+            {/* Add Chapter Button - Available for all users - Hidden on mobile, use FAB instead */}
             <button
               onClick={() => setActiveTab('create-timezone')}
-              className="bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-700 hover:to-slate-600 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center space-x-2"
+              className="hidden sm:flex bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-700 hover:to-slate-600 text-white px-4 py-2 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg items-center space-x-2"
             >
               <Plus size={18} />
               <span className="hidden lg:inline">Add Chapter</span>
@@ -1571,16 +1572,20 @@ export default function Dashboard() {
       </header>
 
       {/* Tab Navigation */}
-      <TabNavigation 
-        activeTab={activeTab as MainTabType}
-        onTabChange={(tab) => setActiveTab(tab)}
-        className="sticky top-[73px] z-40"
-        isBetaMode={isBetaMode}
-      />
+      <div className="flex-shrink-0">
+        <TabNavigation 
+          activeTab={activeTab as MainTabType}
+          onTabChange={(tab) => setActiveTab(tab)}
+          className="z-40"
+          isBetaMode={isBetaMode}
+        />
+      </div>
 
       {/* Main Content */}
-      <main className="flex-1">
-        {renderContent()}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="h-full">
+          {renderContent()}
+        </div>
       </main>
 
       {/* Memory Wizard Overlay */}
@@ -1649,6 +1654,12 @@ export default function Dashboard() {
         </Suspense>
       </div>
 
+      {/* Loading Timeout Handler - Shows DOB prompt if loading is stuck */}
+      <LoadingTimeoutHandler 
+        isLoading={isLoadingUser}
+        user={user}
+        onRefresh={refreshAll}
+      />
 
     </div>
   )

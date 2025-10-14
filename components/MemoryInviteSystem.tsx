@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '@/components/AuthProvider'
 import { UserPlus, Mail, MessageCircle, Image, FileText, Eye, Send, X, Users, Sparkles, Search, Plus, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -79,6 +80,13 @@ export default function MemoryInviteSystem({
     }
   ])
   const [sending, setSending] = useState(false)
+  
+  // Portal mounting state for SSR compatibility
+  const [isMounted, setIsMounted] = useState(false)
+  
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Fetch people from user's network
   const fetchPeople = async () => {
@@ -227,59 +235,74 @@ export default function MemoryInviteSystem({
 
   return (
     <>
-      {/* People Picker Button */}
+      {/* People Picker Button - Mobile optimized */}
       <button
         onClick={handleOpenPicker}
-        className={`flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-medium transition-colors duration-200 ${className}`}
+        className={`flex items-center space-x-1.5 sm:space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-3 py-2 rounded-lg font-medium transition-all duration-200 active:scale-95 ${className}`}
       >
-        <Users className="w-4 h-4" />
-        <span>Involve Someone</span>
+        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        <span className="text-xs sm:text-sm whitespace-nowrap">Involve Someone</span>
       </button>
 
-      {/* People Picker Modal */}
-      {showPickerModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="p-6 border-b border-gray-200">
+      {/* People Picker Modal - With Portal for proper mobile positioning */}
+      {isMounted && showPickerModal && createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-white sm:rounded-2xl shadow-2xl max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto">
+            {/* Header - Mobile optimized */}
+            <div className="p-4 sm:p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Users className="w-5 h-5 text-blue-600" />
+                <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">Involve Someone</h2>
-                    <p className="text-sm text-gray-600">in "{memoryTitle}"</p>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900">Involve Someone</h2>
+                    <p className="text-xs sm:text-sm text-gray-600 truncate">in "{memoryTitle}"</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowPickerModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                 >
-                  <X className="w-6 h-6 text-gray-500" />
+                  <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
                 </button>
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              {/* Instructions */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                    1
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-blue-900 mb-1">Select someone from your network</h4>
+                    <p className="text-xs text-blue-700">
+                      Choose a person who was involved in this memory, has photos, or can add more details.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Memory Preview */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-start space-x-4">
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                <div className="flex items-start space-x-3 sm:space-x-4">
                   {memoryImageUrl && (
                     <img
                       src={memoryImageUrl}
                       alt={memoryTitle}
-                      className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                      className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg flex-shrink-0"
                     />
                   )}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-900 mb-1">{memoryTitle}</h3>
+                    <h3 className="text-sm sm:text-base font-medium text-gray-900 mb-1">{memoryTitle}</h3>
                     {memoryDescription && (
-                      <p className="text-sm text-gray-600 line-clamp-2">{memoryDescription}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{memoryDescription}</p>
                     )}
                     <div className="flex items-center space-x-2 mt-2">
-                      <Users className="w-4 h-4 text-gray-400" />
-                      <span className="text-xs text-gray-500">Memory by {user.email}</span>
+                      <Users className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                      <span className="text-xs text-gray-500 truncate">Memory by {user.email}</span>
                     </div>
                   </div>
                 </div>
@@ -288,7 +311,7 @@ export default function MemoryInviteSystem({
               {/* People Search */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search your people
+                  Select a person
                 </label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -355,7 +378,10 @@ export default function MemoryInviteSystem({
                 ) : (
                   <div className="text-center py-8">
                     <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">No people found</p>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No People in Your Network Yet</h3>
+                    <p className="text-gray-600 mb-4 max-w-sm mx-auto">
+                      Before you can involve someone in this memory, you need to add them to your network first.
+                    </p>
                     <button
                       onClick={() => {
                         setShowPickerModal(false)
@@ -365,33 +391,32 @@ export default function MemoryInviteSystem({
                           window.location.href = '/?tab=people'
                         }
                       }}
-                      className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                      className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors active:scale-95"
                     >
-                      <Plus className="w-4 h-4" />
-                      <span>Add People to Your Network</span>
+                      <UserPlus className="w-4 h-4" />
+                      <span>Add People to Network</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Add Person Button - Always Visible */}
-              <div className="flex justify-center">
-                <button
-                  onClick={() => {
-                    setShowPickerModal(false)
-                    if (onNavigateToMyPeople) {
-                      onNavigateToMyPeople()
-                    } else {
-                      window.location.href = '/?tab=people'
-                    }
-                  }}
-                  className="inline-flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Person</span>
-                </button>
-              </div>
+              {/* Step 2 - Set Permissions */}
+              {selectedPerson && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                      2
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-green-900 mb-1">Choose what they can do</h4>
+                      <p className="text-xs text-green-700">
+                        Select the permissions below, then click "Send Invite" at the bottom.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Reason for Invitation */}
               <div>
@@ -403,35 +428,35 @@ export default function MemoryInviteSystem({
                   value={inviteReason}
                   onChange={(e) => setInviteReason(e.target.value)}
                   placeholder="e.g., They were there, have photos, know the story..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                 />
               </div>
 
               {/* Permissions */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  What can they do with this memory?
+                  Permissions (tap to toggle)
                 </label>
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {permissions.map((permission) => {
                     const Icon = permission.icon
                     return (
                       <div
                         key={permission.id}
-                        className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                        className={`flex items-center justify-between p-3 sm:p-4 border rounded-lg cursor-pointer transition-all duration-200 active:scale-[0.98] ${
                           permission.enabled
                             ? 'border-blue-200 bg-blue-50'
                             : 'border-gray-200 bg-white hover:bg-gray-50'
                         }`}
                         onClick={() => togglePermission(permission.id)}
                       >
-                        <div className="flex items-center space-x-3">
-                          <Icon className={`w-5 h-5 ${permission.enabled ? 'text-blue-600' : 'text-gray-400'}`} />
-                          <div>
-                            <p className={`font-medium ${permission.enabled ? 'text-blue-900' : 'text-gray-700'}`}>
+                        <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                          <Icon className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${permission.enabled ? 'text-blue-600' : 'text-gray-400'}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm sm:text-base font-medium ${permission.enabled ? 'text-blue-900' : 'text-gray-700'}`}>
                               {permission.label}
                             </p>
-                            <p className={`text-sm ${permission.enabled ? 'text-blue-700' : 'text-gray-500'}`}>
+                            <p className={`text-xs sm:text-sm ${permission.enabled ? 'text-blue-700' : 'text-gray-500'}`}>
                               {permission.description}
                             </p>
                           </div>
@@ -532,7 +557,8 @@ export default function MemoryInviteSystem({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

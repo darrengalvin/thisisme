@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
       textContent: z.string().min(1, 'Content is required').max(10000, 'Content too long (max 10,000 characters)'),
       timeZoneId: z.string().uuid('Invalid chapter ID').optional(),
       customDate: z.string().optional(),
-      datePrecision: z.enum(['exact', 'month', 'year', 'approximate']).optional(),
+      datePrecision: z.enum(['exact', 'month', 'year', 'approximate', 'era']).optional(),
       approximateDate: z.string().max(100, 'Approximate date too long').optional(),
       taggedPeople: z.array(z.string()).max(50, 'Too many tagged people (max 50)').optional(),
     });

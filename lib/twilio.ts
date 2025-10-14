@@ -139,14 +139,14 @@ export async function sendPersonInviteSMS(
   }
   
   const chapterText = chapterNames.length > 0
-    ? ` I'd love your help with these chapters: ${chapterNames.join(', ')}.`
+    ? `\n\nChapters: ${chapterNames.join(', ')}`
     : '';
   
   const inviteCodeText = inviteCode 
-    ? ` Invite code: ${inviteCode} (save this to join later or if using a different phone/email)`
+    ? `\n\n📋 YOUR CODE: ${inviteCode}\n(Save this to join with a different phone/email or if you already have an account)`
     : '';
   
-  const message = `Hi ${personName}! ${inviterName} (your ${relationship}) invited you to join This Is Me - a memory collaboration platform.${chapterText} ${customMessage ? `"${customMessage}" ` : ''}Join: ${appUrl}${inviteCodeText}`;
+  const message = `Hi ${personName}! ${inviterName} (your ${relationship}) invited you to This Is Me.${chapterText}${customMessage ? `\n\n"${customMessage}"` : ''}\n\nJoin: ${appUrl}${inviteCodeText}`;
 
   return sendSMS({
     to: formattedPhone,

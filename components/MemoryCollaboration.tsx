@@ -22,6 +22,8 @@ interface Contribution {
   contributor?: {
     id: string
     email: string
+    full_name?: string
+    photo_url?: string
   }
 }
 
@@ -220,6 +222,7 @@ export default function MemoryCollaboration({
           bgColor: 'bg-blue-50',
           borderColor: 'border-blue-200',
           iconColor: 'text-blue-600',
+          textColor: 'text-blue-700',
           label: 'Comment'
         }
       case 'ADDITION':
@@ -228,6 +231,7 @@ export default function MemoryCollaboration({
           bgColor: 'bg-green-50',
           borderColor: 'border-green-200',
           iconColor: 'text-green-600',
+          textColor: 'text-green-700',
           label: 'Addition'
         }
       case 'CORRECTION':
@@ -236,6 +240,7 @@ export default function MemoryCollaboration({
           bgColor: 'bg-orange-50',
           borderColor: 'border-orange-200',
           iconColor: 'text-orange-600',
+          textColor: 'text-orange-700',
           label: 'Correction'
         }
       default:
@@ -244,6 +249,7 @@ export default function MemoryCollaboration({
           bgColor: 'bg-gray-50',
           borderColor: 'border-gray-200',
           iconColor: 'text-gray-600',
+          textColor: 'text-gray-700',
           label: 'Comment'
         }
     }
@@ -632,26 +638,44 @@ export default function MemoryCollaboration({
             {contributions.map((contribution) => {
               const style = getContributionStyle(contribution.contribution_type)
               const Icon = style.icon
+              const contributorName = contribution.contributor?.full_name || contribution.contributor?.email?.split('@')[0] || 'Someone'
+              const contributorInitial = contributorName.charAt(0).toUpperCase()
+              const isYou = contribution.contributor_id === user?.id
               
               return (
                 <div
                   key={contribution.id}
-                  className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
+                  className={`bg-gradient-to-br ${style.bgColor} rounded-2xl shadow-md border-2 ${style.borderColor} overflow-hidden hover:shadow-lg transition-all duration-200`}
                 >
-                  {/* Header */}
-                  <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-                    <div className="flex items-center space-x-3">
-                      <div className={`flex-shrink-0 w-10 h-10 rounded-full ${style.bgColor} flex items-center justify-center`}>
-                        <Icon className={`w-5 h-5 ${style.iconColor}`} />
+                  {/* Header - More personal and conversational */}
+                  <div className="px-4 sm:px-6 py-3 sm:py-4 bg-white/80 backdrop-blur-sm">
+                    <div className="flex items-start space-x-3">
+                      {/* Avatar */}
+                      <div className="flex-shrink-0">
+                        {contribution.contributor?.photo_url ? (
+                          <img 
+                            src={contribution.contributor.photo_url} 
+                            alt={contributorName}
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-white shadow-md"
+                          />
+                        ) : (
+                          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${style.bgColor} flex items-center justify-center ring-2 ring-white shadow-md`}>
+                            <span className={`text-lg sm:text-xl font-bold ${style.textColor}`}>
+                              {contributorInitial}
+                            </span>
+                          </div>
+                        )}
                       </div>
+                      
+                      {/* Contributor Info */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <span className={`${style.iconColor} font-semibold text-sm`}>
-                            {style.label}
+                        <div className="flex items-center flex-wrap gap-2">
+                          <span className="text-gray-900 font-bold text-sm sm:text-base">
+                            {isYou ? 'You' : contributorName}
                           </span>
-                          <span className="text-gray-300 text-sm">•</span>
-                          <span className="text-gray-600 text-sm font-medium">
-                            {contribution.contributor?.email || 'Unknown user'}
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${style.bgColor} ${style.textColor}`}>
+                            <Icon className="w-3 h-3 mr-1" />
+                            {style.label}
                           </span>
                         </div>
                         <p className="text-gray-500 text-xs mt-1">
@@ -662,8 +686,8 @@ export default function MemoryCollaboration({
                   </div>
 
                   {/* Content */}
-                  <div className="px-6 py-4">
-                    <p className="text-gray-800 leading-relaxed text-base">
+                  <div className="px-4 sm:px-6 py-4 bg-white">
+                    <p className="text-gray-800 leading-relaxed text-sm sm:text-base">
                       {contribution.content}
                     </p>
                       

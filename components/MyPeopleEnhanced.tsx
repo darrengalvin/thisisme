@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
-import { Users, Plus, Mail, User, X, Calendar, BookOpen, ArrowLeft, Shield, UserPlus, Settings, Eye, MessageCircle, Image, FileText, Lock, Unlock, Crown, Star } from 'lucide-react'
-import AccessManagement from './AccessManagement'
+import { Users, Plus, Mail, User, X, Calendar, BookOpen, ArrowLeft, UserPlus, Settings, Eye, MessageCircle, Image, FileText, Lock, Unlock, Crown, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 // ✨ Improved TypeScript interfaces for better type safety
@@ -73,7 +72,6 @@ export default function MyPeopleEnhanced() {
   const { user } = useAuth()
   const [people, setPeople] = useState<NetworkPerson[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeSubTab, setActiveSubTab] = useState<'people' | 'access'>('people')
   const [showAddForm, setShowAddForm] = useState(false)
   const [newPerson, setNewPerson] = useState({
     name: '',
@@ -280,10 +278,7 @@ export default function MyPeopleEnhanced() {
           can_add_text: false,
           can_add_images: false,
           can_comment: true,
-          chapters_access: [
-            { chapter_name: 'Childhood', permissions: ['view', 'comment'] },
-            { chapter_name: 'University', permissions: ['view', 'add_text', 'comment'] }
-          ],
+          chapters_access: [], // Real chapter access would come from database
           memory_access: taggedMemoriesCount > 0 ? [
             { memory_title: 'Tagged memories', count: taggedMemoriesCount, permissions: ['view', 'comment'] }
           ] : []
@@ -351,10 +346,7 @@ export default function MyPeopleEnhanced() {
               can_add_text: true,
               can_add_images: true,
               can_comment: true,
-              chapters_access: [
-                { chapter_name: 'Family Holidays', permissions: ['view', 'add_text', 'add_images', 'comment'] },
-                { chapter_name: 'Celebrations', permissions: ['view', 'add_text', 'comment'] }
-              ],
+              chapters_access: [],
               memory_access: [
                 { memory_title: 'Beach Vacation 2024', permissions: ['view', 'add_images', 'comment'] },
                 { memory_title: 'Mom\'s Birthday Party', permissions: ['view', 'add_text', 'comment'] }
@@ -396,10 +388,7 @@ export default function MyPeopleEnhanced() {
               can_add_text: true,
               can_add_images: false,
               can_comment: true,
-              chapters_access: [
-                { chapter_name: 'College Days', permissions: ['view', 'add_text', 'comment'] },
-                { chapter_name: 'Adventures', permissions: ['view', 'comment'] }
-              ],
+              chapters_access: [],
               memory_access: [
                 { memory_title: 'College Reunion', permissions: ['view', 'add_text', 'comment'] },
                 { memory_title: 'Road Trip to Coast', permissions: ['view', 'comment'] }
@@ -434,9 +423,7 @@ export default function MyPeopleEnhanced() {
               can_add_text: false,
               can_add_images: false,
               can_comment: true,
-              chapters_access: [
-                { chapter_name: 'Cultural Events', permissions: ['view', 'comment'] }
-              ],
+              chapters_access: [],
               memory_access: [
                 { memory_title: 'Art Gallery Opening', permissions: ['view', 'comment'] }
               ]
@@ -483,11 +470,7 @@ export default function MyPeopleEnhanced() {
               can_add_text: true,
               can_add_images: true,
               can_comment: true,
-              chapters_access: [
-                { chapter_name: 'Family Gatherings', permissions: ['view', 'add_text', 'add_images', 'comment'] },
-                { chapter_name: 'Father-Son Time', permissions: ['view', 'add_text', 'add_images', 'comment'] },
-                { chapter_name: 'Family Legacy', permissions: ['view', 'add_text', 'comment'] }
-              ],
+              chapters_access: [],
               memory_access: [
                 { memory_title: 'Father\'s Day BBQ', permissions: ['view', 'add_text', 'add_images', 'comment'] },
                 { memory_title: 'Fishing Trip', permissions: ['view', 'add_images', 'comment'] },
@@ -522,9 +505,7 @@ export default function MyPeopleEnhanced() {
               can_add_text: true,
               can_add_images: false,
               can_comment: true,
-              chapters_access: [
-                { chapter_name: 'Development', permissions: ['view', 'add_text', 'comment'] }
-              ],
+              chapters_access: [],
               memory_access: [
                 { memory_title: 'API Testing Session', permissions: ['view', 'add_text', 'comment'] }
               ]
@@ -1105,66 +1086,29 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
   if (!user) return null
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+      {/* Header - Mobile Optimized */}
+      <div className="mb-4 sm:mb-8">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Users className="w-8 h-8 text-blue-600" />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">My People</h1>
-              <p className="text-gray-600">Manage your collaborative memory network</p>
+          <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+            <Users className="w-5 h-5 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-3xl font-bold text-gray-900 truncate">My People</h1>
+              <p className="text-xs sm:text-base text-gray-600 hidden sm:block">Manage your collaborative memory network</p>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={openAddForm}
-              className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Person</span>
-            </button>
-          </div>
+          <button
+            onClick={openAddForm}
+            className="flex items-center space-x-1.5 sm:space-x-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 active:scale-95 transition-all text-xs sm:text-sm flex-shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Add</span>
+          </button>
         </div>
       </div>
 
-      {/* Sub-Tab Navigation */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8">
-            <button
-              onClick={() => setActiveSubTab('people')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeSubTab === 'people'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4" />
-                <span>My People ({people.length})</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveSubTab('access')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeSubTab === 'access'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <Shield className="w-4 h-4" />
-                <span>Access Management</span>
-              </div>
-            </button>
-          </nav>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      {activeSubTab === 'people' ? (
-        <div>
+      {/* Content - No more tabs needed */}
+      <div>
           {/* Enhanced Add Person Form */}
           {showAddForm && (
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
@@ -1484,7 +1428,7 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
                 {newPerson.personType === 'living' && (
                   <div>
                     <h3 className="text-md font-medium text-gray-900 mb-3 flex items-center space-x-2">
-                    <Shield className="w-4 h-4 text-green-600" />
+                    <Lock className="w-4 h-4 text-green-600" />
                     <span>Permissions</span>
                   </h3>
                   <div className="bg-gray-50 rounded-lg p-4">
@@ -2416,12 +2360,6 @@ With love and remembrance,
             </div>
           )}
         </div>
-      ) : (
-        <div>
-          {/* Access Management Tab */}
-          <AccessManagement />
-        </div>
-      )}
 
       {/* Edit Person Modal */}
       {showEditModal && editingPerson && (
@@ -2478,14 +2416,40 @@ With love and remembrance,
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Photo URL</label>
-                <input
-                  type="url"
-                  value={editingPerson.photo_url || ''}
-                  onChange={(e) => setEditingPerson({...editingPerson, photo_url: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter photo URL"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Photo</label>
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0">
+                    {editingPerson.photo_url ? (
+                      <img
+                        src={editingPerson.photo_url}
+                        alt="Preview"
+                        className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
+                        <User className="w-8 h-8 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          const reader = new FileReader()
+                          reader.onload = (event) => {
+                            setEditingPerson({...editingPerson, photo_url: event.target?.result as string})
+                          }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Upload a new photo or keep the current one</p>
+                  </div>
+                </div>
               </div>
             </div>
             

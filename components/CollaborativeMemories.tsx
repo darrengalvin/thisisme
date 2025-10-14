@@ -11,11 +11,12 @@ interface CollaborativeMemory {
   user_id: string
   created_at: string
   updated_at: string
-  type: 'owned' | 'collaborative'
+  type: 'owned' | 'collaborative' | 'shared'
   permissions: string[]
   isOwner: boolean
   invitedBy?: string
   collaborationId?: string
+  collaboratorsCount?: number
 }
 
 interface CollaborativeMemoriesProps {
@@ -90,7 +91,7 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
   const filteredMemories = memories.filter(memory => {
     if (activeTab === 'all') return true
     if (activeTab === 'owned') return memory.type === 'owned'
-    if (activeTab === 'collaborative') return memory.type === 'collaborative'
+    if (activeTab === 'collaborative') return memory.type === 'collaborative' || memory.type === 'shared'
     return true
   })
 
@@ -160,7 +161,7 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Shared ({memories.filter(m => m.type === 'collaborative').length})
+            Shared ({memories.filter(m => m.type === 'collaborative' || m.type === 'shared').length})
           </button>
         </div>
       </div>
@@ -180,6 +181,151 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
                'Accept memory invitations to see shared memories here.'}
             </p>
           </div>
+        ) : activeTab === 'collaborative' ? (
+          // Split shared/collaborative view into two sections
+          <div className="space-y-8">
+            {/* Memories You've Shared With Others */}
+            {filteredMemories.filter(m => m.type === 'shared').length > 0 && (
+              <div>
+                <div className="flex items-center space-x-2 mb-4 pb-3 border-b-2 border-purple-200">
+                  <div className="w-1 h-6 bg-purple-500 rounded"></div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Memories You've Shared ({filteredMemories.filter(m => m.type === 'shared').length})
+                  </h3>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredMemories
+                    .filter(m => m.type === 'shared')
+                    .map((memory) => (
+                      <div key={memory.id} className="border border-purple-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-purple-50/30">
+                        <div className="flex items-start justify-between mb-3">
+                          <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
+                            {memory.title}
+                          </h3>
+                          <span className="px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-purple-100 text-purple-800 ml-2">
+                            Shared ({memory.collaboratorsCount})
+                          </span>
+                        </div>
+
+                        {memory.image_url && (
+                          <img 
+                            src={memory.image_url} 
+                            alt={memory.title}
+                            className="w-full h-32 object-cover rounded-lg mb-3"
+                          />
+                        )}
+
+                        {memory.text_content && (
+                          <p className="text-gray-600 text-sm line-clamp-3 mb-3">
+                            {memory.text_content}
+                          </p>
+                        )}
+
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>{formatDate(memory.created_at)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {memory.permissions.map(permission => {
+                            const Icon = permissionIcons[permission as keyof typeof permissionIcons]
+                            return (
+                              <span 
+                                key={permission}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-white text-gray-700 rounded-full text-xs border border-purple-200"
+                              >
+                                <Icon className="h-3 w-3" />
+                                {permissionLabels[permission as keyof typeof permissionLabels]}
+                              </span>
+                            )
+                          })}
+                        </div>
+
+                        <button 
+                          onClick={() => window.location.href = `/memories/${memory.id}`}
+                          className="w-full bg-purple-600 text-white py-2 px-3 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                        >
+                          View Memory
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Memories Shared With You */}
+            {filteredMemories.filter(m => m.type === 'collaborative').length > 0 && (
+              <div>
+                <div className="flex items-center space-x-2 mb-4 pb-3 border-b-2 border-blue-200">
+                  <div className="w-1 h-6 bg-blue-500 rounded"></div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Memories Shared With You ({filteredMemories.filter(m => m.type === 'collaborative').length})
+                  </h3>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredMemories
+                    .filter(m => m.type === 'collaborative')
+                    .map((memory) => (
+                      <div key={memory.id} className="border border-blue-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-blue-50/30">
+                        <div className="flex items-start justify-between mb-3">
+                          <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
+                            {memory.title}
+                          </h3>
+                          <span className="px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-blue-100 text-blue-800 ml-2">
+                            Collaborator
+                          </span>
+                        </div>
+
+                        {memory.image_url && (
+                          <img 
+                            src={memory.image_url} 
+                            alt={memory.title}
+                            className="w-full h-32 object-cover rounded-lg mb-3"
+                          />
+                        )}
+
+                        {memory.text_content && (
+                          <p className="text-gray-600 text-sm line-clamp-3 mb-3">
+                            {memory.text_content}
+                          </p>
+                        )}
+
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>{formatDate(memory.created_at)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {memory.permissions.map(permission => {
+                            const Icon = permissionIcons[permission as keyof typeof permissionIcons]
+                            return (
+                              <span 
+                                key={permission}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-white text-gray-700 rounded-full text-xs border border-blue-200"
+                              >
+                                <Icon className="h-3 w-3" />
+                                {permissionLabels[permission as keyof typeof permissionLabels]}
+                              </span>
+                            )
+                          })}
+                        </div>
+
+                        <button 
+                          onClick={() => window.location.href = `/memories/${memory.id}`}
+                          className="w-full bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                        >
+                          View Memory
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredMemories.map((memory) => (
@@ -188,12 +334,18 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
                   <h3 className="font-semibold text-gray-900 line-clamp-2">
                     {memory.title}
                   </h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                     memory.type === 'owned' 
-                      ? 'bg-green-100 text-green-800' 
+                      ? 'bg-green-100 text-green-800'
+                      : memory.type === 'shared'
+                      ? 'bg-purple-100 text-purple-800'
                       : 'bg-blue-100 text-blue-800'
                   }`}>
-                    {memory.type === 'owned' ? 'Owner' : 'Collaborator'}
+                    {memory.type === 'owned' 
+                      ? 'Owner' 
+                      : memory.type === 'shared' 
+                      ? `Shared (${memory.collaboratorsCount})` 
+                      : 'Collaborator'}
                   </span>
                 </div>
 

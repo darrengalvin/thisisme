@@ -19,9 +19,29 @@ export const uuidSchema = z.string().uuid('Invalid ID format');
 
 export const urlSchema = z.string().url('Invalid URL').max(2000, 'URL too long');
 
+// Flexible phone number schema that accepts various formats and normalizes them
 export const phoneSchema = z
   .string()
-  .regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format')
+  .transform((val) => {
+    // Remove all spaces, parentheses, dashes, and other common formatting
+    const cleaned = val.replace(/[\s\(\)\-\.]/g, '')
+    
+    // Handle UK numbers starting with 0 - convert to +44
+    if (cleaned.startsWith('0')) {
+      return '+44' + cleaned.substring(1)
+    }
+    
+    // If it doesn't start with +, assume it's an international number and add +
+    if (!cleaned.startsWith('+')) {
+      return '+' + cleaned
+    }
+    
+    return cleaned
+  })
+  .refine(
+    (val) => /^\+\d{10,15}$/.test(val),
+    'Phone number must be 10-15 digits (spaces and formatting are okay)'
+  )
   .nullish(); // Allows null, undefined, or valid phone number
 
 // ============ AUTH SCHEMAS ============
@@ -91,13 +111,38 @@ export const updateChapterSchema = z.object({
 
 // ============ NETWORK/PEOPLE SCHEMAS ============
 
+// Photo URL schema that accepts both regular URLs and base64 data URLs
+const photoUrlSchema = z
+  .string()
+  .refine(
+    (val) => {
+      // Allow empty strings (will be converted to null)
+      if (!val || val.trim() === '') {
+        return true
+      }
+      // Allow data URLs (base64 encoded images from phone camera/library)
+      if (val.startsWith('data:image/')) {
+        return true
+      }
+      // For regular URLs, validate format (but don't limit length for cloud storage URLs)
+      try {
+        new URL(val)
+        return true
+      } catch {
+        return false
+      }
+    },
+    'Must be a valid URL or image data'
+  )
+  .nullish()
+
 export const addPersonSchema = z.object({
   person_name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
   person_email: emailSchema.optional(),
   person_phone: phoneSchema,
   relationship: z.string().max(50, 'Relationship too long').nullish(),
   notes: z.string().max(1000, 'Notes too long').nullish(),
-  photo_url: z.string().url('Invalid URL').max(2000, 'URL too long').nullish(), // Allow null/undefined
+  photo_url: photoUrlSchema, // Now accepts data URLs and regular URLs without length limit
   selectedChapters: z.array(uuidSchema).max(100, 'Too many chapters').optional(),
 });
 
@@ -107,7 +152,7 @@ export const updatePersonSchema = z.object({
   person_phone: phoneSchema,
   relationship: z.string().max(50, 'Relationship too long').nullish(),
   notes: z.string().max(1000, 'Notes too long').nullish(),
-  photo_url: z.string().url('Invalid URL').max(2000, 'URL too long').nullish(), // Allow null/undefined
+  photo_url: photoUrlSchema, // Now accepts data URLs and regular URLs without length limit
 });
 
 // ============ INVITATION SCHEMAS ============

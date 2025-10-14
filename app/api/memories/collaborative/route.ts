@@ -45,6 +45,36 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get collaborators for owned memories (to see who you've shared with)
+    // Only fetch if user has memories
+    let ownedCollaborations = null
+    if (memories && memories.length > 0) {
+      const { data, error: ownedCollabsError } = await supabaseAdmin
+        .from('memory_collaborations')
+        .select(`
+          memory_id,
+          collaborator_id,
+          permissions,
+          status
+        `)
+        .in('memory_id', memories.map(m => m.id))
+
+      if (ownedCollabsError) {
+        console.error('Error fetching owned memory collaborations:', ownedCollabsError)
+      } else {
+        ownedCollaborations = data
+      }
+    }
+
+    // Create a map of memory_id -> collaborators count
+    const collaboratorsMap = new Map<string, number>()
+    if (ownedCollaborations) {
+      ownedCollaborations.forEach(collab => {
+        const count = collaboratorsMap.get(collab.memory_id) || 0
+        collaboratorsMap.set(collab.memory_id, count + 1)
+      })
+    }
+
     // Get collaborative memories
     const { data: collaborations, error: collaborationsError } = await supabaseAdmin
       .from('memory_collaborations')
@@ -84,19 +114,24 @@ export async function GET(request: NextRequest) {
       user_id: string
       created_at: string
       updated_at: string
-      type: 'owned' | 'collaborative'
+      type: 'owned' | 'collaborative' | 'shared'
       permissions: string[]
       isOwner: boolean
       invitedBy?: string
       collaborationId?: string
+      collaboratorsCount?: number
     }
 
-    const ownedMemories: MemoryWithAccess[] = memories.map(memory => ({
-      ...memory,
-      type: 'owned' as const,
-      permissions: ['view', 'comment', 'add_text', 'add_images'], // Full access for owner
-      isOwner: true
-    }))
+    const ownedMemories: MemoryWithAccess[] = memories.map(memory => {
+      const collaboratorsCount = collaboratorsMap.get(memory.id) || 0
+      return {
+        ...memory,
+        type: collaboratorsCount > 0 ? ('shared' as const) : ('owned' as const),
+        permissions: ['view', 'comment', 'add_text', 'add_images'], // Full access for owner
+        isOwner: true,
+        collaboratorsCount
+      }
+    })
 
     const collaborativeMemories: MemoryWithAccess[] = collaborations
       .filter(collab => collab.memory) // Filter out any null memories
@@ -126,7 +161,8 @@ export async function GET(request: NextRequest) {
       success: true,
       data: allMemories,
       counts: {
-        owned: ownedMemories.length,
+        owned: ownedMemories.filter(m => m.type === 'owned').length,
+        shared: ownedMemories.filter(m => m.type === 'shared').length,
         collaborative: collaborativeMemories.length,
         total: allMemories.length
       }

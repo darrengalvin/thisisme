@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { ArrowRight, ArrowLeft, Calendar, Clock, X, Check, Upload, Image as ImageIcon, Move, Mic, Crown, Sparkles, Save, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuth } from './AuthProvider'
 import toast from 'react-hot-toast'
@@ -19,6 +20,9 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
   const [title, setTitle] = useState('')
   const [startYear, setStartYear] = useState('')
   const [endYear, setEndYear] = useState('')
+  const [startAge, setStartAge] = useState('')
+  const [durationValue, setDurationValue] = useState('')
+  const [durationUnit, setDurationUnit] = useState<'months' | 'years'>('years')
   const [description, setDescription] = useState('')
   const [headerImage, setHeaderImage] = useState<File | null>(null)
   const [headerImagePreview, setHeaderImagePreview] = useState<string | null>(null)
@@ -29,6 +33,13 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const [premiumLoading, setPremiumLoading] = useState(true)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  
+  // Portal mounting state for SSR compatibility
+  const [isMounted, setIsMounted] = useState(false)
+  
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
   
   // Auto-save functionality for draft
   const [isAutoSaving, setIsAutoSaving] = useState(false)
@@ -45,6 +56,9 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
       title,
       startYear,
       endYear,
+      startAge,
+      durationValue,
+      durationUnit,
       description,
       currentStep,
       timestamp: new Date().toISOString()
@@ -53,7 +67,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
     setLastSaved(new Date())
     setHasUnsavedChanges(false)
     console.log('📝 Draft saved to localStorage')
-  }, [title, startYear, endYear, description, currentStep])
+  }, [title, startYear, endYear, startAge, durationValue, durationUnit, description, currentStep])
 
   // Load draft from localStorage
   const loadDraft = useCallback(() => {
@@ -67,6 +81,9 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
           setTitle(draft.title || '')
           setStartYear(draft.startYear || '')
           setEndYear(draft.endYear || '')
+          setStartAge(draft.startAge || '')
+          setDurationValue(draft.durationValue || '')
+          setDurationUnit(draft.durationUnit || 'years')
           setDescription(draft.description || '')
           setCurrentStep(draft.currentStep || 1)
           setLastSaved(new Date(draft.timestamp))
@@ -90,9 +107,9 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
 
   // Check for unsaved changes
   useEffect(() => {
-    const hasChanges = title.trim() || startYear || endYear || description.trim()
+    const hasChanges = title.trim() || startYear || endYear || startAge || durationValue || description.trim()
     setHasUnsavedChanges(!!hasChanges)
-  }, [title, startYear, endYear, description])
+  }, [title, startYear, endYear, startAge, durationValue, description])
 
   // Auto-save effect
   useEffect(() => {
@@ -381,6 +398,9 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
           type: 'PRIVATE', // Default to private for now
           startDate,
           endDate,
+          startAge: startAge ? parseInt(startAge) : undefined,
+          durationValue: durationValue ? parseInt(durationValue) : undefined,
+          durationUnit: durationValue ? durationUnit : undefined,
           headerImageUrl
         })
       })
@@ -392,6 +412,9 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
         setTitle('')
         setStartYear('')
         setEndYear('')
+        setStartAge('')
+        setDurationValue('')
+        setDurationUnit('years')
         setDescription('')
         setHeaderImage(null)
         setHeaderImagePreview(null)
@@ -482,6 +505,46 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
               <p className="text-sm text-slate-500">
                 💡 You can leave end year blank if it's ongoing or you're not sure
               </p>
+              
+              {/* Age and Duration Fields */}
+              <div className="pt-6 border-t border-slate-200 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">I was about this age (Optional)</label>
+                  <input
+                    type="number"
+                    value={startAge}
+                    onChange={(e) => setStartAge(e.target.value)}
+                    placeholder="25"
+                    min="0"
+                    max="120"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Your age when this chapter started</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">It went on for (Optional)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={durationValue}
+                      onChange={(e) => setDurationValue(e.target.value)}
+                      placeholder="3"
+                      min="0"
+                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center"
+                    />
+                    <select
+                      value={durationUnit}
+                      onChange={(e) => setDurationUnit(e.target.value as 'months' | 'years')}
+                      className="px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent bg-white"
+                    >
+                      <option value="months">Months</option>
+                      <option value="years">Years</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">How long this chapter lasted</p>
+                </div>
+              </div>
             </div>
           </div>
         )
@@ -667,38 +730,38 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gradient-to-br from-slate-50 to-white">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
+    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 to-white overflow-hidden">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-2xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center flex-shrink-0">
                 <Clock size={20} className="text-white" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Create Life Chapter</h1>
-                <div className="flex items-center space-x-4">
-                  <p className="text-slate-600">Step {currentStep} of {totalSteps}</p>
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">Create Life Chapter</h1>
+                <div className="flex items-center space-x-3 sm:space-x-4 flex-wrap">
+                  <p className="text-slate-600 text-sm">Step {currentStep} of {totalSteps}</p>
                   {/* Auto-save status indicator */}
                   {isAutoSaving ? (
-                    <div className="flex items-center space-x-1 text-blue-600 text-sm">
+                    <div className="flex items-center space-x-1 text-blue-600 text-xs sm:text-sm">
                       <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
                       <span>Saving draft...</span>
                     </div>
                   ) : lastSaved && !hasUnsavedChanges ? (
-                    <div className="flex items-center space-x-1 text-green-600 text-sm">
+                    <div className="flex items-center space-x-1 text-green-600 text-xs sm:text-sm">
                       <CheckCircle size={14} />
                       <span>Draft saved</span>
                     </div>
                   ) : hasUnsavedChanges ? (
-                    <div className="flex items-center space-x-1 text-amber-600 text-sm">
+                    <div className="flex items-center space-x-1 text-amber-600 text-xs sm:text-sm">
                       <AlertCircle size={14} />
                       <span>Unsaved changes</span>
                     </div>
                   ) : null}
                   {autoSaveError && (
-                    <div className="flex items-center space-x-1 text-red-600 text-sm">
+                    <div className="flex items-center space-x-1 text-red-600 text-xs sm:text-sm">
                       <AlertCircle size={14} />
                       <span>Save failed</span>
                     </div>
@@ -709,7 +772,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
             {onCancel && (
               <button
                 onClick={handleCancel}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-lg flex-shrink-0 transition-colors"
                 title={hasUnsavedChanges ? "You have unsaved changes" : "Close"}
               >
                 <X size={20} />
@@ -719,7 +782,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
           
           {/* Progress Bar */}
           <div className="mt-4">
-            <div className="w-full bg-slate-200 rounded-full h-2">
+            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
               <div 
                 className="bg-gradient-to-r from-slate-600 to-slate-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${(currentStep / totalSteps) * 100}%` }}
@@ -729,50 +792,13 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-2xl mx-auto px-6 py-12">
-        {renderStepContent()}
-        
-        {/* Navigation */}
-        <div className="flex justify-between items-center mt-12">
-          <button
-            onClick={handlePrev}
-            disabled={currentStep === 1}
-            className="flex items-center space-x-2 px-4 py-2 text-slate-600 hover:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <ArrowLeft size={16} />
-            <span>Back</span>
-          </button>
-          
-          {currentStep < totalSteps ? (
-            <button
-              onClick={handleNext}
-              className="flex items-center space-x-2 bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-700 hover:to-slate-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              <span>Next</span>
-              <ArrowRight size={16} />
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="flex items-center space-x-2 bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-800 hover:to-slate-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Creating...</span>
-                </>
-              ) : (
-                <>
-                  <Check size={16} />
-                  <span>Create Chapter</span>
-                </>
-              )}
-            </button>
-          )}
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-6 py-8 sm:py-12 pb-32">
+          {renderStepContent()}
         </div>
       </div>
+
       
       {/* Image Cropper Modal */}
       {showImageCropper && tempImageUrl && (
@@ -804,6 +830,62 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
       />
+
+      {/* Fixed Bottom Navigation - Rendered via Portal for true fixed positioning */}
+      {isMounted && createPortal(
+        <div 
+          className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg overflow-x-hidden"
+          style={{
+            position: 'fixed',
+            zIndex: 9999,
+            transform: 'translate3d(0, 0, 0)',
+            WebkitTransform: 'translate3d(0, 0, 0)',
+            willChange: 'transform'
+          }}
+        >
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
+            <div className="flex justify-between items-center">
+              <button
+                onClick={handlePrev}
+                disabled={currentStep === 1}
+                className="flex items-center space-x-2 px-3 sm:px-4 py-2 text-slate-600 hover:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+              >
+                <ArrowLeft size={16} />
+                <span>Back</span>
+              </button>
+              
+              {currentStep < totalSteps ? (
+                <button
+                  onClick={handleNext}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-700 hover:to-slate-600 text-white px-4 sm:px-6 py-3 rounded-xl font-medium transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base min-w-0"
+                >
+                  <span className="truncate">Next</span>
+                  <ArrowRight size={16} className="flex-shrink-0" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmit}
+                  disabled={isLoading}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-800 hover:to-slate-700 text-white px-4 sm:px-6 py-3 rounded-xl font-medium transition-all duration-200 active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-w-0"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white flex-shrink-0"></div>
+                      <span className="truncate">Creating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={16} className="flex-shrink-0" />
+                      <span className="truncate">Create Chapter</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 } 

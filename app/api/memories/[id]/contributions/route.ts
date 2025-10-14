@@ -82,7 +82,9 @@ export async function GET(
         created_at,
         contributor:users(
           id,
-          email
+          email,
+          full_name,
+          profile_photo_url
         ),
         contribution_media_attachments(
           id,
@@ -239,7 +241,9 @@ export async function POST(
         created_at,
         contributor:users(
           id,
-          email
+          email,
+          full_name,
+          profile_photo_url
         )
       `)
       .single()
@@ -285,7 +289,9 @@ export async function POST(
         created_at,
         contributor:users(
           id,
-          email
+          email,
+          full_name,
+          profile_photo_url
         ),
         contribution_media_attachments(
           id,

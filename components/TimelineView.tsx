@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Calendar, Clock, Users, Lock, ChevronDown, ChevronUp, Plus, Camera, Heart, MessageCircle, Share, MapPin, Edit, Info } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Calendar, Clock, Users, Lock, ChevronDown, ChevronUp, Plus, Camera, Heart, MessageCircle, Share, MapPin, Edit, Info, BookOpen, X } from 'lucide-react'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
 import { formatDate, formatRelativeTime } from './utils'
 import { useAuth } from './AuthProvider'
 import EditChapterModal from './EditChapterModal'
 import PhotoTagDisplay from './PhotoTagDisplay'
 import MemoryContributions from './MemoryContributions'
+import SimplePhotoTagger from './SimplePhotoTagger'
 
 interface TimelineViewProps {
   memories: MemoryWithRelations[]
@@ -56,6 +58,18 @@ export default function TimelineView({
   // Edit chapter modal state
   const [editingChapter, setEditingChapter] = useState<TimeZoneWithRelations | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+
+  // Photo tagging modal state
+  const [showPhotoTagger, setShowPhotoTagger] = useState(false)
+  const [taggingImage, setTaggingImage] = useState<{ url: string; mediaId: string; memoryTitle?: string } | null>(null)
+
+  // FAB menu state
+  const [isFabOpen, setIsFabOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Memory interaction handlers
   const handleLikeMemory = (memoryId: string) => {
@@ -114,7 +128,6 @@ export default function TimelineView({
 
   // Add filter state
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null)
-  const [showChapterSidebar, setShowChapterSidebar] = useState(true)
 
   // Exposed function to programmatically select a chapter
   const selectChapterByName = useCallback((chapterName: string) => {
@@ -277,87 +290,60 @@ export default function TimelineView({
   const selectedChapter = chapters.find(c => c.id === selectedChapterId)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header with Add Memory Button */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Your Memory Feed</h1>
-            <p className="text-slate-600 text-sm mt-1">
-              {filteredMemories.length} {filteredMemories.length === 1 ? 'memory' : 'memories'} 
-              {selectedChapterId && selectedChapter ? ` in ${selectedChapter.title}` : ' across all chapters'}
-            </p>
-          </div>
-          <button
-            onClick={() => onStartCreating?.(selectedChapterId || undefined, selectedChapter?.title)}
-            className={`${
-              selectedChapterId 
-                ? 'bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600' 
-                : 'bg-sky-600 hover:bg-sky-700'
-            } text-white px-4 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 min-w-[140px] shadow-sm hover:shadow-md`}
-            title={selectedChapter ? `Add Memory to ${selectedChapter.title}` : "Add Memory"}
-          >
-            <Plus size={16} />
-            <span>{selectedChapter ? `Add to ${selectedChapter.title.length > 12 ? selectedChapter.title.substring(0, 12) + '...' : selectedChapter.title}` : 'Add Memory'}</span>
-          </button>
-        </div>
-
-        {/* Mobile Chapter Filter Bar */}
-        <div className="lg:hidden mb-6">
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-slate-900">Filter by Chapter</h3>
-              <button
-                onClick={() => setShowChapterSidebar(!showChapterSidebar)}
-                className="text-slate-500 hover:text-slate-700"
-              >
-                {showChapterSidebar ? 'Hide' : 'Show'}
-              </button>
+    <div className="min-h-full bg-gradient-to-br from-slate-50 to-white overflow-x-hidden">
+      <div className="max-w-7xl mx-auto px-4 py-8 overflow-x-hidden pb-20">
+        {/* Header with Add Memory Button - Only show when user has chapters */}
+        {chapters.length > 0 && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Your Memory Feed</h1>
+              <p className="text-slate-600 text-sm mt-1">
+                {filteredMemories.length} {filteredMemories.length === 1 ? 'memory' : 'memories'} 
+                {selectedChapterId && selectedChapter ? ` in ${selectedChapter.title}` : ' across all chapters'}
+              </p>
             </div>
-            
-            {showChapterSidebar && (
-              <div className="space-y-2">
-                <button
-                  onClick={() => setSelectedChapterId(null)}
-                  className={`w-full text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
-                    selectedChapterId === null
-                      ? 'bg-sky-50 border-sky-200 text-sky-900 font-medium'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span>All Memories</span>
-                    <span className="text-sm opacity-75">{memories.length}</span>
-                  </div>
-                </button>
-                {chapters.map((chapter) => {
-                  const chapterMemories = getChapterMemories(chapter.id)
-                  return (
-                    <button
-                      key={chapter.id}
-                      onClick={() => setSelectedChapterId(chapter.id)}
-                      className={`w-full text-left px-4 py-3 rounded-xl border transition-all duration-200 ${
-                        selectedChapterId === chapter.id
-                          ? 'bg-sky-50 border-sky-200 text-sky-900 font-medium'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{chapter.title}</span>
-                        <span className="text-sm opacity-75">{chapterMemories.length}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+            {/* Desktop only - Mobile uses FAB */}
+            <button
+              onClick={() => onStartCreating?.(selectedChapterId || undefined, selectedChapter?.title)}
+              className={`hidden sm:flex ${
+                selectedChapterId 
+                  ? 'bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600' 
+                  : 'bg-sky-600 hover:bg-sky-700'
+              } text-white px-4 py-2.5 rounded-lg font-medium transition-all duration-200 items-center justify-center space-x-2 min-w-[140px] shadow-sm hover:shadow-md`}
+              title={selectedChapter ? `Add Memory to ${selectedChapter.title}` : "Add Memory"}
+            >
+              <Plus size={16} />
+              <span>{selectedChapter ? `Add to ${selectedChapter.title.length > 12 ? selectedChapter.title.substring(0, 12) + '...' : selectedChapter.title}` : 'Add Memory'}</span>
+            </button>
           </div>
-        </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Desktop Left Sidebar - Chapter Filters */}
-          <div className="hidden lg:block lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 sticky top-40 max-h-[calc(100vh-12rem)] flex flex-col">
+        {/* Mobile Chapter Filter Bar - Compact dropdown style */}
+        {chapters.length > 0 && (
+          <div className="lg:hidden mb-4">
+            <select
+              value={selectedChapterId || ''}
+              onChange={(e) => setSelectedChapterId(e.target.value || null)}
+              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 font-medium shadow-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+            >
+              <option value="">All Memories ({memories.length})</option>
+              {chapters.map((chapter) => {
+                const chapterMemories = getChapterMemories(chapter.id)
+                return (
+                  <option key={chapter.id} value={chapter.id}>
+                    {chapter.title} ({chapterMemories.length})
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 overflow-x-hidden w-full">
+          {/* Desktop Left Sidebar - Chapter Filters - Only show when user has chapters */}
+          {chapters.length > 0 && (
+            <div className="hidden lg:block lg:col-span-1">
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 sticky top-8 max-h-[calc(100vh-6rem)] flex flex-col">
               <div className="p-6 border-b border-slate-100 flex-shrink-0">
                 <h2 className="text-xl font-bold text-slate-900">Filter by Chapter</h2>
                 <p className="text-sm text-slate-600 mt-1">
@@ -545,10 +531,11 @@ export default function TimelineView({
                 )}
               </div>
             </div>
-          </div>
+            </div>
+          )}
 
           {/* Main Content - Memory Feed */}
-          <div className="lg:col-span-3">
+          <div className={`w-full ${chapters.length > 0 ? "lg:col-span-3" : "lg:col-span-4"}`}>
             {/* Active Filter Indicator */}
             {selectedChapterId && selectedChapter && (
               <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-200 rounded-xl shadow-sm">
@@ -606,75 +593,32 @@ export default function TimelineView({
                   </div>
                 </div>
               ) : chapters.length === 0 ? (
-                // Empty state for when user has no chapters at all
-                <div className="text-center py-12 max-w-2xl mx-auto">
-                  <div className="w-20 h-20 bg-sky-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                    <span className="text-sky-600 text-3xl">📖</span>
+                // Empty state directing users to Life tab to create chapters first
+                <div className="text-center py-16 max-w-lg mx-auto">
+                  <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                    <span className="text-slate-400 text-3xl">📚</span>
                   </div>
-                  <h3 className="text-3xl font-bold text-slate-900 mb-4">Let's Create Your First Chapter</h3>
-                  <p className="text-slate-600 mb-8 text-lg leading-relaxed">
-                    Think of chapters as different periods or phases of your life. They help organize your memories chronologically and make your story easier to explore.
+                  <h3 className="text-2xl font-bold text-slate-900 mb-3">Welcome to Your Memory Feed!</h3>
+                  <p className="text-slate-600 mb-6 leading-relaxed">
+                    This is where all your memories will appear once you start creating them.
                   </p>
-                  
-                  <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-2xl p-6 mb-8 border border-sky-100">
-                    <h4 className="font-semibold text-sky-900 mb-4">💡 Chapter inspiration:</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">🏫</span>
-                        <span className="text-sky-800">School or university years</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">🏢</span>
-                        <span className="text-sky-800">Your first job or career</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">🏠</span>
-                        <span className="text-sky-800">Living in a particular city</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">❤️</span>
-                        <span className="text-sky-800">A relationship or marriage</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">✈️</span>
-                        <span className="text-sky-800">Travel adventures</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">👶</span>
-                        <span className="text-sky-800">Childhood or teen years</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <button
-                      onClick={() => onCreateChapter?.()}
-                      className="bg-sky-600 hover:bg-sky-700 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-colors flex items-center space-x-3 shadow-lg hover:shadow-xl"
-                    >
-                      <span className="text-xl">📖</span>
-                      <span>Create Your First Chapter</span>
-                    </button>
-                    <button
-                      onClick={() => onStartCreating?.()}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl font-medium transition-colors flex items-center space-x-2"
-                    >
-                      <span>💭</span>
-                      <span>Add Memory Without Chapter</span>
-                    </button>
-                  </div>
-                  
-                  <div className="mt-6 text-sm text-slate-500">
-                    <p>💡 <strong>Tip:</strong> You can always add memories to chapters later, but starting with chapters makes your timeline more organized!</p>
+                  <div className="bg-gradient-to-r from-blue-50 to-sky-50 rounded-xl p-6 border border-sky-100">
+                    <p className="text-sky-900 font-medium mb-4">
+                      👉 To get started, head over to the <strong>Life</strong> tab to create your first chapter!
+                    </p>
+                    <p className="text-sky-700 text-sm">
+                      Chapters help you organize memories by different periods of your life.
+                    </p>
                   </div>
                 </div>
               ) : (
                 // Empty state for when we have chapters but no memories
-                <div className="text-center py-12">
+                <div className="text-center py-12 px-4 min-h-[60vh] flex flex-col justify-center">
                   <h3 className="text-2xl font-bold text-slate-900 mb-4">Your Chapters Are Ready!</h3>
-                  <p className="text-slate-600 mb-6">
+                  <p className="text-slate-600 mb-6 max-w-xl mx-auto">
                     You have {chapters.length} chapter{chapters.length !== 1 ? 's' : ''} set up. Now let's fill them with your precious memories!
                   </p>
-                  <div className="bg-slate-50 rounded-xl p-6 mb-6">
+                  <div className="bg-slate-50 rounded-xl p-6 mb-6 max-w-xl mx-auto w-full">
                     <h4 className="font-semibold text-slate-800 mb-3">💡 Start adding memories:</h4>
                     <div className="text-left space-y-2">
                       <p>• 📸 Click on a chapter to add photos and videos</p>
@@ -793,13 +737,20 @@ export default function TimelineView({
                           }}
                           onTagNowClick={(mediaId) => {
                             console.log('🏷️ TIMELINE: Tag now clicked for media:', mediaId)
-                            // Find the memory that contains this media and open edit modal
+                            // Find the memory that contains this media and open simple tagger
                             const memoryWithMedia = memories.find(mem => 
                               mem.media && mem.media.some(m => m.id === mediaId)
                             )
-                            if (memoryWithMedia && onEdit) {
-                              console.log('🏷️ TIMELINE: Opening edit modal for memory:', memoryWithMedia.id)
-                              onEdit(memoryWithMedia)
+                            if (memoryWithMedia) {
+                              const media = memoryWithMedia.media?.find(m => m.id === mediaId)
+                              if (media) {
+                                setTaggingImage({
+                                  url: media.storage_url,
+                                  mediaId: media.id,
+                                  memoryTitle: memoryWithMedia.title || undefined
+                                })
+                                setShowPhotoTagger(true)
+                              }
                             }
                           }}
                         />
@@ -847,52 +798,56 @@ export default function TimelineView({
                           </div>
 
                           {/* Memory Actions */}
-                          <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+                          <div className="px-3 sm:px-4 py-3 border-t border-slate-100 bg-slate-50/50">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-4">
+                              {/* Social Actions - More prominent */}
+                              <div className="flex items-center space-x-2 sm:space-x-4">
                                 <button 
                                   onClick={() => handleLikeMemory(memory.id)}
-                                  className={`flex items-center space-x-1 transition-colors ${
+                                  className={`flex items-center space-x-1 px-2 py-1.5 rounded-lg transition-all active:scale-95 ${
                                     likedMemories.has(memory.id) 
-                                      ? 'text-red-500 hover:text-red-600' 
-                                      : 'text-slate-500 hover:text-slate-700'
+                                      ? 'text-red-500 hover:text-red-600 bg-red-50/50' 
+                                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
                                   }`}
                                 >
                                   <Heart size={16} fill={likedMemories.has(memory.id) ? 'currentColor' : 'none'} />
-                                  <span className="text-sm">
-                                    {memoryLikeCounts[memory.id] > 0 ? memoryLikeCounts[memory.id] : 'Like'}
+                                  <span className="text-xs sm:text-sm">
+                                    {memoryLikeCounts[memory.id] > 0 ? memoryLikeCounts[memory.id] : <span className="hidden sm:inline">Like</span>}
                                   </span>
                                 </button>
                                 <button 
                                   onClick={() => handleCommentMemory(memory.id)}
-                                  className="flex items-center space-x-1 text-slate-500 hover:text-slate-700 transition-colors"
+                                  className="flex items-center space-x-1 px-2 py-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100/50 transition-all active:scale-95"
                                 >
                                   <MessageCircle size={16} />
-                                  <span className="text-sm">Comment</span>
+                                  <span className="text-xs sm:text-sm hidden sm:inline">Comment</span>
                                 </button>
                                 <button 
                                   onClick={() => handleShareMemory(memory)}
-                                  className="flex items-center space-x-1 text-slate-500 hover:text-slate-700 transition-colors"
+                                  className="flex items-center space-x-1 px-2 py-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100/50 transition-all active:scale-95"
                                 >
                                   <Share size={16} />
-                                  <span className="text-sm">Share</span>
+                                  <span className="text-xs sm:text-sm hidden sm:inline">Share</span>
                                 </button>
                               </div>
-                              <div className="flex items-center space-x-2">
+                              {/* Edit/Delete Actions - Smaller on mobile */}
+                              <div className="flex items-center space-x-1 sm:space-x-2">
                                 {onEdit && (
                                   <button 
                                     onClick={() => onEdit(memory)}
-                                    className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                                    className="px-2 py-1.5 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all active:scale-95"
                                   >
-                                    Edit
+                                    <span className="hidden sm:inline">Edit</span>
+                                    <Edit size={14} className="sm:hidden" />
                                   </button>
                                 )}
                                 {onDelete && (
                                   <button 
                                     onClick={() => onDelete(memory)}
-                                    className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                                    className="px-2 py-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all active:scale-95"
                                   >
-                                    Delete
+                                    <span className="hidden sm:inline">Delete</span>
+                                    <X size={14} className="sm:hidden" />
                                   </button>
                                 )}
                               </div>
@@ -946,14 +901,88 @@ export default function TimelineView({
         }}
       />
 
-      {/* Mobile Floating Add Button - Alternative for small screens */}
-      <button
-        onClick={() => onStartCreating?.(selectedChapterId || undefined, selectedChapter?.title)}
-        className="sm:hidden fixed bottom-6 right-6 bg-sky-600 hover:bg-sky-700 text-white w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center z-10"
-        title={selectedChapter ? `Add Memory to ${selectedChapter.title}` : "Add Memory"}
-      >
-        <Plus size={20} />
-      </button>
+      {/* Mobile Floating Action Button (FAB) with Menu - Shows when chapters exist */}
+      {isMounted && chapters.length > 0 && createPortal(
+        <div className="sm:hidden">
+          {/* Backdrop when menu is open */}
+          {isFabOpen && (
+            <div 
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity duration-200"
+              onClick={() => setIsFabOpen(false)}
+            />
+          )}
+
+          {/* FAB Menu Options */}
+          {isFabOpen && (
+            <div className="fixed bottom-24 right-6 z-50 space-y-3 animate-fade-in">
+              {/* Add Memory Option */}
+              <button
+                onClick={() => {
+                  onStartCreating?.(selectedChapterId || undefined, selectedChapter?.title)
+                  setIsFabOpen(false)
+                }}
+                className="flex items-center space-x-3 bg-white text-slate-900 px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              >
+                <div className="w-10 h-10 bg-sky-600 rounded-full flex items-center justify-center">
+                  <Camera size={18} className="text-white" />
+                </div>
+                <span className="font-medium pr-2">
+                  {selectedChapter ? `Add to ${selectedChapter.title.length > 15 ? selectedChapter.title.substring(0, 15) + '...' : selectedChapter.title}` : 'Add Memory'}
+                </span>
+              </button>
+
+              {/* New Chapter Option */}
+              <button
+                onClick={() => {
+                  onCreateChapter?.()
+                  setIsFabOpen(false)
+                }}
+                className="flex items-center space-x-3 bg-white text-slate-900 px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              >
+                <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
+                  <BookOpen size={18} className="text-white" />
+                </div>
+                <span className="font-medium pr-2">New Chapter</span>
+              </button>
+            </div>
+          )}
+
+          {/* Main FAB Button */}
+          <button
+            onClick={() => setIsFabOpen(!isFabOpen)}
+            className={`fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center z-50 ${
+              isFabOpen 
+                ? 'bg-slate-900 rotate-45' 
+                : 'bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-700 hover:to-sky-600'
+            }`}
+            style={{
+              transform: isFabOpen ? 'rotate(45deg) scale(1.05)' : 'rotate(0deg) scale(1)',
+            }}
+          >
+            <Plus size={24} className="text-white" />
+          </button>
+        </div>,
+        document.body
+      )}
+
+      {/* Simple Photo Tagger Modal */}
+      {taggingImage && (
+        <SimplePhotoTagger
+          isOpen={showPhotoTagger}
+          onClose={() => {
+            setShowPhotoTagger(false)
+            setTaggingImage(null)
+          }}
+          imageUrl={taggingImage.url}
+          mediaId={taggingImage.mediaId}
+          memoryTitle={taggingImage.memoryTitle}
+          onNavigateToMyPeople={() => {
+            setShowPhotoTagger(false)
+            setTaggingImage(null)
+            onNavigateToMyPeople?.()
+          }}
+        />
+      )}
 
     </div>
   )

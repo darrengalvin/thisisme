@@ -394,17 +394,18 @@ export async function sendPersonInviteEmail(
       </div>
       
       ${inviteCode ? `
-        <div style="background: #f0f9ff; border: 2px solid #0ea5e9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <p style="color: #0c4a6e; margin: 0 0 10px 0; font-weight: 600; font-size: 14px;">
-            Or use this invite code after signing up:
+        <div style="background: #f0f9ff; border: 2px solid #0ea5e9; padding: 25px; border-radius: 12px; margin: 30px 0;">
+          <p style="color: #0c4a6e; margin: 0 0 15px 0; font-weight: 600; font-size: 16px; text-align: center;">
+            📋 Your Invite Code
           </p>
-          <div style="background: white; padding: 15px; border-radius: 6px; border: 2px dashed #0ea5e9;">
-            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #0369a1; letter-spacing: 2px; font-family: monospace;">
+          <div style="background: white; padding: 20px 15px; border-radius: 8px; border: 3px dashed #0ea5e9; text-align: center; margin-bottom: 15px;">
+            <p style="margin: 0; font-size: 32px; font-weight: bold; color: #0369a1; letter-spacing: 4px; font-family: 'Courier New', monospace;">
               ${inviteCode}
             </p>
           </div>
-          <p style="color: #64748b; font-size: 12px; margin: 10px 0 0 0; line-height: 1.4;">
-            Already have an account or signing up with a different email? Go to Settings → Redeem Invite Code after logging in.
+          <p style="color: #0c4a6e; font-size: 13px; margin: 0; line-height: 1.6; text-align: center;">
+            Already have an account or signing up with a different email?<br>
+            Go to <strong>Settings → Redeem Invite Code</strong> after logging in.
           </p>
         </div>
       ` : ''}
@@ -469,13 +470,17 @@ This Is Me allows us to:
 Join me: ${appUrl}/auth/register?invite=${encodeURIComponent(personEmail)}
 
 ${inviteCode ? `
----
-OR USE THIS INVITE CODE AFTER SIGNING UP:
-${inviteCode}
 
-Already have an account or signing up with a different email? 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 YOUR INVITE CODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        ${inviteCode}
+
+Already have an account or signing up with a different email?
 Go to Settings → Redeem Invite Code after logging in.
----
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 ` : ''}
 
 This invitation was sent by ${inviterName} via This Is Me

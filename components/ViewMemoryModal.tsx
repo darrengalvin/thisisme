@@ -8,6 +8,7 @@ import ShareMemoryModal from './ShareMemoryModal'
 import ImageCropper from './ImageCropper'
 import PhotoTagDisplay from './PhotoTagDisplay'
 import MemoryCollaboration from './MemoryCollaboration'
+import SimplePhotoTagger from './SimplePhotoTagger'
 import toast from 'react-hot-toast'
 
 interface ViewMemoryModalProps {
@@ -24,6 +25,10 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
   const [showImageCropper, setShowImageCropper] = useState(false)
   const [tempImageForCrop, setTempImageForCrop] = useState<{ mediaId: string, imageUrl: string } | null>(null)
   const [isUpdatingImage, setIsUpdatingImage] = useState(false)
+  
+  // Photo tagging modal state
+  const [showPhotoTagger, setShowPhotoTagger] = useState(false)
+  const [taggingImage, setTaggingImage] = useState<{ url: string; mediaId: string; memoryTitle?: string } | null>(null)
 
   console.log('👁️ VIEW MEMORY MODAL RENDER:', {
     isOpen,
@@ -79,6 +84,18 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
                 onPersonClick={(personId, personName) => {
                   console.log('🏷️ VIEW MODAL: Person clicked:', personName, personId)
                   // TODO: Navigate to My People or show person details
+                }}
+                onTagNowClick={(mediaId) => {
+                  console.log('🏷️ VIEW MODAL: Tag now clicked for media:', mediaId)
+                  const media = memory.media?.find(m => m.id === mediaId)
+                  if (media) {
+                    setTaggingImage({
+                      url: media.storage_url,
+                      mediaId: media.id,
+                      memoryTitle: memory.title || undefined
+                    })
+                    setShowPhotoTagger(true)
+                  }
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
@@ -244,6 +261,26 @@ export default function ViewMemoryModal({ memory, isOpen, onClose, onSave, onDel
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
       />
+
+      {/* Simple Photo Tagger Modal */}
+      {taggingImage && (
+        <SimplePhotoTagger
+          isOpen={showPhotoTagger}
+          onClose={() => {
+            setShowPhotoTagger(false)
+            setTaggingImage(null)
+          }}
+          imageUrl={taggingImage.url}
+          mediaId={taggingImage.mediaId}
+          memoryTitle={taggingImage.memoryTitle}
+          onNavigateToMyPeople={() => {
+            setShowPhotoTagger(false)
+            setTaggingImage(null)
+            onClose()
+            // Navigate to My People tab - this would need to be passed down from parent
+          }}
+        />
+      )}
     </div>
   )
 }

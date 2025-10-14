@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { ArrowLeft, ArrowRight, Calendar, Clock, Upload, X, Check, Mic, Crown, Sparkles, Crop, Tag } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import VoiceRecorder from '@/components/VoiceRecorder'
@@ -78,6 +79,13 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null)
   const [questionAnswer, setQuestionAnswer] = useState('')
   const [showMayaChat, setShowMayaChat] = useState(false)
+  
+  // Portal mounting state for SSR compatibility
+  const [isMounted, setIsMounted] = useState(false)
+  
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     const checkPremiumStatus = async () => {
@@ -564,11 +572,11 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
     }
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+  const modalContent = (
+    <div className="fixed inset-0 bg-black/50 md:flex md:items-center md:justify-center z-50 md:p-4">
+      <div className="bg-white md:rounded-2xl shadow-2xl w-full md:max-w-lg h-full md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex-shrink-0">
+        <div className="px-4 sm:px-6 py-4 border-b border-slate-200 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <button
               onClick={onCancel}
@@ -613,7 +621,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
         </div>
 
         {/* Content */}
-        <div className="px-6 py-6 overflow-y-auto flex-1 min-h-0">
+        <div className="px-4 sm:px-6 py-4 sm:py-6 overflow-y-auto flex-1 min-h-0">
           {/* Step 1: What do you remember? */}
           {currentStep === 1 && (
             <div className="space-y-4">
@@ -843,6 +851,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                           scrollableYearDropdown
                           maxDate={new Date()}
                           popperPlacement="bottom-start"
+                          withPortal
                           dayClassName={(date) => {
                             const today = new Date()
                             const isToday = date.toDateString() === today.toDateString()
@@ -896,6 +905,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
                           dateFormat="MMMM yyyy"
                           showMonthYearPicker
                           showFullMonthYearPicker
+                          withPortal
                           placeholderText="Select month and year"
                           className="w-full px-4 py-3 text-slate-900 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800"
                           wrapperClassName="w-full"
@@ -1231,7 +1241,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between flex-shrink-0">
+        <div className="px-4 sm:px-6 py-4 border-t border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
           <button
             onClick={handleBack}
             disabled={currentStep === 1}
@@ -1363,4 +1373,7 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
       )}
     </div>
   )
+  
+  // Render with Portal for better mobile support
+  return isMounted ? createPortal(modalContent, document.body) : null
 } 
