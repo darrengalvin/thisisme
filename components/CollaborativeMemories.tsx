@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Eye, MessageSquare, Edit, Image, Users, Calendar } from 'lucide-react'
+import { Eye, MessageSquare, Edit, Image, Users, Calendar, UserPlus, Info, Share2 } from 'lucide-react'
 
 interface CollaborativeMemory {
   id: string
@@ -41,7 +41,7 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
   const [memories, setMemories] = useState<CollaborativeMemory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'all' | 'owned' | 'collaborative'>('all')
+  const [activeTab, setActiveTab] = useState<'shared-with-you' | 'shared-by-you'>('shared-with-you')
 
   useEffect(() => {
     if (user) {
@@ -89,9 +89,8 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
   }
 
   const filteredMemories = memories.filter(memory => {
-    if (activeTab === 'all') return true
-    if (activeTab === 'owned') return memory.type === 'owned'
-    if (activeTab === 'collaborative') return memory.type === 'collaborative' || memory.type === 'shared'
+    if (activeTab === 'shared-with-you') return memory.type === 'collaborative'
+    if (activeTab === 'shared-by-you') return memory.type === 'shared'
     return true
   })
 
@@ -127,227 +126,127 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
     <div className="bg-white rounded-lg shadow-lg">
       <div className="p-6 border-b">
         <div className="flex items-center space-x-2 mb-4">
-          <Users className="h-6 w-6 text-blue-600" />
-          <h2 className="text-xl font-bold text-gray-900">Collaborative Memories</h2>
+          <Share2 className="h-6 w-6 text-blue-600" />
+          <h2 className="text-xl font-bold text-gray-900">Shared Memories</h2>
+        </div>
+        
+        {/* Explanation Banner */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div className="flex items-start space-x-3">
+            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-blue-900 mb-1">
+                About Shared Memories
+              </h3>
+              <p className="text-sm text-blue-800 leading-relaxed">
+                This is your collaboration hub! Here you can see memories that others have shared with you, 
+                and memories you've shared with others. Each person has their own timeline, and when someone 
+                shares a memory with you, it appears here so you can view, comment, or contribute based on 
+                the permissions they've given you.
+              </p>
+            </div>
+          </div>
         </div>
         
         {/* Tab Navigation */}
         <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
           <button
-            onClick={() => setActiveTab('all')}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'all'
+            onClick={() => setActiveTab('shared-with-you')}
+            className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'shared-with-you'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            All ({memories.length})
+            <div className="flex items-center justify-center space-x-2">
+              <UserPlus className="h-4 w-4" />
+              <span>Shared With You</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                activeTab === 'shared-with-you' ? 'bg-blue-100' : 'bg-gray-200'
+              }`}>
+                {memories.filter(m => m.type === 'collaborative').length}
+              </span>
+            </div>
           </button>
           <button
-            onClick={() => setActiveTab('owned')}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'owned'
-                ? 'bg-white text-blue-600 shadow-sm'
+            onClick={() => setActiveTab('shared-by-you')}
+            className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'shared-by-you'
+                ? 'bg-white text-purple-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            My Memories ({memories.filter(m => m.type === 'owned').length})
-          </button>
-          <button
-            onClick={() => setActiveTab('collaborative')}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'collaborative'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Shared ({memories.filter(m => m.type === 'collaborative' || m.type === 'shared').length})
+            <div className="flex items-center justify-center space-x-2">
+              <Share2 className="h-4 w-4" />
+              <span>Shared By You</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                activeTab === 'shared-by-you' ? 'bg-purple-100' : 'bg-gray-200'
+              }`}>
+                {memories.filter(m => m.type === 'shared').length}
+              </span>
+            </div>
           </button>
         </div>
       </div>
 
       <div className="p-6">
         {filteredMemories.length === 0 ? (
-          <div className="text-center py-8">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {activeTab === 'all' ? 'No memories yet' : 
-               activeTab === 'owned' ? 'No memories created' : 
-               'No shared memories'}
+          <div className="text-center py-12 px-4">
+            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+              activeTab === 'shared-with-you' ? 'bg-blue-100' : 'bg-purple-100'
+            }`}>
+              {activeTab === 'shared-with-you' ? (
+                <UserPlus className="h-8 w-8 text-blue-600" />
+              ) : (
+                <Share2 className="h-8 w-8 text-purple-600" />
+              )}
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {activeTab === 'shared-with-you' 
+                ? 'No memories shared with you yet' 
+                : 'You haven\'t shared any memories yet'}
             </h3>
-            <p className="text-gray-600">
-              {activeTab === 'all' ? 'Start by creating your first memory or accepting an invitation.' :
-               activeTab === 'owned' ? 'Create your first memory to get started.' :
-               'Accept memory invitations to see shared memories here.'}
+            <p className="text-gray-600 max-w-md mx-auto text-sm">
+              {activeTab === 'shared-with-you' 
+                ? 'When someone shares a memory with you, it will appear here so you can view and contribute based on their permissions.' 
+                : 'Share your memories with friends and family! When you invite others to collaborate on your memories, they will appear here.'}
             </p>
-          </div>
-        ) : activeTab === 'collaborative' ? (
-          // Split shared/collaborative view into two sections
-          <div className="space-y-8">
-            {/* Memories You've Shared With Others */}
-            {filteredMemories.filter(m => m.type === 'shared').length > 0 && (
-              <div>
-                <div className="flex items-center space-x-2 mb-4 pb-3 border-b-2 border-purple-200">
-                  <div className="w-1 h-6 bg-purple-500 rounded"></div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Memories You've Shared ({filteredMemories.filter(m => m.type === 'shared').length})
-                  </h3>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredMemories
-                    .filter(m => m.type === 'shared')
-                    .map((memory) => (
-                      <div key={memory.id} className="border border-purple-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-purple-50/30">
-                        <div className="flex items-start justify-between mb-3">
-                          <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
-                            {memory.title}
-                          </h3>
-                          <span className="px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-purple-100 text-purple-800 ml-2">
-                            Shared ({memory.collaboratorsCount})
-                          </span>
-                        </div>
-
-                        {memory.image_url && (
-                          <img 
-                            src={memory.image_url} 
-                            alt={memory.title}
-                            className="w-full h-32 object-cover rounded-lg mb-3"
-                          />
-                        )}
-
-                        {memory.text_content && (
-                          <p className="text-gray-600 text-sm line-clamp-3 mb-3">
-                            {memory.text_content}
-                          </p>
-                        )}
-
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>{formatDate(memory.created_at)}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {memory.permissions.map(permission => {
-                            const Icon = permissionIcons[permission as keyof typeof permissionIcons]
-                            return (
-                              <span 
-                                key={permission}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-white text-gray-700 rounded-full text-xs border border-purple-200"
-                              >
-                                <Icon className="h-3 w-3" />
-                                {permissionLabels[permission as keyof typeof permissionLabels]}
-                              </span>
-                            )
-                          })}
-                        </div>
-
-                        <button 
-                          onClick={() => window.location.href = `/memories/${memory.id}`}
-                          className="w-full bg-purple-600 text-white py-2 px-3 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-                        >
-                          View Memory
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Memories Shared With You */}
-            {filteredMemories.filter(m => m.type === 'collaborative').length > 0 && (
-              <div>
-                <div className="flex items-center space-x-2 mb-4 pb-3 border-b-2 border-blue-200">
-                  <div className="w-1 h-6 bg-blue-500 rounded"></div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Memories Shared With You ({filteredMemories.filter(m => m.type === 'collaborative').length})
-                  </h3>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredMemories
-                    .filter(m => m.type === 'collaborative')
-                    .map((memory) => (
-                      <div key={memory.id} className="border border-blue-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-blue-50/30">
-                        <div className="flex items-start justify-between mb-3">
-                          <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
-                            {memory.title}
-                          </h3>
-                          <span className="px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap bg-blue-100 text-blue-800 ml-2">
-                            Collaborator
-                          </span>
-                        </div>
-
-                        {memory.image_url && (
-                          <img 
-                            src={memory.image_url} 
-                            alt={memory.title}
-                            className="w-full h-32 object-cover rounded-lg mb-3"
-                          />
-                        )}
-
-                        {memory.text_content && (
-                          <p className="text-gray-600 text-sm line-clamp-3 mb-3">
-                            {memory.text_content}
-                          </p>
-                        )}
-
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>{formatDate(memory.created_at)}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {memory.permissions.map(permission => {
-                            const Icon = permissionIcons[permission as keyof typeof permissionIcons]
-                            return (
-                              <span 
-                                key={permission}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-white text-gray-700 rounded-full text-xs border border-blue-200"
-                              >
-                                <Icon className="h-3 w-3" />
-                                {permissionLabels[permission as keyof typeof permissionLabels]}
-                              </span>
-                            )
-                          })}
-                        </div>
-
-                        <button 
-                          onClick={() => window.location.href = `/memories/${memory.id}`}
-                          className="w-full bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                        >
-                          View Memory
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredMemories.map((memory) => (
-              <div key={memory.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div 
+                key={memory.id} 
+                className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
+                  activeTab === 'shared-with-you' 
+                    ? 'border-blue-200 bg-blue-50/30' 
+                    : 'border-purple-200 bg-purple-50/30'
+                }`}
+              >
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900 line-clamp-2">
+                  <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
                     {memory.title}
                   </h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                    memory.type === 'owned' 
-                      ? 'bg-green-100 text-green-800'
-                      : memory.type === 'shared'
-                      ? 'bg-purple-100 text-purple-800'
-                      : 'bg-blue-100 text-blue-800'
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${
+                    activeTab === 'shared-with-you'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-purple-100 text-purple-800'
                   }`}>
-                    {memory.type === 'owned' 
-                      ? 'Owner' 
-                      : memory.type === 'shared' 
-                      ? `Shared (${memory.collaboratorsCount})` 
-                      : 'Collaborator'}
+                    {activeTab === 'shared-with-you' 
+                      ? 'Collaborator' 
+                      : `Shared (${memory.collaboratorsCount || 0})`}
                   </span>
                 </div>
+
+                {/* Show who shared this memory (only for shared-with-you tab) */}
+                {activeTab === 'shared-with-you' && memory.invitedBy && (
+                  <div className="flex items-center space-x-2 mb-3 p-2 bg-white rounded-lg border border-blue-100">
+                    <UserPlus className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm text-gray-700">
+                      <span className="font-medium text-blue-700">{memory.invitedBy}</span> shared this
+                    </span>
+                  </div>
+                )}
 
                 {memory.image_url && (
                   <img 
@@ -376,7 +275,9 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
                     return (
                       <span 
                         key={permission}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs"
+                        className={`inline-flex items-center gap-1 px-2 py-1 bg-white text-gray-700 rounded-full text-xs border ${
+                          activeTab === 'shared-with-you' ? 'border-blue-200' : 'border-purple-200'
+                        }`}
                       >
                         <Icon className="h-3 w-3" />
                         {permissionLabels[permission as keyof typeof permissionLabels]}
@@ -387,7 +288,11 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
 
                 <button 
                   onClick={() => window.location.href = `/memories/${memory.id}`}
-                  className="w-full bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  className={`w-full text-white py-2 px-3 rounded-lg transition-colors text-sm font-medium ${
+                    activeTab === 'shared-with-you'
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-purple-600 hover:bg-purple-700'
+                  }`}
                 >
                   View Memory
                 </button>

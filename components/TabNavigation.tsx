@@ -39,7 +39,7 @@ const tabs: Tab[] = [
     label: 'Shared',
     shortLabel: 'Shared',
     icon: Share2,
-    description: 'Collaborative memories'
+    description: 'Memories shared with you and by you'
   }
 ]
 
