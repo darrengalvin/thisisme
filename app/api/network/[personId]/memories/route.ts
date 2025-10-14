@@ -58,8 +58,8 @@ export async function GET(
           text_content,
           image_url,
           created_at,
-          chapter_id,
-          chapters!memories_chapter_id_fkey (
+          timezone_id,
+          timezones (
             title
           ),
           media (
@@ -98,7 +98,7 @@ export async function GET(
       image_url: tag.memories.image_url || tag.memories.media?.[0]?.file_url, // Use image_url or first media file
       memory_date: tag.memories.created_at, // Using created_at as memory_date
       tagged_at: tag.created_at,
-      chapter: tag.memories.chapters?.title || 'Personal',
+      chapter: tag.memories.timezones?.title || 'Personal', // Changed from chapters to timezones
       media: tag.memories.media || []
     })) || []
 
