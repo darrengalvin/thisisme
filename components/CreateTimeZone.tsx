@@ -148,6 +148,64 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
     loadDraft()
   }, [loadDraft])
 
+  // Auto-calculate years from age
+  useEffect(() => {
+    if (!user?.birthYear || !startAge) return
+    
+    const calculatedYear = user.birthYear + parseInt(startAge)
+    if (calculatedYear && calculatedYear.toString() !== startYear) {
+      console.log('📅 Auto-calculating start year from age:', { birthYear: user.birthYear, age: startAge, calculatedYear })
+      setStartYear(calculatedYear.toString())
+    }
+  }, [startAge, user?.birthYear])
+
+  // Auto-calculate age from years
+  useEffect(() => {
+    if (!user?.birthYear || !startYear) return
+    
+    const calculatedAge = parseInt(startYear) - user.birthYear
+    if (calculatedAge > 0 && calculatedAge < 120 && calculatedAge.toString() !== startAge) {
+      console.log('📅 Auto-calculating age from start year:', { birthYear: user.birthYear, startYear, calculatedAge })
+      setStartAge(calculatedAge.toString())
+    }
+  }, [startYear, user?.birthYear])
+
+  // Auto-calculate end year from duration
+  useEffect(() => {
+    if (!startYear || !durationValue) return
+    
+    const startYearNum = parseInt(startYear)
+    const durationNum = parseInt(durationValue)
+    
+    let calculatedEndYear: number
+    if (durationUnit === 'years') {
+      calculatedEndYear = startYearNum + durationNum
+    } else {
+      // For months, add to the year (rough calculation)
+      calculatedEndYear = startYearNum + Math.floor(durationNum / 12)
+    }
+    
+    if (calculatedEndYear && calculatedEndYear.toString() !== endYear) {
+      console.log('📅 Auto-calculating end year from duration:', { startYear, duration: durationValue, unit: durationUnit, calculatedEndYear })
+      setEndYear(calculatedEndYear.toString())
+    }
+  }, [startYear, durationValue, durationUnit])
+
+  // Auto-calculate duration from years
+  useEffect(() => {
+    if (!startYear || !endYear) return
+    
+    const startYearNum = parseInt(startYear)
+    const endYearNum = parseInt(endYear)
+    const calculatedDuration = endYearNum - startYearNum
+    
+    if (calculatedDuration > 0 && calculatedDuration.toString() !== durationValue) {
+      console.log('📅 Auto-calculating duration from years:', { startYear, endYear, calculatedDuration })
+      setDurationValue(calculatedDuration.toString())
+      setDurationUnit('years')
+    }
+  }, [startYear, endYear])
+
   useEffect(() => {
     const checkPremiumStatus = async () => {
       if (!user) {
@@ -475,7 +533,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                     type="number"
                     value={startYear}
                     onChange={(e) => setStartYear(e.target.value)}
-                    placeholder="1995"
+                    placeholder={startAge && user?.birthYear ? "Auto" : "1995"}
                     min="1900"
                     max="2030"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center"
@@ -487,7 +545,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                     type="number"
                     value={endYear}
                     onChange={(e) => setEndYear(e.target.value)}
-                    placeholder="2000"
+                    placeholder={durationValue ? "Auto" : "2000"}
                     min={startYear || "1900"}
                     max="2030"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center"
@@ -508,6 +566,9 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
               
               {/* Age and Duration Fields */}
               <div className="pt-6 border-t border-slate-200 space-y-4">
+                <p className="text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  ✨ <strong>Smart tip:</strong> Enter your age below and we'll calculate the years for you!
+                </p>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">I was about this age (Optional)</label>
                   <input
@@ -519,7 +580,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                     max="120"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center"
                   />
-                  <p className="text-xs text-slate-500 mt-1">Your age when this chapter started</p>
+                  <p className="text-xs text-slate-500 mt-1">Your age when this chapter started (we'll work out the year)</p>
                 </div>
                 
                 <div>
@@ -542,7 +603,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                       <option value="years">Years</option>
                     </select>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">How long this chapter lasted</p>
+                  <p className="text-xs text-slate-500 mt-1">How long this chapter lasted (we'll calculate the end year)</p>
                 </div>
               </div>
             </div>
