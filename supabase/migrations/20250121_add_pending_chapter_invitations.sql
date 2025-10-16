@@ -8,3 +8,5 @@ ADD COLUMN IF NOT EXISTS pending_chapter_invitations jsonb DEFAULT '[]'::jsonb;
 COMMENT ON COLUMN public.user_networks.pending_chapter_invitations IS 'Array of chapter IDs that this person has been invited to but has not yet joined';
 
 
+
+

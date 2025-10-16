@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
         endDate: chapter.end_date,
         location: chapter.location,
         headerImageUrl: headerImageUrl, // Use transformed URL
+        headerImagePosition: chapter.header_image_position ?? 25, // Default to 25% if not set
         inviteCode: chapter.invite_code,
         createdById: chapter.creator_id,
         createdAt: chapter.created_at,

@@ -47,6 +47,7 @@ export interface TimeZone {
   endDate?: string | null
   location?: string | null
   headerImageUrl?: string | null
+  headerImagePosition?: number // 0-100, vertical position percentage
   createdById: string
   createdAt: Date
   updatedAt: Date

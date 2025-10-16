@@ -35,6 +35,7 @@ interface EditChapterData {
   endDate: string
   location: string
   headerImageUrl: string | null
+  headerImagePosition: number // 0-100, where 0 is top, 50 is center, 100 is bottom
 }
 
 const formatDateRange = (startDate?: string | null, endDate?: string | null) => {
@@ -381,7 +382,8 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       startDate: formatDateForInput(chapter.startDate),
       endDate: formatDateForInput(chapter.endDate),
       location: chapter.location || '',
-      headerImageUrl: chapter.headerImageUrl || null
+      headerImageUrl: chapter.headerImageUrl || null,
+      headerImagePosition: chapter.headerImagePosition ?? 25 // Default to 25% (upper portion, good for faces)
     }
     setEditingChapter(chapterData)
     setOriginalChapter({ ...chapterData })
@@ -412,6 +414,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       editingChapter.endDate !== originalChapter.endDate ||
       editingChapter.location !== originalChapter.location ||
       editingChapter.headerImageUrl !== originalChapter.headerImageUrl ||
+      editingChapter.headerImagePosition !== originalChapter.headerImagePosition ||
       selectedHeaderImage !== null
 
     if (!hasChanges) {
@@ -441,6 +444,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       formData.append('startDate', editingChapter.startDate)
       formData.append('endDate', editingChapter.endDate)
       formData.append('location', editingChapter.location)
+      formData.append('headerImagePosition', String(editingChapter.headerImagePosition))
       
       if (selectedHeaderImage) {
         formData.append('headerImage', selectedHeaderImage)
@@ -536,6 +540,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       editingChapter.endDate !== originalChapter.endDate ||
       editingChapter.location !== originalChapter.location ||
       editingChapter.headerImageUrl !== originalChapter.headerImageUrl ||
+      editingChapter.headerImagePosition !== originalChapter.headerImagePosition ||
       selectedHeaderImage !== null
 
     setHasUnsavedChanges(hasChanges)
@@ -657,6 +662,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       formData.append('startDate', editingChapter.startDate)
       formData.append('endDate', editingChapter.endDate)
       formData.append('location', editingChapter.location)
+      formData.append('headerImagePosition', String(editingChapter.headerImagePosition))
       
       if (selectedHeaderImage) {
         formData.append('headerImage', selectedHeaderImage)
@@ -1237,7 +1243,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                           src={selectedChapter.headerImageUrl}
                           alt={selectedChapter.title}
                           className="w-full h-full object-cover object-center"
-                          style={{ objectPosition: 'center 25%' }}
+                          style={{ objectPosition: `center ${selectedChapter.headerImagePosition ?? 25}%` }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                       </div>
@@ -1601,6 +1607,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                           src={previewImageUrl || editingChapter.headerImageUrl || ''}
                           alt="Header preview"
                           className="w-full h-48 object-cover rounded-xl"
+                          style={{ objectPosition: `center ${editingChapter.headerImagePosition}%` }}
                         />
                         <button
                           onClick={removeHeaderImage}
@@ -1609,6 +1616,41 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                         >
                           <X size={16} />
                         </button>
+                      </div>
+                      
+                      {/* Image Position Slider */}
+                      <div className="max-w-md mx-auto space-y-2">
+                        <label className="block text-sm font-medium text-slate-700">
+                          Vertical Position
+                          <span className="text-xs text-slate-500 ml-2">
+                            (Adjust to show faces properly)
+                          </span>
+                        </label>
+                        <div className="flex items-center space-x-4">
+                          <span className="text-xs text-slate-500">Top</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={editingChapter.headerImagePosition}
+                            onChange={(e) => {
+                              setEditingChapter({
+                                ...editingChapter,
+                                headerImagePosition: parseInt(e.target.value)
+                              })
+                            }}
+                            className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          />
+                          <span className="text-xs text-slate-500">Bottom</span>
+                        </div>
+                        <div className="text-xs text-center text-slate-600">
+                          Position: {editingChapter.headerImagePosition}%
+                          {editingChapter.headerImagePosition <= 20 && " (Top - Excellent for full-body)"}
+                          {editingChapter.headerImagePosition > 20 && editingChapter.headerImagePosition <= 40 && " (Upper - Great for faces)"}
+                          {editingChapter.headerImagePosition > 40 && editingChapter.headerImagePosition <= 60 && " (Center - Balanced)"}
+                          {editingChapter.headerImagePosition > 60 && editingChapter.headerImagePosition <= 80 && " (Lower - Shows more ground)"}
+                          {editingChapter.headerImagePosition > 80 && " (Bottom - Shows landscape)"}
+                        </div>
                       </div>
                       
                       {/* Crop & Position Button */}

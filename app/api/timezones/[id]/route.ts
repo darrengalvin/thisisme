@@ -40,7 +40,7 @@ export async function PUT(
 
     // Check if chapter exists and user has permission
     const { data: existingChapter, error: fetchError } = await supabase
-      .from('chapters')
+      .from('timezones')
       .select('id, creator_id, header_image_url')
       .eq('id', timezoneId)
       .single()
@@ -69,11 +69,13 @@ export async function PUT(
     const location = formData.get('location') as string
     const headerImageFile = formData.get('headerImage') as File
     const removeHeaderImage = formData.get('removeHeaderImage') === 'true'
+    const headerImagePosition = parseInt(formData.get('headerImagePosition') as string || '25')
 
     console.log('📝 CHAPTER UPDATE: Form data received:', {
       title, description, startDate, endDate, location,
       hasHeaderImage: !!headerImageFile,
       removeHeaderImage,
+      headerImagePosition,
       timezoneId
     })
 
@@ -179,7 +181,7 @@ export async function PUT(
 
     // Update chapter in Supabase
     const { data: updatedChapter, error: updateError } = await supabase
-      .from('chapters')
+      .from('timezones')
       .update({
         title: title.trim(),
         description: description?.trim() || null,
@@ -187,6 +189,7 @@ export async function PUT(
         end_date: endDate || null,
         location: location?.trim() || null,
         header_image_url: headerImageUrl,
+        header_image_position: headerImagePosition,
         updated_at: new Date().toISOString()
       })
       .eq('id', timezoneId)
@@ -207,6 +210,7 @@ export async function PUT(
       startDate: updatedChapter.start_date,
       endDate: updatedChapter.end_date,
       headerImageUrl: updatedChapter.header_image_url,
+      headerImagePosition: updatedChapter.header_image_position,
       inviteCode: updatedChapter.invite_code,
       createdById: updatedChapter.creator_id,
       createdAt: updatedChapter.created_at,
