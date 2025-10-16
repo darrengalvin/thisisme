@@ -295,7 +295,7 @@ export async function PUT(
     // Check if user owns this memory
     const { data: existingMemory, error: fetchError } = await supabaseAdmin
       .from('memories')
-      .select('user_id, chapter_id')
+      .select('user_id, timezone_id')
       .eq('id', memoryId)
       .single()
 
@@ -323,7 +323,7 @@ export async function PUT(
       title, 
       hasTextContent: !!textContent, 
       timeZoneId,
-      currentChapterId: existingMemory.chapter_id
+      currentTimezoneId: existingMemory.timezone_id
     })
 
     // Update the memory with proper column names
@@ -332,7 +332,7 @@ export async function PUT(
       .update({
         title: title || null,
         text_content: textContent || null,
-        chapter_id: timeZoneId || existingMemory.chapter_id || null,
+        timezone_id: timeZoneId || existingMemory.timezone_id || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', memoryId)
@@ -342,7 +342,7 @@ export async function PUT(
         text_content,
         image_url,
         user_id,
-        chapter_id,
+        timezone_id,
         created_at,
         updated_at,
         media(*)
@@ -364,7 +364,7 @@ export async function PUT(
       ...updatedMemory,
       textContent: updatedMemory.text_content,
       userId: updatedMemory.user_id,
-      chapterId: updatedMemory.chapter_id,
+      timeZoneId: updatedMemory.timezone_id, // Fixed: use timeZoneId instead of chapterId
       createdAt: updatedMemory.created_at,
       updatedAt: updatedMemory.updated_at,
       imageUrl: updatedMemory.image_url
