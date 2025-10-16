@@ -150,25 +150,27 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
 
   // Auto-calculate years from age
   useEffect(() => {
-    if (!user?.birthYear || !startAge) return
+    const birthYear = (user as any)?.birthYear
+    if (!birthYear || !startAge) return
     
-    const calculatedYear = user.birthYear + parseInt(startAge)
+    const calculatedYear = birthYear + parseInt(startAge)
     if (calculatedYear && calculatedYear.toString() !== startYear) {
-      console.log('📅 Auto-calculating start year from age:', { birthYear: user.birthYear, age: startAge, calculatedYear })
+      console.log('📅 Auto-calculating start year from age:', { birthYear, age: startAge, calculatedYear })
       setStartYear(calculatedYear.toString())
     }
-  }, [startAge, user?.birthYear])
+  }, [startAge, user])
 
   // Auto-calculate age from years
   useEffect(() => {
-    if (!user?.birthYear || !startYear) return
+    const birthYear = (user as any)?.birthYear
+    if (!birthYear || !startYear) return
     
-    const calculatedAge = parseInt(startYear) - user.birthYear
+    const calculatedAge = parseInt(startYear) - birthYear
     if (calculatedAge > 0 && calculatedAge < 120 && calculatedAge.toString() !== startAge) {
-      console.log('📅 Auto-calculating age from start year:', { birthYear: user.birthYear, startYear, calculatedAge })
+      console.log('📅 Auto-calculating age from start year:', { birthYear, startYear, calculatedAge })
       setStartAge(calculatedAge.toString())
     }
-  }, [startYear, user?.birthYear])
+  }, [startYear, user])
 
   // Auto-calculate end year from duration
   useEffect(() => {
@@ -533,7 +535,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                     type="number"
                     value={startYear}
                     onChange={(e) => setStartYear(e.target.value)}
-                    placeholder={startAge && user?.birthYear ? "Auto" : "1995"}
+                    placeholder={startAge && (user as any)?.birthYear ? "Auto" : "1995"}
                     min="1900"
                     max="2030"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center"
