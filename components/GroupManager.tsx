@@ -1236,7 +1236,8 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                         <img
                           src={selectedChapter.headerImageUrl}
                           alt={selectedChapter.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover object-center"
+                          style={{ objectPosition: 'center 25%' }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                       </div>
