@@ -262,16 +262,43 @@ export async function POST(request: NextRequest) {
     // If no timeZone specified, assign to user's default private time zone
     let finalTimeZoneId = timeZoneId
     if (!timeZoneId) {
+      // First, try to find an existing PRIVATE timezone
       const { data: defaultTimeZone, error: defaultError } = await supabase
         .from('timezones')
         .select('id')
         .eq('creator_id', user.userId)
         .eq('type', 'PRIVATE')
+        .order('created_at', { ascending: true })
+        .limit(1)
         .maybeSingle()
 
       if (defaultTimeZone && !defaultError) {
         finalTimeZoneId = defaultTimeZone.id
-        console.log('Auto-assigned to default private time zone:', finalTimeZoneId)
+        console.log('Auto-assigned to existing private time zone:', finalTimeZoneId)
+      } else {
+        // No private timezone exists, create a default one
+        console.log('No private timezone found, creating default "My Memories" chapter')
+        const { data: newTimeZone, error: createError } = await supabase
+          .from('timezones')
+          .insert({
+            title: 'My Memories',
+            description: 'Default chapter for your memories',
+            type: 'PRIVATE',
+            creator_id: user.userId
+          })
+          .select('id')
+          .single()
+
+        if (newTimeZone && !createError) {
+          finalTimeZoneId = newTimeZone.id
+          console.log('Created default private time zone:', finalTimeZoneId)
+        } else {
+          console.error('Failed to create default timezone:', createError)
+          return NextResponse.json(
+            { success: false, error: 'Failed to create default chapter. Please create a chapter first.' },
+            { status: 500 }
+          )
+        }
       }
     }
 
