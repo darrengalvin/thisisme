@@ -304,22 +304,34 @@ export async function POST(request: NextRequest) {
 
     // Validation (time zone is optional for personal memories)
     if (finalTimeZoneId) {
-      console.log('Checking timezone membership for:', finalTimeZoneId)
+      console.log('🔍 VALIDATION: Checking timezone:', { finalTimeZoneId, userId: user.userId })
       
       // Verify timezone exists and user has access
       const { data: timeZoneExists, error: timeZoneError } = await supabase
         .from('timezones')
-        .select('id, creator_id')
+        .select('id, creator_id, title')
         .eq('id', finalTimeZoneId)
         .maybeSingle()
 
+      console.log('🔍 VALIDATION: Timezone query result:', { 
+        found: !!timeZoneExists, 
+        data: timeZoneExists,
+        error: timeZoneError 
+      })
+
       if (timeZoneError || !timeZoneExists) {
-        console.error('TimeZone not found:', finalTimeZoneId, timeZoneError)
+        console.error('❌ VALIDATION: TimeZone not found:', {
+          searchingFor: finalTimeZoneId,
+          error: timeZoneError,
+          found: timeZoneExists
+        })
         return NextResponse.json(
-          { success: false, error: 'Time zone not found' },
+          { success: false, error: 'Time zone not found', details: { timeZoneId: finalTimeZoneId } },
           { status: 404 }
         )
       }
+      
+      console.log('✅ VALIDATION: TimeZone found:', timeZoneExists.title)
 
       // Check if user is the creator or a member of the time zone
       if (timeZoneExists.creator_id !== user.userId) {
