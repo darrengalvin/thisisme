@@ -149,7 +149,7 @@ export default function MyPeopleEnhanced() {
       console.log('✅ FETCH CHAPTERS: Got auth token')
 
       // Fetch chapters
-      const response = await fetch('/api/timezones', {
+      const response = await fetch('/api/chapters', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -1181,6 +1181,15 @@ P.S. This Is Me keeps all our memories private and secure - only people we invit
       <div className="mb-4 sm:mb-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+            {/* Back Button */}
+            <button
+              onClick={() => window.history.back()}
+              className="flex items-center space-x-1 text-gray-600 hover:text-gray-900 transition-colors p-1 rounded-lg hover:bg-gray-100"
+              title="Go back to chapters"
+            >
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline text-sm font-medium">Back</span>
+            </button>
             <Users className="w-5 h-5 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
             <div className="min-w-0 flex-1">
               <h1 className="text-lg sm:text-3xl font-bold text-gray-900 truncate">My People</h1>

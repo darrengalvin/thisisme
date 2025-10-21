@@ -197,7 +197,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         formData.append('removeHeaderImage', 'true')
       }
 
-      const response = await fetch(`/api/timezones/${editingChapter.id}`, {
+      const response = await fetch(`/api/chapters/${editingChapter.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -488,7 +488,7 @@ export default function EditChapterModal({ chapter, isOpen, onClose, onSuccess }
         return
       }
 
-      const response = await fetch(`/api/timezones/${editingChapter.id}`, {
+      const response = await fetch(`/api/chapters/${editingChapter.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`

@@ -131,8 +131,8 @@ export default function ChronologicalTimelineView({
       const { token } = await tokenResponse.json()
       console.log('✅ FETCH CHAPTERS: Got auth token')
 
-      console.log('📡 FETCH CHAPTERS: Calling /api/timezones')
-      const response = await fetch('/api/timezones', {
+      console.log('📡 FETCH CHAPTERS: Calling /api/chapters')
+      const response = await fetch('/api/chapters', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

@@ -182,8 +182,8 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
       const { token } = await tokenResponse.json()
       console.log('✅ EDIT MEMORY MODAL: Got auth token')
 
-      console.log('📡 EDIT MEMORY MODAL: Calling /api/timezones (chapters)')
-      const response = await fetch('/api/timezones', {
+      console.log('📡 EDIT MEMORY MODAL: Calling /api/chapters (chapters)')
+      const response = await fetch('/api/chapters', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

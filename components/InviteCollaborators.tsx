@@ -348,9 +348,17 @@ export default function InviteCollaborators({
                   <UserPlus className="w-4 h-4" />
                   <span>Go to My People</span>
                 </button>
-                <p className="text-sm text-green-600 mt-3">
-                  After adding people, come back here and select "Pick from My People"
-                </p>
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700 font-medium mb-1">
+                    📍 How to get back here:
+                  </p>
+                  <p className="text-sm text-blue-600">
+                    1. Click "Go to My People" above<br/>
+                    2. Add your people to the network<br/>
+                    3. Use the "Back" button in My People to return here<br/>
+                    4. Select "Pick from My People" to invite them
+                  </p>
+                </div>
               </div>
             </div>
           )}
