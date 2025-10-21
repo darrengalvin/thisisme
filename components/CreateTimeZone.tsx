@@ -16,6 +16,7 @@ interface CreateTimeZoneProps {
 
 export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZoneProps) {
   const { user } = useAuth()
+  const [userProfile, setUserProfile] = useState<any>(null)
   const [currentStep, setCurrentStep] = useState(1)
   const [title, setTitle] = useState('')
   const [startYear, setStartYear] = useState('')
@@ -40,6 +41,44 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  // Fetch user profile to get birth year
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return
+      
+      try {
+        // Get auth token from cookie
+        const cookies = document.cookie.split(';')
+        const authCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='))
+        const token = authCookie ? authCookie.split('=')[1] : ''
+        
+        if (!token) {
+          console.error('❌ CREATE CHAPTER: No auth token found in cookies')
+          return
+        }
+
+        const response = await fetch('/api/user/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log('👤 CREATE CHAPTER: User profile loaded:', data.data)
+          setUserProfile(data.data)
+        } else {
+          console.error('❌ CREATE CHAPTER: Failed to fetch user profile:', response.status)
+        }
+      } catch (error) {
+        console.error('❌ CREATE CHAPTER: Error fetching user profile:', error)
+      }
+    }
+
+    fetchUserProfile()
+  }, [user])
+
   
   // Auto-save functionality for draft
   const [isAutoSaving, setIsAutoSaving] = useState(false)
@@ -150,7 +189,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
 
   // Auto-calculate years from age
   useEffect(() => {
-    const birthYear = (user as any)?.birthYear
+    const birthYear = userProfile?.birthYear
     if (!birthYear || !startAge) return
     
     const calculatedYear = birthYear + parseInt(startAge)
@@ -158,11 +197,11 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
       console.log('📅 Auto-calculating start year from age:', { birthYear, age: startAge, calculatedYear })
       setStartYear(calculatedYear.toString())
     }
-  }, [startAge, user])
+  }, [startAge, userProfile])
 
   // Auto-calculate age from years
   useEffect(() => {
-    const birthYear = (user as any)?.birthYear
+    const birthYear = userProfile?.birthYear
     if (!birthYear || !startYear) return
     
     const calculatedAge = parseInt(startYear) - birthYear
@@ -170,7 +209,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
       console.log('📅 Auto-calculating age from start year:', { birthYear, startYear, calculatedAge })
       setStartAge(calculatedAge.toString())
     }
-  }, [startYear, user])
+  }, [startYear, userProfile])
 
   // Auto-calculate end year from duration
   useEffect(() => {
@@ -368,9 +407,47 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
       toast.error('Please give your chapter a title')
       return
     }
-    if (currentStep === 2 && !startYear && !endYear) {
-      toast.error('Please provide at least a start year or end year')
-      return
+    if (currentStep === 2) {
+      const birthYear = userProfile?.birthYear
+      let finalStartYear = startYear
+      
+      // Ensure age calculation happens if user entered age but not year
+      if (startAge && birthYear && !startYear) {
+        const calculatedYear = birthYear + parseInt(startAge)
+        if (calculatedYear) {
+          finalStartYear = calculatedYear.toString()
+          setStartYear(calculatedYear.toString())
+          console.log('📅 Auto-calculating start year from age for next step:', { birthYear, age: startAge, calculatedYear })
+        }
+      }
+
+      // Check if we have either years OR age-based calculation
+      const hasYears = finalStartYear || endYear
+      const hasAge = startAge && birthYear
+      
+      if (!hasYears && !hasAge) {
+        console.log('❌ VALIDATION: No valid input found', { 
+          startYear, 
+          endYear, 
+          startAge, 
+          birthYear, 
+          finalStartYear, 
+          hasYears, 
+          hasAge 
+        })
+        toast.error('Please provide at least a start year, end year, or your age at the time')
+        return
+      }
+      
+      console.log('✅ VALIDATION: Input accepted', { 
+        startYear, 
+        endYear, 
+        startAge, 
+        birthYear, 
+        finalStartYear, 
+        hasYears, 
+        hasAge 
+      })
     }
     setCurrentStep(prev => Math.min(prev + 1, totalSteps))
   }
@@ -385,10 +462,46 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
       return
     }
 
-    if (!startYear && !endYear) {
-      toast.error('Please provide at least a start year or end year')
+    const birthYear = userProfile?.birthYear
+    let finalStartYear = startYear
+    
+    // Ensure age calculation happens if user entered age but not year
+    if (startAge && birthYear && !startYear) {
+      const calculatedYear = birthYear + parseInt(startAge)
+      if (calculatedYear) {
+        finalStartYear = calculatedYear.toString()
+        setStartYear(calculatedYear.toString())
+        console.log('📅 Auto-calculating start year from age for submission:', { birthYear, age: startAge, calculatedYear })
+      }
+    }
+
+    // Check if we have either years OR age-based calculation
+    const hasYears = finalStartYear || endYear
+    const hasAge = startAge && birthYear
+    
+    if (!hasYears && !hasAge) {
+      console.log('❌ SUBMIT VALIDATION: No valid input found', { 
+        startYear, 
+        endYear, 
+        startAge, 
+        birthYear, 
+        finalStartYear, 
+        hasYears, 
+        hasAge 
+      })
+      toast.error('Please provide at least a start year, end year, or your age at the time')
       return
     }
+    
+    console.log('✅ SUBMIT VALIDATION: Input accepted', { 
+      startYear, 
+      endYear, 
+      startAge, 
+      birthYear, 
+      finalStartYear, 
+      hasYears, 
+      hasAge 
+    })
 
     if (!user) {
       toast.error('Authentication required')
@@ -435,7 +548,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
         }
       }
 
-      const startDate = startYear ? `${startYear}-01-01` : undefined
+      const startDate = finalStartYear ? `${finalStartYear}-01-01` : undefined
       const endDate = endYear ? `${endYear}-12-31` : undefined
 
       console.log('📝 CREATE CHAPTER: Creating chapter with data:', {
@@ -496,13 +609,13 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
     switch (currentStep) {
       case 1:
         return (
-          <div className="text-center space-y-6">
-            <div className="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-full flex items-center justify-center mx-auto">
-              <span className="text-2xl">📖</span>
+          <div className="text-center space-y-4 sm:space-y-6">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-full flex items-center justify-center mx-auto">
+              <span className="text-xl sm:text-2xl">📖</span>
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">What would you like to call this chapter?</h2>
-              <p className="text-slate-600">Give your life chapter a meaningful name</p>
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">What would you like to call this chapter?</h2>
+              <p className="text-slate-600 text-sm sm:text-base">Give your life chapter a meaningful name</p>
             </div>
             <div className="max-w-md mx-auto">
               <input
@@ -510,7 +623,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g., University Days, Living in London, The Hotel Years..."
-                className="w-full px-4 py-3 text-lg border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                className="w-full px-4 py-3 text-base sm:text-lg border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                 autoFocus
               />
             </div>
@@ -519,16 +632,16 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
 
       case 2:
         return (
-          <div className="text-center space-y-6">
-            <div className="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-full flex items-center justify-center mx-auto">
-              <Calendar className="text-white" size={24} />
+          <div className="text-center space-y-4 sm:space-y-6">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-full flex items-center justify-center mx-auto">
+              <Calendar className="text-white" size={20} />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">When did this chapter happen?</h2>
-              <p className="text-slate-600">Approximate years are fine - this helps place it on your timeline</p>
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">When did this chapter happen?</h2>
+              <p className="text-slate-600 text-sm sm:text-base">Approximate years are fine - this helps place it on your timeline</p>
             </div>
             <div className="max-w-sm mx-auto space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Start Year</label>
                   <input
@@ -538,7 +651,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                     placeholder={startAge && (user as any)?.birthYear ? "Auto" : "1995"}
                     min="1900"
                     max="2030"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center"
+                    className="w-full px-3 py-2 sm:py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center text-sm sm:text-base"
                   />
                 </div>
                 <div>
@@ -550,7 +663,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                     placeholder={durationValue ? "Auto" : "2000"}
                     min={startYear || "1900"}
                     max="2030"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center"
+                    className="w-full px-3 py-2 sm:py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center text-sm sm:text-base"
                   />
                 </div>
               </div>
@@ -583,6 +696,13 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent text-center"
                   />
                   <p className="text-xs text-slate-500 mt-1">Your age when this chapter started (we'll work out the year)</p>
+                  {startAge && userProfile?.birthYear && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-xs text-green-700">
+                        ✅ We'll calculate this as {userProfile.birthYear + parseInt(startAge)} (when you were {startAge})
+                      </p>
+                    </div>
+                  )}
                 </div>
                 
                 <div>
@@ -614,13 +734,13 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
 
       case 3:
         return (
-          <div className="text-center space-y-6">
-            <div className="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-full flex items-center justify-center mx-auto">
-              <ImageIcon className="text-white" size={24} />
+          <div className="text-center space-y-4 sm:space-y-6">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-full flex items-center justify-center mx-auto">
+              <ImageIcon className="text-white" size={20} />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Add a chapter image? (Optional)</h2>
-              <p className="text-slate-600">A visual representation of this period in your life</p>
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">Add a chapter image? (Optional)</h2>
+              <p className="text-slate-600 text-sm sm:text-base">A visual representation of this period in your life</p>
             </div>
             <div className="max-w-md mx-auto">
               {headerImagePreview ? (
@@ -631,7 +751,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                       <img
                         src={headerImagePreview}
                         alt="Chapter preview"
-                        className="w-full h-48 object-cover"
+                        className="w-full h-40 sm:h-48 object-cover"
                       />
                       <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                         Preview
@@ -696,13 +816,13 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
 
       case 4:
         return (
-          <div className="text-center space-y-6">
-            <div className="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-full flex items-center justify-center mx-auto">
-              <span className="text-2xl">✨</span>
+          <div className="text-center space-y-4 sm:space-y-6">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-full flex items-center justify-center mx-auto">
+              <span className="text-xl sm:text-2xl">✨</span>
             </div>
             <div>
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <h2 className="text-2xl font-bold text-slate-900">Add a description? (Optional)</h2>
+              <div className="flex items-center justify-center space-x-2 mb-2 flex-wrap">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Add a description? (Optional)</h2>
                 {isPremiumUser && (
                   <div className="flex items-center space-x-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
                     <Crown size={12} />
@@ -710,7 +830,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                   </div>
                 )}
               </div>
-              <p className="text-slate-600">Tell us a bit about what this chapter was like</p>
+              <p className="text-slate-600 text-sm sm:text-base">Tell us a bit about what this chapter was like</p>
             </div>
             <div className="max-w-md mx-auto">
               <div className="relative">
@@ -719,7 +839,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="This was when I was studying at university, living in student accommodation, making lifelong friends..."
                   rows={4}
-                  className={`w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent resize-none ${isPremiumUser ? 'pr-16' : ''}`}
+                  className={`w-full px-4 py-3 text-sm sm:text-base border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent resize-none ${isPremiumUser ? 'pr-16' : ''}`}
                 />
                 
                 {/* Premium Voice Button - Positioned on textarea */}
@@ -793,10 +913,10 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 to-white overflow-hidden">
+    <div className="h-full min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-white overflow-hidden">
       {/* Fixed Header */}
       <div className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-2xl mx-auto px-6 py-6">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center flex-shrink-0">
@@ -856,8 +976,8 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
       </div>
 
       {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-6 py-8 sm:py-12 pb-32">
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 lg:py-12 pb-24 sm:pb-32">
           {renderStepContent()}
         </div>
       </div>
@@ -896,7 +1016,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
 
       {/* Fixed Bottom Navigation - Rendered via Portal for true fixed positioning */}
       {isMounted && createPortal(
-        <div 
+        <div
           className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg overflow-x-hidden"
           style={{
             position: 'fixed',
@@ -906,21 +1026,21 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
             willChange: 'transform'
           }}
         >
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
-            <div className="flex justify-between items-center">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+            <div className="flex justify-between items-center gap-4">
               <button
                 onClick={handlePrev}
                 disabled={currentStep === 1}
-                className="flex items-center space-x-2 px-3 sm:px-4 py-2 text-slate-600 hover:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+                className="flex items-center space-x-2 px-3 sm:px-4 py-2 text-slate-600 hover:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base min-w-0"
               >
                 <ArrowLeft size={16} />
-                <span>Back</span>
+                <span className="hidden sm:inline">Back</span>
               </button>
               
               {currentStep < totalSteps ? (
                 <button
                   onClick={handleNext}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-700 hover:to-slate-600 text-white px-4 sm:px-6 py-3 rounded-xl font-medium transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base min-w-0"
+                  className="flex items-center space-x-2 bg-gradient-to-r from-slate-600 to-slate-500 hover:from-slate-700 hover:to-slate-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium transition-all duration-200 active:scale-95 shadow-lg text-sm sm:text-base min-w-0"
                 >
                   <span className="truncate">Next</span>
                   <ArrowRight size={16} className="flex-shrink-0" />
@@ -929,7 +1049,7 @@ export default function CreateTimeZone({ onSuccess, onCancel }: CreateTimeZonePr
                 <button
                   onClick={handleSubmit}
                   disabled={isLoading}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-800 hover:to-slate-700 text-white px-4 sm:px-6 py-3 rounded-xl font-medium transition-all duration-200 active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-w-0"
+                  className="flex items-center space-x-2 bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-800 hover:to-slate-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium transition-all duration-200 active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base min-w-0"
                 >
                   {isLoading ? (
                     <>

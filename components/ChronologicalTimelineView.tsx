@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Plus, ZoomIn, ZoomOut, Calendar, Play, Camera, Eye, MessageCircle, Heart, Share, Edit, Info, X, MapPin, Box, List } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import { MemoryWithRelations, TimeZoneWithRelations } from '@/lib/types'
+import { calculateAge, getAgeMessage, getTimelineMessage } from '@/lib/utils'
 import EditChapterModal from './EditChapterModal'
 import MemoryGlobe from './MemoryGlobe'
 import DebugPanel from './DebugPanel'
@@ -255,8 +256,14 @@ export default function ChronologicalTimelineView({
               Your Life Timeline
             </h3>
             <p className="text-slate-600 text-sm lg:text-base">
-              {birthYear} - {currentYear} • {currentYear - birthYear} years
+              {getTimelineMessage(birthYear)}
             </p>
+            {/* Age Badge */}
+            <div className="mt-2">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-700">
+                {getAgeMessage(birthYear)}
+              </span>
+            </div>
             
             {/* Chapter count indicator */}
             <div className="mt-1">

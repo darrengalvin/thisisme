@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { ArrowRight, ArrowLeft, Sparkles, Calendar, User, Mail, Cake, Check, BookOpen, Plus, CheckCircle } from 'lucide-react'
 import SystemMessageModal from './SystemMessageModal'
+import { calculateAge, getAgeMessage, getTimelineMessage } from '@/lib/utils'
 
 type OnboardingStep = 'welcome' | 'name' | 'birth-date' | 'email' | 'timeline-building' | 'timeline-ready' | 'chapter-guide' | 'chapter-creation' | 'memory-guide' | 'memory-creation' | 'complete'
 
@@ -603,6 +604,20 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
                       </select>
                     </div>
                   </div>
+                  
+                  {/* Age Display for Full Date */}
+                  {userData.birthDate && (
+                    <div className="mt-4 p-4 bg-sky-50 border border-sky-200 rounded-xl">
+                      <div className="text-center">
+                        <p className="text-lg font-semibold text-sky-700 mb-1">
+                          {getAgeMessage(new Date(userData.birthDate).getFullYear())}
+                        </p>
+                        <p className="text-sm text-sky-600">
+                          {getTimelineMessage(new Date(userData.birthDate).getFullYear())}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -619,6 +634,20 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
+                  
+                  {/* Age Display */}
+                  {userData.birthYear && (
+                    <div className="mt-4 p-4 bg-sky-50 border border-sky-200 rounded-xl">
+                      <div className="text-center">
+                        <p className="text-lg font-semibold text-sky-700 mb-1">
+                          {getAgeMessage(userData.birthYear)}
+                        </p>
+                        <p className="text-sm text-sky-600">
+                          {getTimelineMessage(userData.birthYear)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -701,10 +730,18 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               </h2>
               <p className="text-slate-600">
                 {userData.useBirthDateOnly ? userData.birthYear : (userData.birthDate ? new Date(userData.birthDate).getFullYear() : null) ? 
-                  `Preparing your journey from ${userData.useBirthDateOnly ? userData.birthYear : new Date(userData.birthDate!).getFullYear()} to today...` :
+                  getTimelineMessage(userData.useBirthDateOnly ? userData.birthYear! : new Date(userData.birthDate!).getFullYear()) :
                   'Preparing your personal timeline...'
                 }
               </p>
+              {/* Age Display */}
+              {userData.useBirthDateOnly ? userData.birthYear : (userData.birthDate ? new Date(userData.birthDate).getFullYear() : null) && (
+                <div className="mt-3">
+                  <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-sky-100 text-sky-700">
+                    {getAgeMessage(userData.useBirthDateOnly ? userData.birthYear! : new Date(userData.birthDate!).getFullYear())}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Timeline Animation */}

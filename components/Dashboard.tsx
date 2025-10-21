@@ -12,6 +12,7 @@ import TicketNotifications from '@/components/TicketNotifications'
 import TabNavigation from './TabNavigation'
 import NotificationBell from './NotificationBell'
 import LoadingTimeoutHandler from './LoadingTimeoutHandler'
+import { calculateAge, getAgeMessage, getTimelineMessage } from '@/lib/utils'
 
 // Lazy load heavy components that aren't needed on initial page load
 const GroupManager = lazy(() => import('./GroupManager'))
@@ -1044,6 +1045,14 @@ export default function Dashboard() {
                   'Your Memory Collection'
                 }
               </p>
+              {/* Age Display */}
+              {user?.birthYear && (
+                <div className="mt-1">
+                  <p className="text-xs font-semibold text-sky-600 bg-sky-50 px-2 py-1 rounded-full inline-block">
+                    {getAgeMessage(user.birthYear)}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

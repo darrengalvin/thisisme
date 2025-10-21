@@ -174,9 +174,9 @@ export async function POST(
 // Helper function to check timezone membership
 async function checkTimezoneMembership(timezoneId: string, userId: string): Promise<boolean> {
   const { data } = await supabaseAdmin
-    .from('timezone_members')
+    .from('chapter_members')
     .select('id')
-    .eq('timezone_id', timezoneId)
+    .eq('chapter_id', timezoneId)
     .eq('user_id', userId)
     .single()
   

@@ -93,4 +93,20 @@ export function validatePassword(password: string): {
     isValid: errors.length === 0,
     errors
   }
+}
+
+// Age calculation utilities
+export function calculateAge(birthYear: number): number {
+  const currentYear = new Date().getFullYear()
+  return currentYear - birthYear
+}
+
+export function getAgeMessage(birthYear: number): string {
+  const age = calculateAge(birthYear)
+  return `You are ${age} years old`
+}
+
+export function getTimelineMessage(birthYear: number): string {
+  const age = calculateAge(birthYear)
+  return `We will create your timeline from ${birthYear} (you are ${age} years old)`
 } 

@@ -10,6 +10,7 @@ export default function HomePage() {
   const [showOnboarding, setShowOnboarding] = useState(true)
   const [onboardingCompleted, setOnboardingCompleted] = useState(false)
   const [checkingExistingUser, setCheckingExistingUser] = useState(true)
+  const [loadingTimeout, setLoadingTimeout] = useState(false)
 
   // Debug logging
   useEffect(() => {
@@ -26,18 +27,27 @@ export default function HomePage() {
   // Check if we should show onboarding or existing user login
   useEffect(() => {
     const checkUserExists = async () => {
-      // Only check if we're not already authenticated
-      if (!user && !loading) {
-        // For now, we'll let the onboarding handle existing user detection
-        // This could be enhanced to check for existing users upfront
-        setCheckingExistingUser(false)
-      } else {
+      // Set checkingExistingUser to false once we have a definitive auth state
+      if (!loading) {
         setCheckingExistingUser(false)
       }
     }
 
     checkUserExists()
   }, [user, loading])
+
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (loading || checkingExistingUser) {
+        console.log('⏰ PAGE: Loading timeout reached, forcing state update')
+        setLoadingTimeout(true)
+        setCheckingExistingUser(false)
+      }
+    }, 5000) // 5 second timeout
+
+    return () => clearTimeout(timeout)
+  }, [loading, checkingExistingUser])
 
   const handleOnboardingComplete = () => {
     console.log('🎉 PAGE: Onboarding completed, waiting for auth session...')
@@ -70,8 +80,16 @@ export default function HomePage() {
           </div>
           <h3 className="text-xl font-bold text-slate-900 mb-2">Loading This is Me</h3>
           <p className="text-slate-600">
-            {checkingExistingUser ? 'Checking your account...' : 'Preparing your story...'}
+            {loadingTimeout ? 'Taking longer than expected...' : checkingExistingUser ? 'Checking your account...' : 'Preparing your story...'}
           </p>
+          {loadingTimeout && (
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+            >
+              Refresh Page
+            </button>
+          )}
         </div>
       </div>
     )

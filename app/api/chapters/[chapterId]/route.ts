@@ -13,12 +13,12 @@ export async function GET(
 
     // Get chapter details
     const { data: chapter, error: chapterError } = await supabaseAdmin
-      .from('timezones')
+      .from('chapters')
       .select(`
         id,
         title,
         description,
-        user_id,
+        creator_id,
         created_at,
         updated_at
       `)

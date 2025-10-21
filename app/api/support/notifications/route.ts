@@ -16,13 +16,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify JWT token and extract user ID
+    const { verifyToken } = await import('@/lib/auth');
+    const userInfo = await verifyToken(token);
+    
+    if (!userInfo) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
     const { data: notifications, error } = await supabase
       .from('ticket_notifications')
       .select(`
         *,
         ticket:tickets(id, title)
       `)
-      .eq('user_id', token)
+      .eq('user_id', userInfo.userId)
       .order('created_at', { ascending: false })
       .limit(50);
 

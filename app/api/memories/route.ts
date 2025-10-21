@@ -51,18 +51,18 @@ export async function GET(request: NextRequest) {
 
     // Get chapters the user created
     const { data: ownedChapters } = await supabase
-      .from('timezones')
+      .from('chapters')
       .select('id')
       .eq('creator_id', targetUserId)
 
     // Get chapters the user is a member of
     const { data: memberChapters } = await supabase
-      .from('timezone_members')
-      .select('timezone_id')
+      .from('chapter_members')
+      .select('chapter_id')
       .eq('user_id', targetUserId)
 
     const ownedIds = ownedChapters?.map(ch => ch.id) || []
-    const memberIds = memberChapters?.map(m => m.timezone_id) || []
+    const memberIds = memberChapters?.map(m => m.chapter_id) || []
     const chapterIds = Array.from(new Set([...ownedIds, ...memberIds]))
 
     // Get all memories from chapters the user has access to
@@ -71,10 +71,10 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         user:users!memories_user_id_fkey(id, email, full_name),
-        timezone:timezones!memories_timezone_id_fkey(id, title, type),
+        timezone:chapters!memories_chapter_id_fkey(id, title, type),
         media(*)
       `)
-      .in('timezone_id', chapterIds.length > 0 ? chapterIds : ['no-chapters'])
+      .in('chapter_id', chapterIds.length > 0 ? chapterIds : [])
       .order('created_at', { ascending: false })
 
     if (memoriesError) {
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       title: memory.title,
       textContent: memory.text_content,
       userId: memory.user_id,
-      timeZoneId: memory.timezone_id, // Fixed: use timezone_id instead of chapter_id
+      timeZoneId: memory.chapter_id, // Fixed: use chapter_id instead of timezone_id
       datePrecision: memory.date_precision,
       approximateDate: memory.approximate_date,
       createdAt: memory.created_at,
@@ -264,7 +264,7 @@ export async function POST(request: NextRequest) {
     if (!timeZoneId) {
       // First, try to find an existing PRIVATE timezone
       const { data: defaultTimeZone, error: defaultError } = await supabase
-        .from('timezones')
+        .from('chapters')
         .select('id')
         .eq('creator_id', user.userId)
         .eq('type', 'PRIVATE')
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
         // No private timezone exists, create a default one
         console.log('No private timezone found, creating default "My Memories" chapter')
         const { data: newTimeZone, error: createError } = await supabase
-          .from('timezones')
+          .from('chapters')
           .insert({
             title: 'My Memories',
             description: 'Default chapter for your memories',
@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
       
       // Verify timezone exists and user has access
       const { data: timeZoneExists, error: timeZoneError } = await supabase
-        .from('timezones')
+        .from('chapters')
         .select('id, creator_id, title')
         .eq('id', finalTimeZoneId)
         .maybeSingle()
@@ -336,9 +336,9 @@ export async function POST(request: NextRequest) {
       // Check if user is the creator or a member of the time zone
       if (timeZoneExists.creator_id !== user.userId) {
         const { data: membership, error: memberError } = await supabase
-          .from('timezone_members')
+          .from('chapter_members')
           .select('id')
-          .eq('timezone_id', finalTimeZoneId)
+          .eq('chapter_id', finalTimeZoneId)
           .eq('user_id', user.userId)
           .maybeSingle()
 
@@ -378,7 +378,7 @@ export async function POST(request: NextRequest) {
         title: title?.trim() || null,
         text_content: textContent?.trim() || null,
         user_id: user.userId,
-        timezone_id: finalTimeZoneId || null,
+        chapter_id: finalTimeZoneId || null,
         date_precision: datePrecision || null,
         approximate_date: approximateDate || null,
         memory_date: memoryDate.toISOString(), // When the actual memory event happened
@@ -534,7 +534,7 @@ export async function POST(request: NextRequest) {
       .select(`
         *,
         user:users!memories_user_id_fkey(id, email),
-        timezone:timezones!memories_timezone_id_fkey(id, title, type),
+        timezone:chapters!memories_chapter_id_fkey(id, title, type),
         media(*)
       `)
       .eq('id', memory.id)
@@ -555,7 +555,7 @@ export async function POST(request: NextRequest) {
       title: completeMemory.title,
       textContent: completeMemory.text_content,
       userId: completeMemory.user_id,
-      timeZoneId: completeMemory.timezone_id, // Fixed: use timezone_id instead of chapter_id
+      timeZoneId: completeMemory.chapter_id, // Fixed: use chapter_id instead of timezone_id
       datePrecision: completeMemory.date_precision,
       approximateDate: completeMemory.approximate_date,
       createdAt: completeMemory.created_at,
