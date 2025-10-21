@@ -39,7 +39,7 @@ if (redisUrl && redisToken) {
 export async function middleware(request: NextRequest) {
   // Skip rate limiting if Redis is not configured (development mode)
   if (!ratelimit || !strictRatelimit) {
-    console.warn('⚠️ Rate limiting disabled: Vercel KV or Upstash Redis not configured');
+    // Skip rate limiting silently in development/production without Redis
     return NextResponse.next();
   }
 
