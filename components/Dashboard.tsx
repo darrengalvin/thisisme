@@ -1010,21 +1010,21 @@ export default function Dashboard() {
       case 'people':
         return (
           <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
-            <div className="space-y-6">
-              <div className="flex justify-end px-6">
-                <RedeemInviteCode onSuccess={() => {
-                  toast.success('Chapters unlocked! Refreshing...')
-                  setTimeout(() => window.location.reload(), 1000)
-                }} />
-              </div>
-              <MyPeopleEnhanced />
-            </div>
+            <MyPeopleEnhanced />
           </Suspense>
         )
       case 'collaborative':
         return (
           <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
-            <CollaborativeMemories user={user} />
+            <div className="space-y-6">
+              <div className="flex justify-end px-6 pt-6">
+                <RedeemInviteCode onSuccess={() => {
+                  toast.success('Chapters unlocked! Check the "Life" tab to see your new chapters.')
+                  setTimeout(() => window.location.reload(), 1000)
+                }} />
+              </div>
+              <CollaborativeMemories user={user} />
+            </div>
           </Suspense>
         )
       default:

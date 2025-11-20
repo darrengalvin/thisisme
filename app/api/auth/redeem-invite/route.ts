@@ -99,10 +99,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`📚 Processing invitation with ${chapterIds.length} chapters`)
 
-    // Get chapter details for response
+    // Get chapter details for response (including creator info for notifications)
     const { data: chapters } = await supabaseAdmin
-      .from('timezones')
-      .select('id, title')
+      .from('chapters')
+      .select('id, title, creator_id')
       .in('id', chapterIds)
 
     // Add user to each invited chapter
@@ -113,9 +113,9 @@ export async function POST(request: NextRequest) {
       try {
         // Check if membership already exists
         const { data: existingMember } = await supabaseAdmin
-          .from('timezone_members')
+          .from('chapter_members')
           .select('id')
-          .eq('timezone_id', chapterId)
+          .eq('chapter_id', chapterId)
           .eq('user_id', user.userId)
           .single()
 
@@ -131,11 +131,11 @@ export async function POST(request: NextRequest) {
 
         // Add user as a member of this chapter
         const { error: memberError } = await supabaseAdmin
-          .from('timezone_members')
+          .from('chapter_members')
           .insert({
-            timezone_id: chapterId,
+            chapter_id: chapterId,
             user_id: user.userId,
-            role: 'collaborator',
+            role: 'COLLABORATOR',
             joined_at: new Date().toISOString()
           })
 
@@ -154,6 +154,30 @@ export async function POST(request: NextRequest) {
             success: true,
             alreadyMember: false
           })
+          
+          // Send notification to chapter creator
+          const chapter = chapters?.find((c: any) => c.id === chapterId)
+          if (chapter && chapter.creator_id) {
+            try {
+              await supabaseAdmin.from('notifications').insert({
+                user_id: chapter.creator_id,
+                type: 'chapter_member_joined',
+                title: 'New Chapter Member',
+                message: `${user.email} has joined your chapter "${chapter.title}"`,
+                metadata: {
+                  chapterId: chapterId,
+                  chapterTitle: chapter.title,
+                  newMemberEmail: user.email,
+                  newMemberId: user.userId
+                },
+                created_at: new Date().toISOString()
+              })
+              console.log(`📬 Sent notification to chapter creator ${chapter.creator_id}`)
+            } catch (notifError) {
+              console.error('Failed to send notification:', notifError)
+              // Don't fail the whole operation if notification fails
+            }
+          }
         }
       } catch (chapterError) {
         console.error(`❌ Error adding user to chapter ${chapterId}:`, chapterError)
