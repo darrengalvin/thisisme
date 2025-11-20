@@ -2131,7 +2131,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       )}
 
       {/* Mobile Floating Action Button (FAB) with Menu - Shows when chapters exist and no modals are open */}
-      {isMounted && chapters.length > 0 && !editingChapter && !isParentModalOpen && createPortal(
+      {isMounted && chapters.length > 0 && !editingChapter && (isParentModalOpen !== true) && createPortal(
         <div className="sm:hidden">
           {/* Backdrop when menu is open */}
           {isFabOpen && (

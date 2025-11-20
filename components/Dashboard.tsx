@@ -25,6 +25,7 @@ const MyPeopleEnhanced = lazy(() => import('./MyPeopleEnhanced'))
 const AccessManagement = lazy(() => import('./AccessManagement'))
 const CollaborativeMemories = lazy(() => import('./CollaborativeMemories'))
 const VoiceChatButton = lazy(() => import('./VoiceChatButton'))
+const RedeemInviteCode = lazy(() => import('./RedeemInviteCode'))
 
 import { MemoryWithRelations } from '@/lib/types'
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates'
@@ -1009,7 +1010,15 @@ export default function Dashboard() {
       case 'people':
         return (
           <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-300 border-t-slate-700 rounded-full"></div></div>}>
-            <MyPeopleEnhanced />
+            <div className="space-y-6">
+              <div className="flex justify-end px-6">
+                <RedeemInviteCode onSuccess={() => {
+                  toast.success('Chapters unlocked! Refreshing...')
+                  setTimeout(() => window.location.reload(), 1000)
+                }} />
+              </div>
+              <MyPeopleEnhanced />
+            </div>
           </Suspense>
         )
       case 'collaborative':
