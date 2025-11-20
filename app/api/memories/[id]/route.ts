@@ -10,15 +10,55 @@ export async function GET(
     const memoryId = params.id
     console.log('🔍 MEMORY API: Request for memory:', memoryId)
     
+    // Check if this is an invitation link
+    const url = new URL(request.url)
+    const isInvited = url.searchParams.get('invited') === 'true'
+    console.log('📧 MEMORY API: Is invitation link:', isInvited)
+    
     // Try to get token from request
     const token = extractTokenFromHeader(request.headers.get('authorization') || undefined)
     console.log('🔍 MEMORY API: Token present:', !!token)
     
+    // Verify user if token is present
+    let user = null
     if (token) {
+      user = await verifyToken(token)
+    }
+    
+    if (user) {
       // User is authenticated - check if they have access
-      const user = await verifyToken(token)
       console.log('🔍 MEMORY API: User verified:', user ? user.userId : 'null')
       if (user) {
+        // Auto-accept invitation if this is an invitation link
+        if (isInvited) {
+          console.log('🎉 MEMORY API: Auto-accepting invitation for user:', user.email)
+          
+          // Check for pending collaboration
+          const { data: pendingCollab } = await supabaseAdmin
+            .from('memory_collaborations')
+            .select('id, status')
+            .eq('memory_id', memoryId)
+            .eq('collaborator_id', user.userId)
+            .eq('status', 'pending')
+            .maybeSingle()
+
+          if (pendingCollab) {
+            console.log('✅ MEMORY API: Found pending collaboration, accepting it')
+            // Auto-accept the collaboration
+            await supabaseAdmin
+              .from('memory_collaborations')
+              .update({
+                status: 'accepted',
+                responded_at: new Date().toISOString()
+              })
+              .eq('id', pendingCollab.id)
+            
+            console.log('🎊 MEMORY API: Invitation automatically accepted!')
+          } else {
+            console.log('ℹ️ MEMORY API: No pending collaboration found (may already be accepted)')
+          }
+        }
+        
         // First, check if user owns this memory
         const { data: ownedMemory, error: ownedMemoryError } = await supabaseAdmin
           .from('memories')
@@ -198,11 +238,8 @@ export async function GET(
     }
 
     // No authentication or invalid token
-    // Check if this is an invitation link
-    const url = new URL(request.url)
-    const isInvited = url.searchParams.get('invited') === 'true'
-    
-    if (isInvited) {
+    // Check if this is an invitation link (non-authenticated users)
+    if (isInvited && !user) {
       // This is an invitation - return limited memory info for preview
       const { data: memory, error: memoryError } = await supabaseAdmin
         .from('memories')

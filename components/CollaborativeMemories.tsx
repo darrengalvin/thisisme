@@ -15,8 +15,10 @@ interface CollaborativeMemory {
   permissions: string[]
   isOwner: boolean
   invitedBy?: string
+  invitedByEmail?: string
   collaborationId?: string
   collaboratorsCount?: number
+  status?: 'pending' | 'accepted'
 }
 
 interface CollaborativeMemoriesProps {
@@ -88,11 +90,50 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
     }
   }
 
+  const acceptInvitation = async (collaborationId: string, memoryId: string) => {
+    try {
+      const tokenResponse = await fetch('/api/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      })
+
+      if (!tokenResponse.ok) {
+        throw new Error('Failed to get authentication token')
+      }
+
+      const { token } = await tokenResponse.json()
+
+      const response = await fetch(`/api/memories/${memoryId}/accept-invitation`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to accept invitation')
+      }
+
+      // Refresh the list
+      await fetchCollaborativeMemories()
+    } catch (error: any) {
+      console.error('Error accepting invitation:', error)
+      alert(error.message || 'Failed to accept invitation')
+    }
+  }
+
   const filteredMemories = memories.filter(memory => {
     if (activeTab === 'shared-with-you') return memory.type === 'collaborative'
     if (activeTab === 'shared-by-you') return memory.type === 'shared'
     return true
   })
+  
+  // Separate pending and accepted memories for "Shared With You" tab
+  const pendingMemories = filteredMemories.filter(m => m.status === 'pending' && activeTab === 'shared-with-you')
+  const acceptedMemories = filteredMemories.filter(m => m.status !== 'pending' || activeTab === 'shared-by-you')
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -190,7 +231,65 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
       </div>
 
       <div className="p-6">
-        {filteredMemories.length === 0 ? (
+        {/* Pending Invitations Section - Only for "Shared With You" tab */}
+        {activeTab === 'shared-with-you' && pendingMemories.length > 0 && (
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-amber-900 mb-4 flex items-center">
+              <span className="inline-flex items-center justify-center w-6 h-6 bg-amber-100 rounded-full mr-2 text-sm">
+                {pendingMemories.length}
+              </span>
+              Pending Invitation{pendingMemories.length !== 1 ? 's' : ''}
+            </h3>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {pendingMemories.map((memory) => (
+                <div 
+                  key={memory.id} 
+                  className="border-2 border-amber-300 bg-amber-50 rounded-lg p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
+                      {memory.title || 'Untitled Memory'}
+                    </h3>
+                    <span className="px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 bg-amber-200 text-amber-900">
+                      Pending
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2 mb-3 p-2 bg-white rounded-lg border border-amber-200">
+                    <UserPlus className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm text-gray-700">
+                      <span className="font-medium text-amber-700">{memory.invitedByEmail || 'Someone'}</span> invited you
+                    </span>
+                  </div>
+
+                  {memory.image_url && (
+                    <img 
+                      src={memory.image_url} 
+                      alt={memory.title || 'Memory'}
+                      className="w-full h-32 object-cover rounded-lg mb-3"
+                    />
+                  )}
+
+                  {memory.text_content && (
+                    <p className="text-gray-600 text-sm line-clamp-3 mb-3">
+                      {memory.text_content}
+                    </p>
+                  )}
+
+                  <button 
+                    onClick={() => acceptInvitation(memory.collaborationId!, memory.id)}
+                    className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 px-3 rounded-lg transition-colors text-sm font-medium"
+                  >
+                    Accept Invitation
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Accepted Memories Section */}
+        {acceptedMemories.length === 0 && pendingMemories.length === 0 ? (
           <div className="text-center py-12 px-4">
             <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
               activeTab === 'shared-with-you' ? 'bg-blue-100' : 'bg-purple-100'
@@ -212,9 +311,15 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
                 : 'Share your memories with friends and family! When you invite others to collaborate on your memories, they will appear here.'}
             </p>
           </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredMemories.map((memory) => (
+        ) : acceptedMemories.length > 0 ? (
+          <>
+            {activeTab === 'shared-with-you' && acceptedMemories.length > 0 && (
+              <h3 className="text-lg font-semibold text-blue-900 mb-4">
+                Accepted Collaborations
+              </h3>
+            )}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {acceptedMemories.map((memory) => (
               <div 
                 key={memory.id} 
                 className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
@@ -299,7 +404,8 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
               </div>
             ))}
           </div>
-        )}
+          </>
+        ) : null}
       </div>
     </div>
   )

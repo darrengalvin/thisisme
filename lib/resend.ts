@@ -216,8 +216,18 @@ export async function sendMemoryInviteEmail({
       
       <div style="text-align: center; margin: 30px 0;">
         <a href="${appUrl}/memories/${memoryId}?invited=true" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
-          View and Contribute to Memory
+          View Memory & Accept Invitation
         </a>
+      </div>
+      
+      <div style="background: #f0f9ff; border: 2px solid #3b82f6; padding: 20px; border-radius: 12px; margin: 30px 0;">
+        <p style="color: #1e40af; margin: 0 0 10px 0; font-weight: 600; font-size: 14px; text-align: center;">
+          Already have an account?
+        </p>
+        <p style="color: #1e40af; font-size: 13px; margin: 0; line-height: 1.6; text-align: center;">
+          Simply click the button above while logged in to accept the invitation.<br>
+          You can also find pending invitations in the <strong>"Shared"</strong> tab of your dashboard.
+        </p>
       </div>
       
       <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
@@ -245,7 +255,11 @@ ${reason ? `Reason: ${reason}\n` : ''}
 As a collaborator, you can:
 ${enabledPermissions.map(permission => `• ${permission}`).join('\n')}
 
-View and contribute to this memory: ${appUrl}/memories/${memoryId}?invited=true
+View and accept invitation: ${appUrl}/memories/${memoryId}?invited=true
+
+Already have an account?
+Simply click the link above while logged in to accept the invitation.
+You can also find pending invitations in the "Shared" tab of your dashboard.
 
 This invitation was sent by ${inviterName} via This Is Me
 Powered by YourCaio • If you didn't expect this invitation, you can safely ignore this email.

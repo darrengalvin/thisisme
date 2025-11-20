@@ -75,10 +75,11 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get collaborative memories
+    // Get collaborative memories (both pending and accepted)
     const { data: collaborations, error: collaborationsError } = await supabaseAdmin
       .from('memory_collaborations')
       .select(`
+        id,
         memory_id,
         permissions,
         status,
@@ -92,10 +93,11 @@ export async function GET(request: NextRequest) {
           user_id,
           created_at,
           updated_at
-        )
+        ),
+        inviter:users!memory_collaborations_invited_by_fkey(email)
       `)
       .eq('collaborator_id', user.userId)
-      .eq('status', 'accepted')
+      .in('status', ['pending', 'accepted'])
 
     if (collaborationsError) {
       console.error('Error fetching collaborative memories:', collaborationsError)
@@ -118,8 +120,10 @@ export async function GET(request: NextRequest) {
       permissions: string[]
       isOwner: boolean
       invitedBy?: string
+      invitedByEmail?: string
       collaborationId?: string
       collaboratorsCount?: number
+      status?: 'pending' | 'accepted'
     }
 
     const ownedMemories: MemoryWithAccess[] = memories.map(memory => {
@@ -137,6 +141,7 @@ export async function GET(request: NextRequest) {
       .filter(collab => collab.memory) // Filter out any null memories
       .map(collab => {
         const memory = collab.memory as any // Type assertion for Supabase result
+        const inviter = (collab as any).inviter
         return {
           id: memory.id,
           title: memory.title,
@@ -149,7 +154,9 @@ export async function GET(request: NextRequest) {
           permissions: collab.permissions,
           isOwner: false,
           invitedBy: collab.invited_by,
-          collaborationId: collab.memory_id
+          invitedByEmail: inviter?.email,
+          collaborationId: (collab as any).id, // This is the collaboration record ID, not memory_id
+          status: collab.status as 'pending' | 'accepted'
         }
       })
 
