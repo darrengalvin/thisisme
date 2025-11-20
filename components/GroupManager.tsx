@@ -245,7 +245,13 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
       if (chaptersResponse.ok) {
         const chaptersData = await chaptersResponse.json()
         console.log('📚 GROUP MANAGER: Loaded chapters:', chaptersData.timeZones?.length || 0)
-        setChapters(chaptersData.timeZones || [])
+        
+        // FILTER to only show user's own chapters in the Life tab
+        const userChapters = (chaptersData.timeZones || []).filter(
+          (chapter: any) => chapter.createdById === user?.id
+        )
+        console.log('✅ GROUP MANAGER: Filtered to user\'s own chapters:', userChapters.length)
+        setChapters(userChapters)
       } else {
         console.error('❌ GROUP MANAGER: Failed to fetch chapters:', chaptersResponse.status)
       }

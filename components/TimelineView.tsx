@@ -276,7 +276,13 @@ export default function TimelineView({
       if (response.ok) {
         const data = await response.json()
         console.log('✅ TIMELINE VIEW: Chapters fetched:', data.timeZones?.length || 0)
-        setChapters(data.timeZones || [])
+        
+        // FILTER to only show user's own chapters in Life tab
+        const userChapters = (data.timeZones || []).filter(
+          (chapter: any) => chapter.createdById === user?.id
+        )
+        console.log('✅ TIMELINE VIEW: Filtered to user\'s own chapters:', userChapters.length)
+        setChapters(userChapters)
       } else {
         console.error('❌ TIMELINE VIEW: Failed to fetch chapters:', response.status)
       }
