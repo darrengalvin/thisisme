@@ -542,7 +542,7 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
   if (!isOpen || !memory) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-slate-200">
@@ -1020,8 +1020,8 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
           </div>
         </div>
 
-        {/* Footer */}
-        <div className={`flex-shrink-0 border-t border-slate-200 ${isLoading ? 'bg-yellow-50' : 'bg-slate-50'}`}>
+        {/* Footer - Extra padding on mobile to avoid FAB overlap */}
+        <div className={`flex-shrink-0 border-t border-slate-200 pb-safe ${isLoading ? 'bg-yellow-50' : 'bg-slate-50'}`}>
           {isLoading && (
             <div className="px-6 py-2 bg-yellow-100 border-b border-yellow-200">
               <p className="text-xs text-yellow-800 text-center">
@@ -1030,14 +1030,14 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
             </div>
           )}
           
-          <div className="flex items-center justify-between p-6">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 sm:p-6 pb-20 sm:pb-6">
           {/* Delete Button - Left Side */}
-          <div>
+          <div className="order-3 sm:order-1">
             {onDelete && (
               <button
                 onClick={handleDeleteMemory}
                 disabled={isLoading}
-                className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
+                className="w-full sm:w-auto px-4 py-3 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
                 title="Delete this memory permanently"
               >
                 <Trash2 size={16} />
@@ -1047,13 +1047,13 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
           </div>
 
           {/* Cancel & Save Buttons - Right Side */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-3 order-1 sm:order-2">
             <button
               onClick={handleClose}
-              className={`px-4 py-2 transition-colors ${
+              className={`flex-1 sm:flex-none px-4 py-3 rounded-lg transition-colors ${
                 isLoading 
-                  ? 'text-red-600 hover:text-red-800 font-medium' 
-                  : 'text-slate-600 hover:text-slate-800'
+                  ? 'text-red-600 hover:text-red-800 font-medium hover:bg-red-50' 
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
               }`}
               title={isLoading ? 'Force close (stops loading)' : 'Cancel'}
             >
@@ -1062,7 +1062,7 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
             <button
               onClick={handleSave}
               disabled={isLoading}
-              className="px-6 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center space-x-2"
+              className="flex-1 sm:flex-none px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
             >
               {isLoading ? (
                 <>
@@ -1072,7 +1072,8 @@ export default function EditMemoryModal({ memory, isOpen, onClose, onSave, onDel
               ) : (
                 <>
                   <Save size={16} />
-                  <span>Save Changes</span>
+                  <span className="hidden sm:inline">Save Changes</span>
+                  <span className="sm:hidden">Save</span>
                 </>
               )}
             </button>

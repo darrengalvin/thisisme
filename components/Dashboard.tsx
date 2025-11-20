@@ -996,6 +996,7 @@ export default function Dashboard() {
               onNavigateToMyPeople={() => setActiveTab('people')}
               onEdit={handleEditMemory}
               onDelete={handleDeleteMemory}
+              isParentModalOpen={showEditMemoryModal}
             />
           </Suspense>
         )

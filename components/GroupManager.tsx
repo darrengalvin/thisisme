@@ -25,6 +25,7 @@ interface GroupManagerProps {
   onNavigateToMyPeople?: () => void
   onEdit?: (memory: MemoryWithRelations) => void
   onDelete?: (memory: MemoryWithRelations) => void
+  isParentModalOpen?: boolean
 }
 
 interface EditChapterData {
@@ -62,7 +63,7 @@ const formatDateRange = (startDate?: string | null, endDate?: string | null) => 
   return 'No dates set'
 }
 
-export default function GroupManager({ user: propUser, onCreateGroup, onStartCreating, onNavigateToMyPeople, onEdit, onDelete }: GroupManagerProps) {
+export default function GroupManager({ user: propUser, onCreateGroup, onStartCreating, onNavigateToMyPeople, onEdit, onDelete, isParentModalOpen = false }: GroupManagerProps) {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
@@ -2121,8 +2122,8 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
         document.body
       )}
 
-      {/* Mobile Floating Action Button (FAB) with Menu - Shows when chapters exist */}
-      {isMounted && chapters.length > 0 && createPortal(
+      {/* Mobile Floating Action Button (FAB) with Menu - Shows when chapters exist and no modals are open */}
+      {isMounted && chapters.length > 0 && !editingChapter && !isParentModalOpen && createPortal(
         <div className="sm:hidden">
           {/* Backdrop when menu is open */}
           {isFabOpen && (
