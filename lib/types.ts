@@ -98,7 +98,7 @@ export interface MemoryWithRelations extends Memory {
 
 export interface TimeZoneWithRelations extends TimeZone {
   creator?: User
-  members?: TimeZoneMember[]
+  members?: TimeZoneMemberWithRelations[]
   memories?: Memory[]
   invitations?: Invitation[]
   _count?: {

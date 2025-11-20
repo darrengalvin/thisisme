@@ -1993,22 +1993,30 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
                     <span className="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">Full access</span>
                   </div>
 
-                  {/* Registered Members */}
+                  {/* Registered Members - Filter out the owner */}
                   {collaboratorsChapter.members && collaboratorsChapter.members.length > 0 && 
-                    collaboratorsChapter.members.map((member, index) => (
-                      <div key={member.id || index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                            <span className="text-white text-sm font-bold">{index + 1}</span>
+                    collaboratorsChapter.members
+                      .filter(member => member.user?.id !== user?.id) // Don't show the owner twice
+                      .map((member, index) => {
+                        const userEmail = member.user?.email || 'Unknown User'
+                        const initials = userEmail.charAt(0).toUpperCase()
+                        const roleText = member.role === 'creator' ? 'Owner' : 'Member'
+                        
+                        return (
+                          <div key={member.id || index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                                <span className="text-white text-sm font-bold">{initials}</span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">{userEmail}</p>
+                                <p className="text-xs text-slate-500">{roleText}</p>
+                              </div>
+                            </div>
+                            <span className="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">Can view & edit</span>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">Collaborator {index + 1}</p>
-                            <p className="text-xs text-slate-500">Member</p>
-                          </div>
-                        </div>
-                        <span className="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">Can view & edit</span>
-                      </div>
-                    ))
+                        )
+                      })
                   }
 
                   {/* Network Collaborators (Pending Invitations) */}
