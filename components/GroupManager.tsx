@@ -66,6 +66,14 @@ const formatDateRange = (startDate?: string | null, endDate?: string | null) => 
 export default function GroupManager({ user: propUser, onCreateGroup, onStartCreating, onNavigateToMyPeople, onEdit, onDelete, isParentModalOpen = false }: GroupManagerProps) {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
+  
+  // Helper function to format chapter name with owner
+  const formatChapterName = (chapter: any) => {
+    const isOwner = chapter.createdById === user?.id
+    const ownerName = isOwner ? 'You' : (chapter.creator?.email?.split('@')[0] || 'Someone')
+    return `${chapter.title} (${ownerName})`
+  }
+  
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
   const [memories, setMemories] = useState<MemoryWithRelations[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -874,7 +882,7 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
               })
               .map((chapter, index) => (
                       <option key={chapter.id} value={chapter.id}>
-                        Chapter {index + 1}: {chapter.title}
+                        {formatChapterName(chapter)}
                       </option>
                     ))}
                   </select>

@@ -49,6 +49,14 @@ export default function TimelineView({
 }: TimelineViewProps) {
   const { user: authUser } = useAuth()
   const user = propUser || authUser
+  
+  // Helper function to format chapter name with owner
+  const formatChapterName = (chapter: any) => {
+    const isOwner = chapter.creatorId === user?.id
+    const ownerName = isOwner ? 'You' : (chapter.creator?.email?.split('@')[0] || 'Someone')
+    return `${chapter.title} (${ownerName})`
+  }
+  
   const [chapters, setChapters] = useState<TimeZoneWithRelations[]>([])
   const [isLoadingChapters, setIsLoadingChapters] = useState(true)
   const [likedMemories, setLikedMemories] = useState<Set<string>>(new Set())
@@ -331,7 +339,7 @@ export default function TimelineView({
                 const chapterMemories = getChapterMemories(chapter.id)
                 return (
                   <option key={chapter.id} value={chapter.id}>
-                    {chapter.title} ({chapterMemories.length})
+                    {formatChapterName(chapter)} ({chapterMemories.length})
                   </option>
                 )
               })}

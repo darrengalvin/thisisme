@@ -41,9 +41,10 @@ const permissionLabels = {
 
 export default function CollaborativeMemories({ user }: CollaborativeMemoriesProps) {
   const [memories, setMemories] = useState<CollaborativeMemory[]>([])
+  const [chapters, setChapters] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'shared-with-you' | 'shared-by-you'>('shared-with-you')
+  const [activeTab, setActiveTab] = useState<'memories-shared' | 'chapters-shared' | 'shared-by-you'>('memories-shared')
 
   useEffect(() => {
     if (user) {
@@ -68,20 +69,37 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
 
       const { token } = await tokenResponse.json()
 
-      // Fetch collaborative memories
-      const response = await fetch('/api/memories/collaborative', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      // Fetch both collaborative memories and chapters in parallel
+      const [memoriesResponse, chaptersResponse] = await Promise.all([
+        fetch('/api/memories/collaborative', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch('/api/timezones', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      ])
 
-      if (!response.ok) {
+      if (!memoriesResponse.ok) {
         throw new Error('Failed to fetch collaborative memories')
       }
 
-      const data = await response.json()
-      setMemories(data.data || [])
+      const memoriesData = await memoriesResponse.json()
+      setMemories(memoriesData.data || [])
+
+      if (chaptersResponse.ok) {
+        const chaptersData = await chaptersResponse.json()
+        // Filter to only show chapters NOT created by the user (shared with them)
+        const sharedChapters = (chaptersData.timeZones || []).filter((chapter: any) => 
+          chapter.creatorId !== user.id
+        )
+        setChapters(sharedChapters)
+      }
     } catch (error) {
       console.error('Error fetching collaborative memories:', error)
       setError('Failed to load collaborative memories')
@@ -126,13 +144,13 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
   }
 
   const filteredMemories = memories.filter(memory => {
-    if (activeTab === 'shared-with-you') return memory.type === 'collaborative'
+    if (activeTab === 'memories-shared') return memory.type === 'collaborative'
     if (activeTab === 'shared-by-you') return memory.type === 'shared'
     return true
   })
   
-  // Separate pending and accepted memories for "Shared With You" tab
-  const pendingMemories = filteredMemories.filter(m => m.status === 'pending' && activeTab === 'shared-with-you')
+  // Separate pending and accepted memories for "Memories Shared" tab
+  const pendingMemories = filteredMemories.filter(m => m.status === 'pending' && activeTab === 'memories-shared')
   const acceptedMemories = filteredMemories.filter(m => m.status !== 'pending' || activeTab === 'shared-by-you')
 
   const formatDate = (dateString: string) => {
@@ -192,20 +210,39 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
         {/* Tab Navigation */}
         <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
           <button
-            onClick={() => setActiveTab('shared-with-you')}
+            onClick={() => setActiveTab('memories-shared')}
             className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'shared-with-you'
+              activeTab === 'memories-shared'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <div className="flex items-center justify-center space-x-2">
-              <UserPlus className="h-4 w-4" />
-              <span>Shared With You</span>
+              <MessageSquare className="h-4 w-4" />
+              <span>Memories</span>
               <span className={`px-2 py-0.5 rounded-full text-xs ${
-                activeTab === 'shared-with-you' ? 'bg-blue-100' : 'bg-gray-200'
+                activeTab === 'memories-shared' ? 'bg-blue-100' : 'bg-gray-200'
               }`}>
                 {memories.filter(m => m.type === 'collaborative').length}
+              </span>
+            </div>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('chapters-shared')}
+            className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'chapters-shared'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center justify-center space-x-2">
+              <Calendar className="h-4 w-4" />
+              <span>Chapters</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                activeTab === 'chapters-shared' ? 'bg-blue-100' : 'bg-gray-200'
+              }`}>
+                {chapters.length}
               </span>
             </div>
           </button>
@@ -231,8 +268,60 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
       </div>
 
       <div className="p-6">
-        {/* Pending Invitations Section - Only for "Shared With You" tab */}
-        {activeTab === 'shared-with-you' && pendingMemories.length > 0 && (
+        {/* Chapters Shared Tab - NEW! */}
+        {activeTab === 'chapters-shared' && (
+          <>
+            {chapters.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Chapters Shared With You</h3>
+                <p className="text-gray-500 max-w-md mx-auto">
+                  When someone invites you to collaborate on their chapters, they'll appear here. 
+                  You'll be able to add memories and contribute to their life story!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {chapters.map((chapter) => (
+                  <div key={chapter.id} className="border border-slate-200 bg-white rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-slate-900 text-lg mb-1">{chapter.title}</h3>
+                        <p className="text-sm text-slate-600">
+                          Shared by <span className="font-medium">{chapter.creator?.email || 'Someone'}</span>
+                        </p>
+                        {chapter.description && (
+                          <p className="text-sm text-slate-600 mt-2">{chapter.description}</p>
+                        )}
+                        {(chapter.startDate || chapter.endDate) && (
+                          <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                            <Calendar size={14} />
+                            {chapter.startDate && new Date(chapter.startDate).getFullYear()}
+                            {chapter.endDate && ` - ${new Date(chapter.endDate).getFullYear()}`}
+                          </div>
+                        )}
+                      </div>
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-3">
+                        Collaborator
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-100">
+                      <button
+                        onClick={() => window.location.href = '/?view=life'}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors text-sm font-medium"
+                      >
+                        View in Life Timeline
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Pending Invitations Section - Only for "Memories Shared" tab */}
+        {activeTab === 'memories-shared' && pendingMemories.length > 0 && (
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-amber-900 mb-4 flex items-center">
               <span className="inline-flex items-center justify-center w-6 h-6 bg-amber-100 rounded-full mr-2 text-sm">
@@ -292,28 +381,28 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
         {acceptedMemories.length === 0 && pendingMemories.length === 0 ? (
           <div className="text-center py-12 px-4">
             <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
-              activeTab === 'shared-with-you' ? 'bg-blue-100' : 'bg-purple-100'
+              activeTab === 'memories-shared' ? 'bg-blue-100' : 'bg-purple-100'
             }`}>
-              {activeTab === 'shared-with-you' ? (
+              {activeTab === 'memories-shared' ? (
                 <UserPlus className="h-8 w-8 text-blue-600" />
               ) : (
                 <Share2 className="h-8 w-8 text-purple-600" />
               )}
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {activeTab === 'shared-with-you' 
+              {activeTab === 'memories-shared' 
                 ? 'No memories shared with you yet' 
                 : 'You haven\'t shared any memories yet'}
             </h3>
             <p className="text-gray-600 max-w-md mx-auto text-sm">
-              {activeTab === 'shared-with-you' 
+              {activeTab === 'memories-shared' 
                 ? 'When someone shares a memory with you, it will appear here so you can view and contribute based on their permissions.' 
                 : 'Share your memories with friends and family! When you invite others to collaborate on your memories, they will appear here.'}
             </p>
           </div>
         ) : acceptedMemories.length > 0 ? (
           <>
-            {activeTab === 'shared-with-you' && acceptedMemories.length > 0 && (
+            {activeTab === 'memories-shared' && acceptedMemories.length > 0 && (
               <h3 className="text-lg font-semibold text-blue-900 mb-4">
                 Accepted Collaborations
               </h3>
@@ -323,7 +412,7 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
               <div 
                 key={memory.id} 
                 className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
-                  activeTab === 'shared-with-you' 
+                  activeTab === 'memories-shared' 
                     ? 'border-blue-200 bg-blue-50/30' 
                     : 'border-purple-200 bg-purple-50/30'
                 }`}
@@ -333,18 +422,18 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
                     {memory.title}
                   </h3>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${
-                    activeTab === 'shared-with-you'
+                    activeTab === 'memories-shared'
                       ? 'bg-blue-100 text-blue-800'
                       : 'bg-purple-100 text-purple-800'
                   }`}>
-                    {activeTab === 'shared-with-you' 
+                    {activeTab === 'memories-shared' 
                       ? 'Collaborator' 
                       : `Shared (${memory.collaboratorsCount || 0})`}
                   </span>
                 </div>
 
-                {/* Show who shared this memory (only for shared-with-you tab) */}
-                {activeTab === 'shared-with-you' && memory.invitedBy && (
+                {/* Show who shared this memory (only for memories-shared tab) */}
+                {activeTab === 'memories-shared' && memory.invitedBy && (
                   <div className="flex items-center space-x-2 mb-3 p-2 bg-white rounded-lg border border-blue-100">
                     <UserPlus className="h-4 w-4 text-blue-600" />
                     <span className="text-sm text-gray-700">
@@ -381,7 +470,7 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
                       <span 
                         key={permission}
                         className={`inline-flex items-center gap-1 px-2 py-1 bg-white text-gray-700 rounded-full text-xs border ${
-                          activeTab === 'shared-with-you' ? 'border-blue-200' : 'border-purple-200'
+                          activeTab === 'memories-shared' ? 'border-blue-200' : 'border-purple-200'
                         }`}
                       >
                         <Icon className="h-3 w-3" />
@@ -394,7 +483,7 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
                 <button 
                   onClick={() => window.location.href = `/memories/${memory.id}`}
                   className={`w-full text-white py-2 px-3 rounded-lg transition-colors text-sm font-medium ${
-                    activeTab === 'shared-with-you'
+                    activeTab === 'memories-shared'
                       ? 'bg-blue-600 hover:bg-blue-700'
                       : 'bg-purple-600 hover:bg-purple-700'
                   }`}
