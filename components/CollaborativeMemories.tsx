@@ -44,7 +44,7 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
   const [chapters, setChapters] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'memories-shared' | 'chapters-shared' | 'shared-by-you'>('memories-shared')
+  const [activeTab, setActiveTab] = useState<'shared-with-you' | 'shared-by-you'>('shared-with-you')
 
   useEffect(() => {
     if (user) {
@@ -147,13 +147,13 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
   }
 
   const filteredMemories = memories.filter(memory => {
-    if (activeTab === 'memories-shared') return memory.type === 'collaborative'
+    if (activeTab === 'shared-with-you') return memory.type === 'collaborative'
     if (activeTab === 'shared-by-you') return memory.type === 'shared'
     return true
   })
   
-  // Separate pending and accepted memories for "Memories Shared" tab
-  const pendingMemories = filteredMemories.filter(m => m.status === 'pending' && activeTab === 'memories-shared')
+  // Separate pending and accepted memories for "Shared With You" tab
+  const pendingMemories = filteredMemories.filter(m => m.status === 'pending' && activeTab === 'shared-with-you')
   const acceptedMemories = filteredMemories.filter(m => m.status !== 'pending' || activeTab === 'shared-by-you')
 
   const formatDate = (dateString: string) => {
@@ -271,8 +271,8 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
       </div>
 
       <div className="p-6">
-        {/* Chapters Shared Tab - NEW! */}
-        {activeTab === 'chapters-shared' && (
+        {/* Shared With You Tab - Contains BOTH chapters AND memories */}
+        {activeTab === 'shared-with-you' && (
           <>
             {chapters.length === 0 ? (
               <div className="text-center py-12">
