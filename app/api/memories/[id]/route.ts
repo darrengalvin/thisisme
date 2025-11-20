@@ -295,7 +295,7 @@ export async function PUT(
     // Check if user owns this memory
     const { data: existingMemory, error: fetchError } = await supabaseAdmin
       .from('memories')
-      .select('user_id, timezone_id')
+      .select('user_id, chapter_id')
       .eq('id', memoryId)
       .single()
 
@@ -323,7 +323,7 @@ export async function PUT(
       title, 
       hasTextContent: !!textContent, 
       timeZoneId,
-      currentTimezoneId: existingMemory.timezone_id
+      currentChapterId: existingMemory.chapter_id
     })
 
     // Update the memory with proper column names
@@ -332,7 +332,7 @@ export async function PUT(
       .update({
         title: title || null,
         text_content: textContent || null,
-        timezone_id: timeZoneId || existingMemory.timezone_id || null,
+        chapter_id: timeZoneId || existingMemory.chapter_id || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', memoryId)
@@ -342,7 +342,7 @@ export async function PUT(
         text_content,
         image_url,
         user_id,
-        timezone_id,
+        chapter_id,
         created_at,
         updated_at,
         media(*)
@@ -364,7 +364,7 @@ export async function PUT(
       ...updatedMemory,
       textContent: updatedMemory.text_content,
       userId: updatedMemory.user_id,
-      timeZoneId: updatedMemory.timezone_id, // Fixed: use timeZoneId instead of chapterId
+      timeZoneId: updatedMemory.chapter_id, // Using chapter_id from database
       createdAt: updatedMemory.created_at,
       updatedAt: updatedMemory.updated_at,
       imageUrl: updatedMemory.image_url
@@ -377,8 +377,16 @@ export async function PUT(
 
   } catch (error) {
     console.error('✏️ UPDATE MEMORY API: Unexpected error:', error)
+    console.error('✏️ UPDATE MEMORY API: Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      type: typeof error
+    })
     return NextResponse.json(
-      { error: 'Failed to update memory' },
+      { 
+        error: 'Failed to update memory',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

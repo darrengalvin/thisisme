@@ -40,7 +40,7 @@ export async function PUT(
 
     // Check if chapter exists and user has permission
     const { data: existingChapter, error: fetchError } = await supabase
-      .from('timezones')
+      .from('chapters')
       .select('id, creator_id, header_image_url')
       .eq('id', timezoneId)
       .single()
@@ -181,7 +181,7 @@ export async function PUT(
 
     // Update chapter in Supabase
     const { data: updatedChapter, error: updateError } = await supabase
-      .from('timezones')
+      .from('chapters')
       .update({
         title: title.trim(),
         description: description?.trim() || null,
@@ -189,7 +189,6 @@ export async function PUT(
         end_date: endDate || null,
         location: location?.trim() || null,
         header_image_url: headerImageUrl,
-        header_image_position: headerImagePosition,
         updated_at: new Date().toISOString()
       })
       .eq('id', timezoneId)

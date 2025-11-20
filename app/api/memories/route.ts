@@ -51,18 +51,18 @@ export async function GET(request: NextRequest) {
 
     // Get chapters the user created
     const { data: ownedChapters } = await supabase
-      .from('timezones')
+      .from('chapters')
       .select('id')
       .eq('creator_id', targetUserId)
 
     // Get chapters the user is a member of
     const { data: memberChapters } = await supabase
-      .from('timezone_members')
-      .select('timezone_id')
+      .from('chapter_members')
+      .select('chapter_id')
       .eq('user_id', targetUserId)
 
     const ownedIds = ownedChapters?.map(ch => ch.id) || []
-    const memberIds = memberChapters?.map(m => m.timezone_id) || []
+    const memberIds = memberChapters?.map(m => m.chapter_id) || []
     const chapterIds = Array.from(new Set([...ownedIds, ...memberIds]))
 
     // Get all memories from chapters the user has access to
@@ -71,10 +71,10 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         user:users!memories_user_id_fkey(id, email, full_name),
-        timezone:timezones!memories_timezone_id_fkey(id, title, type),
+        chapter:chapters!memories_chapter_id_fkey(id, title, type),
         media(*)
       `)
-      .in('timezone_id', chapterIds.length > 0 ? chapterIds : ['no-chapters'])
+      .in('chapter_id', chapterIds.length > 0 ? chapterIds : ['no-chapters'])
       .order('created_at', { ascending: false })
 
     if (memoriesError) {
@@ -92,13 +92,13 @@ export async function GET(request: NextRequest) {
       title: memory.title,
       textContent: memory.text_content,
       userId: memory.user_id,
-      timeZoneId: memory.timezone_id, // Fixed: use timezone_id instead of chapter_id
+      timeZoneId: memory.chapter_id, // Using chapter_id from database
       datePrecision: memory.date_precision,
       approximateDate: memory.approximate_date,
       createdAt: memory.created_at,
       updatedAt: memory.updated_at,
       user: memory.user,
-      timeZone: memory.timezone,
+      timeZone: memory.chapter,
       media: memory.media || []
     })) || []
 
@@ -264,7 +264,7 @@ export async function POST(request: NextRequest) {
     if (!timeZoneId) {
       // First, try to find an existing PRIVATE timezone
       const { data: defaultTimeZone, error: defaultError } = await supabase
-        .from('timezones')
+        .from('chapters')
         .select('id')
         .eq('creator_id', user.userId)
         .eq('type', 'PRIVATE')
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
         // No private timezone exists, create a default one
         console.log('No private timezone found, creating default "My Memories" chapter')
         const { data: newTimeZone, error: createError } = await supabase
-          .from('timezones')
+          .from('chapters')
           .insert({
             title: 'My Memories',
             description: 'Default chapter for your memories',
@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
       
       // Verify timezone exists and user has access
       const { data: timeZoneExists, error: timeZoneError } = await supabase
-        .from('timezones')
+        .from('chapters')
         .select('id, creator_id, title')
         .eq('id', finalTimeZoneId)
         .maybeSingle()
@@ -325,29 +325,68 @@ export async function POST(request: NextRequest) {
           error: timeZoneError,
           found: timeZoneExists
         })
-        return NextResponse.json(
-          { success: false, error: 'Time zone not found', details: { timeZoneId: finalTimeZoneId } },
-          { status: 404 }
-        )
-      }
-      
-      console.log('✅ VALIDATION: TimeZone found:', timeZoneExists.title)
-
-      // Check if user is the creator or a member of the time zone
-      if (timeZoneExists.creator_id !== user.userId) {
-        const { data: membership, error: memberError } = await supabase
-          .from('timezone_members')
+        
+        // Instead of failing, auto-assign to user's default private timezone
+        console.log('🔄 VALIDATION: Chapter not found, auto-assigning to default chapter')
+        const { data: defaultTimeZone, error: defaultError } = await supabase
+          .from('chapters')
           .select('id')
-          .eq('timezone_id', finalTimeZoneId)
-          .eq('user_id', user.userId)
+          .eq('creator_id', user.userId)
+          .eq('type', 'PRIVATE')
+          .order('created_at', { ascending: true })
+          .limit(1)
           .maybeSingle()
 
-        if (memberError || !membership) {
-          console.error('User not a member of timezone:', { timeZoneId: finalTimeZoneId, userId: user.userId, memberError })
-          return NextResponse.json(
-            { success: false, error: 'Access denied to this time zone' },
-            { status: 403 }
-          )
+        if (defaultTimeZone && !defaultError) {
+          finalTimeZoneId = defaultTimeZone.id
+          console.log('✅ VALIDATION: Reassigned to default private timezone:', finalTimeZoneId)
+        } else {
+          // Create a default chapter if none exists
+          console.log('🆕 VALIDATION: Creating default "My Memories" chapter')
+          const { data: newTimeZone, error: createError } = await supabase
+            .from('chapters')
+            .insert({
+              title: 'My Memories',
+              description: 'Default chapter for your memories',
+              type: 'PRIVATE',
+              creator_id: user.userId
+            })
+            .select('id')
+            .single()
+
+          if (newTimeZone && !createError) {
+            finalTimeZoneId = newTimeZone.id
+            console.log('✅ VALIDATION: Created and assigned to new default chapter:', finalTimeZoneId)
+          } else {
+            console.error('❌ VALIDATION: Failed to create default chapter:', createError)
+            return NextResponse.json(
+              { success: false, error: 'The selected chapter no longer exists. Please refresh the page and try again.' },
+              { status: 404 }
+            )
+          }
+        }
+        
+        // Skip the rest of the validation since we've reassigned to a valid chapter
+      } else {
+        // TimeZone exists, validate user has access
+        console.log('✅ VALIDATION: TimeZone found:', timeZoneExists.title)
+
+        // Check if user is the creator or a member of the time zone
+        if (timeZoneExists.creator_id !== user.userId) {
+          const { data: membership, error: memberError } = await supabase
+            .from('chapter_members')
+            .select('id')
+            .eq('chapter_id', finalTimeZoneId)
+            .eq('user_id', user.userId)
+            .maybeSingle()
+
+          if (memberError || !membership) {
+            console.error('User not a member of timezone:', { timeZoneId: finalTimeZoneId, userId: user.userId, memberError })
+            return NextResponse.json(
+              { success: false, error: 'Access denied to this time zone' },
+              { status: 403 }
+            )
+          }
         }
       }
     }
@@ -378,7 +417,7 @@ export async function POST(request: NextRequest) {
         title: title?.trim() || null,
         text_content: textContent?.trim() || null,
         user_id: user.userId,
-        timezone_id: finalTimeZoneId || null,
+        chapter_id: finalTimeZoneId || null,
         date_precision: datePrecision || null,
         approximate_date: approximateDate || null,
         memory_date: memoryDate.toISOString(), // When the actual memory event happened

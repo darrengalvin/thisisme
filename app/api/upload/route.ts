@@ -14,12 +14,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
     }
 
-    // Verify authentication using cookies (like other API routes)
-    const cookieStore = cookies()
-    const token = cookieStore.get('auth-token')?.value
+    // Verify authentication - check Authorization header first, then fall back to cookies
+    let token: string | null = null
+    
+    // Try Authorization header first
+    const authHeader = request.headers.get('Authorization')
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+      console.log('🔑 UPLOAD API: Using token from Authorization header')
+    }
+    
+    // Fall back to cookies if no Authorization header
+    if (!token) {
+      const cookieStore = cookies()
+      token = cookieStore.get('auth-token')?.value || null
+      if (token) {
+        console.log('🔑 UPLOAD API: Using token from cookies')
+      }
+    }
     
     if (!token) {
-      console.log('❌ UPLOAD API: No auth-token cookie found')
+      console.log('❌ UPLOAD API: No auth token found in header or cookies')
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
