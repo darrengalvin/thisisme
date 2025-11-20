@@ -277,12 +277,12 @@ export default function TimelineView({
         const data = await response.json()
         console.log('✅ TIMELINE VIEW: Chapters fetched:', data.timeZones?.length || 0)
         
-        // FILTER to only show user's own chapters in Life tab
-        const userChapters = (data.timeZones || []).filter(
-          (chapter: any) => chapter.createdById === user?.id
-        )
-        console.log('✅ TIMELINE VIEW: Filtered to user\'s own chapters:', userChapters.length)
-        setChapters(userChapters)
+        // Show ALL chapters (own + shared) - user wants to see both!
+        setChapters(data.timeZones || [])
+        
+        const ownCount = (data.timeZones || []).filter((c: any) => c.creatorId === user?.id || c.creator_id === user?.id).length
+        const sharedCount = data.timeZones?.length - ownCount
+        console.log(`✅ TIMELINE VIEW: Showing ${ownCount} own chapters + ${sharedCount} shared chapters`)
       } else {
         console.error('❌ TIMELINE VIEW: Failed to fetch chapters:', response.status)
       }

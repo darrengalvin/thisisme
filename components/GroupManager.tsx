@@ -246,12 +246,12 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
         const chaptersData = await chaptersResponse.json()
         console.log('📚 GROUP MANAGER: Loaded chapters:', chaptersData.timeZones?.length || 0)
         
-        // FILTER to only show user's own chapters in the Life tab
-        const userChapters = (chaptersData.timeZones || []).filter(
-          (chapter: any) => chapter.createdById === user?.id
-        )
-        console.log('✅ GROUP MANAGER: Filtered to user\'s own chapters:', userChapters.length)
-        setChapters(userChapters)
+        // Show ALL chapters (own + shared) - user wants to see both!
+        setChapters(chaptersData.timeZones || [])
+        
+        const ownCount = (chaptersData.timeZones || []).filter((c: any) => c.creatorId === user?.id || c.creator_id === user?.id).length
+        const sharedCount = chaptersData.timeZones?.length - ownCount
+        console.log(`✅ GROUP MANAGER: Showing ${ownCount} own chapters + ${sharedCount} shared chapters`)
       } else {
         console.error('❌ GROUP MANAGER: Failed to fetch chapters:', chaptersResponse.status)
       }

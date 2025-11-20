@@ -95,9 +95,12 @@ export default function CollaborativeMemories({ user }: CollaborativeMemoriesPro
       if (chaptersResponse.ok) {
         const chaptersData = await chaptersResponse.json()
         // Filter to only show chapters NOT created by the user (shared with them)
-        const sharedChapters = (chaptersData.timeZones || []).filter((chapter: any) => 
-          chapter.creatorId !== user.id
-        )
+        // Check multiple field variations for creator ID
+        const sharedChapters = (chaptersData.timeZones || []).filter((chapter: any) => {
+          const creatorId = chapter.creatorId || chapter.creator_id || chapter.createdById
+          return creatorId && creatorId !== user.id
+        })
+        console.log(`🔍 SHARED: ${chaptersData.timeZones?.length} total, ${sharedChapters.length} shared with you`)
         setChapters(sharedChapters)
       }
     } catch (error) {
