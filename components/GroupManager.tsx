@@ -475,6 +475,16 @@ export default function GroupManager({ user: propUser, onCreateGroup, onStartCre
         setPreviewImageUrl(null)
         setHasUnsavedChanges(false)
         setLastSaved(new Date())
+        
+        // ✨ UPDATE: Refresh the chapters list so changes appear immediately
+        console.log('🔄 AUTO-SAVE: Updating chapters list with saved data')
+        setChapters(prevChapters => 
+          prevChapters.map(ch => 
+            ch.id === editingChapter.id 
+              ? { ...ch, ...savedChapter, headerImageUrl: savedChapter.headerImageUrl } 
+              : ch
+          )
+        )
       } else {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Auto-save failed')

@@ -96,11 +96,10 @@ export default function ChronologicalTimelineView({
   }, [])
 
   const handleSaveMemory = useCallback((updatedMemory: MemoryWithRelations) => {
-    console.log('💾 MEMORY SAVED:', updatedMemory.title)
-    // TODO: Update memory in the memories array
-    // For now, just close the modal
-    handleCloseMemoryModal()
-  }, [handleCloseMemoryModal])
+    console.log('💾 MEMORY SAVED - refreshing page to show changes:', updatedMemory.title)
+    // Reload to refresh all data since memories prop is passed from parent
+    window.location.reload()
+  }, [])
 
   // Fetch chapters
   const fetchChapters = useCallback(async () => {

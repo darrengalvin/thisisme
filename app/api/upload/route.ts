@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     
     // Fall back to cookies if no Authorization header
     if (!token) {
-      const cookieStore = cookies()
+    const cookieStore = cookies()
       token = cookieStore.get('auth-token')?.value || null
       if (token) {
         console.log('🔑 UPLOAD API: Using token from cookies')

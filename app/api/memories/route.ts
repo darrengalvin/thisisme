@@ -359,33 +359,33 @@ export async function POST(request: NextRequest) {
             console.log('✅ VALIDATION: Created and assigned to new default chapter:', finalTimeZoneId)
           } else {
             console.error('❌ VALIDATION: Failed to create default chapter:', createError)
-            return NextResponse.json(
+        return NextResponse.json(
               { success: false, error: 'The selected chapter no longer exists. Please refresh the page and try again.' },
-              { status: 404 }
-            )
+          { status: 404 }
+        )
           }
-        }
-        
+      }
+      
         // Skip the rest of the validation since we've reassigned to a valid chapter
       } else {
         // TimeZone exists, validate user has access
-        console.log('✅ VALIDATION: TimeZone found:', timeZoneExists.title)
+      console.log('✅ VALIDATION: TimeZone found:', timeZoneExists.title)
 
-        // Check if user is the creator or a member of the time zone
-        if (timeZoneExists.creator_id !== user.userId) {
-          const { data: membership, error: memberError } = await supabase
+      // Check if user is the creator or a member of the time zone
+      if (timeZoneExists.creator_id !== user.userId) {
+        const { data: membership, error: memberError } = await supabase
             .from('chapter_members')
-            .select('id')
+          .select('id')
             .eq('chapter_id', finalTimeZoneId)
-            .eq('user_id', user.userId)
-            .maybeSingle()
+          .eq('user_id', user.userId)
+          .maybeSingle()
 
-          if (memberError || !membership) {
-            console.error('User not a member of timezone:', { timeZoneId: finalTimeZoneId, userId: user.userId, memberError })
-            return NextResponse.json(
-              { success: false, error: 'Access denied to this time zone' },
-              { status: 403 }
-            )
+        if (memberError || !membership) {
+          console.error('User not a member of timezone:', { timeZoneId: finalTimeZoneId, userId: user.userId, memberError })
+          return NextResponse.json(
+            { success: false, error: 'Access denied to this time zone' },
+            { status: 403 }
+          )
           }
         }
       }
@@ -411,11 +411,26 @@ export async function POST(request: NextRequest) {
       createdAt: memoryDate
     })
     
-    const { data: memory, error: memoryError } = await supabase
+    // Helper to decode any HTML entities that might have been accidentally encoded
+    const decodeHtmlEntities = (text: string | null): string | null => {
+      if (!text) return null
+      // Decode common HTML entities to preserve user's original text
+      return text
+        .replace(/&quot;/g, '"')
+        .replace(/&#34;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&#39;/g, "'")
+        .replace(/&#27;/g, "'") // ESC character sometimes encoded as '
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+    }
+
+    const { data: memory, error: memoryError} = await supabase
       .from('memories')
       .insert({
-        title: title?.trim() || null,
-        text_content: textContent?.trim() || null,
+        title: decodeHtmlEntities(title?.trim() || null),
+        text_content: decodeHtmlEntities(textContent?.trim() || null),
         user_id: user.userId,
         chapter_id: finalTimeZoneId || null,
         date_precision: datePrecision || null,

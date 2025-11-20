@@ -794,10 +794,9 @@ export default function Dashboard() {
   }
 
   const handleMemoryUpdated = (updatedMemory: MemoryWithRelations) => {
-    // Update memory in state
-    setMemories(prevMemories => 
-      prevMemories.map(m => m.id === updatedMemory.id ? updatedMemory : m)
-    )
+    console.log('💾 DASHBOARD: Memory updated, refreshing to show changes:', updatedMemory.title)
+    // Refresh all data to ensure GroupManager and other components see the changes
+    fetchUserAndMemories()
   }
 
   const handleVoiceMemoryAdded = (memory: any) => {

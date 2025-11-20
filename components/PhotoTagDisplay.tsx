@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { Tag } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 
 interface PhotoTag {
@@ -38,11 +39,6 @@ export default function PhotoTagDisplay({
   const [loading, setLoading] = useState(true)
   const [showTags, setShowTags] = useState(!showTagsOnHover)
   const { user, session } = useAuth()
-
-  // Component render log (reduced frequency)
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🏷️ PHOTO TAG DISPLAY: Component rendering for media:', mediaId)
-  }
 
   const loadPhotoTags = async () => {
     try {
@@ -132,8 +128,6 @@ export default function PhotoTagDisplay({
   }
 
   const hasPhotos = tags.length > 0
-
-      console.log('🏷️ PHOTO TAG DISPLAY: Rendering component for media:', mediaId, 'with', tags.length, 'tags')
 
       return (
         <div className="space-y-2">
@@ -230,20 +224,26 @@ export default function PhotoTagDisplay({
                   ))}
                 </>
               ) : (
-                <span className="text-slate-500 italic">
-                  Tagged in this pic: No one • 
+                <div className="flex items-center space-x-2">
+                  <span className="text-slate-500 italic">Tagged in this pic: No one</span>
                   <button 
-                    className="text-blue-600 hover:text-blue-800 hover:underline ml-1 font-medium"
-                    onClick={() => {
-                      console.log('🏷️ Tag now clicked for media:', mediaId)
+                    type="button"
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium cursor-pointer transition-colors flex items-center space-x-1 shadow-sm"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      console.log('🏷️ Opening photo tagger')
                       if (onTagNowClick) {
                         onTagNowClick(mediaId)
+                      } else {
+                        console.error('onTagNowClick handler not provided')
                       }
                     }}
                   >
-                    Tag now
+                    <Tag size={14} />
+                    <span>Tag People</span>
                   </button>
-                </span>
+                </div>
               )}
             </div>
           )}

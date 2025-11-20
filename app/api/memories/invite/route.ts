@@ -104,7 +104,8 @@ export async function POST(request: NextRequest) {
       .eq('email', email)
       .single()
 
-    if (userError && userError.code !== 'PGRST116') { // PGRST116 = no rows found
+    // Handle error checking - but user not existing is OK (we'll create a pending invite)
+    if (userError && userError.code !== 'PGRST116') {
       console.error('📧 MEMORY INVITE API: Error checking user:', userError)
       return NextResponse.json(
         { success: false, error: 'Failed to check user existence' },
@@ -112,18 +113,54 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const collaboratorId = collaboratorUser?.id || null
+    // Check if there's already an invite for this memory + email/user combo
+    let existingInviteQuery = supabaseAdmin
+      .from('memory_collaborations')
+      .select('id, status')
+      .eq('memory_id', memory.id)
 
-    // Create collaboration record
+    if (collaboratorUser) {
+      existingInviteQuery = existingInviteQuery.eq('collaborator_id', collaboratorUser.id)
+    } else {
+      existingInviteQuery = existingInviteQuery.eq('invited_email', email)
+    }
+
+    const { data: existingInvite } = await existingInviteQuery.maybeSingle()
+
+    if (existingInvite) {
+      console.log('📧 MEMORY INVITE API: Invitation already exists:', existingInvite)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: existingInvite.status === 'accepted' 
+            ? 'This user is already collaborating on this memory'
+            : 'An invitation has already been sent to this user'
+        },
+        { status: 409 }
+      )
+    }
+
+    // Create collaboration record - either with user ID or email
+    const collaborationData: any = {
+      memory_id: memory.id,
+      invited_by: user.userId,
+      permissions: permissions,
+      status: 'pending'
+    }
+
+    if (collaboratorUser) {
+      // User exists - link directly
+      collaborationData.collaborator_id = collaboratorUser.id
+      console.log('📧 MEMORY INVITE API: Creating invite for existing user:', collaboratorUser.email)
+    } else {
+      // User doesn't exist - store email for pending invite
+      collaborationData.invited_email = email
+      console.log('📧 MEMORY INVITE API: Creating pending invite for:', email)
+    }
+
     const { data: collaboration, error: collaborationError } = await supabaseAdmin
       .from('memory_collaborations')
-      .insert({
-        memory_id: memory.id,
-        collaborator_id: collaboratorId, // null if user doesn't exist yet
-        invited_by: user.userId,
-        permissions: permissions,
-        status: 'pending'
-      })
+      .insert(collaborationData)
       .select()
       .single()
 
@@ -153,10 +190,15 @@ export async function POST(request: NextRequest) {
       console.log('📧 MEMORY INVITE API: Email sent successfully to:', email)
       console.log('📧 MEMORY INVITE API: Collaboration created with ID:', collaboration.id)
       
+      const isPending = !collaboratorUser
+      
       return NextResponse.json({
         success: true,
-        message: 'Memory invitation sent successfully',
-        collaborationId: collaboration.id
+        message: isPending 
+          ? 'Invitation sent! They will be able to collaborate once they create an account.'
+          : 'Memory invitation sent successfully',
+        collaborationId: collaboration.id,
+        isPending
       })
     } catch (emailError) {
       console.error('📧 MEMORY INVITE API: Email sending failed:', emailError)

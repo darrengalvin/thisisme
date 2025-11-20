@@ -736,7 +736,7 @@ export default function TimelineView({
                             }
                           }}
                           onTagNowClick={(mediaId) => {
-                            console.log('🏷️ TIMELINE: Tag now clicked for media:', mediaId)
+                            console.log('🏷️ Opening photo tagger for media:', mediaId)
                             // Find the memory that contains this media and open simple tagger
                             const memoryWithMedia = memories.find(mem => 
                               mem.media && mem.media.some(m => m.id === mediaId)
@@ -750,7 +750,11 @@ export default function TimelineView({
                                   memoryTitle: memoryWithMedia.title || undefined
                                 })
                                 setShowPhotoTagger(true)
+                              } else {
+                                console.error('Media not found in memory')
                               }
+                            } else {
+                              console.error('Memory with this media not found')
                             }
                           }}
                         />

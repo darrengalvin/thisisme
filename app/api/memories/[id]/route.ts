@@ -319,6 +319,21 @@ export async function PUT(
     const textContent = formData.get('textContent') as string
     const timeZoneId = formData.get('timeZoneId') as string
 
+    // Helper to decode any HTML entities that might have been accidentally encoded
+    const decodeHtmlEntities = (text: string | null): string | null => {
+      if (!text) return null
+      // Decode common HTML entities to preserve user's original text
+      return text
+        .replace(/&quot;/g, '"')
+        .replace(/&#34;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&#39;/g, "'")
+        .replace(/&#27;/g, "'") // ESC character sometimes encoded as '
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+    }
+
     console.log('✏️ UPDATE MEMORY API: Updating with data:', { 
       title, 
       hasTextContent: !!textContent, 
@@ -330,8 +345,8 @@ export async function PUT(
     const { data: updatedMemory, error: updateError } = await supabaseAdmin
       .from('memories')
       .update({
-        title: title || null,
-        text_content: textContent || null,
+        title: decodeHtmlEntities(title) || null,
+        text_content: decodeHtmlEntities(textContent) || null,
         chapter_id: timeZoneId || existingMemory.chapter_id || null,
         updated_at: new Date().toISOString()
       })
