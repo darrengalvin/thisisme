@@ -541,6 +541,12 @@ export default function AddMemoryWizard({ chapterId, chapterTitle, onComplete, o
   }
 
   const handleSubmit = async () => {
+    // Validate that description is not empty after trimming
+    if (!memoryData.description.trim() && memoryData.files.length === 0) {
+      toast.error('Please add some content or media to your memory.')
+      return
+    }
+
     setIsSubmitting(true)
     
     try {

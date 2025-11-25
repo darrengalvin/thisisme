@@ -525,9 +525,17 @@ export default function CreateMemory({ onMemoryCreated }: CreateMemoryProps) {
     setIsSubmitting(true)
 
     try {
+      // Validate that content is not empty after trimming
+      if (!content.trim() && mediaFiles.length === 0) {
+        alert('Please add some content or media to your memory.')
+        setIsSubmitting(false)
+        return
+      }
+
       const token = getAuthToken()
       if (!token) {
         console.error('No auth token found')
+        setIsSubmitting(false)
         return
       }
 
